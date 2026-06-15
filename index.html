@@ -80,6 +80,8 @@
   .tpl-chip{border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:700;color:var(--ink-soft);background:#eef1f6;border-radius:999px;padding:6px 11px;transition:.15s;}
   .tpl-chip:hover{color:var(--ink);}
   .tpl-chip.on{color:#fff;background:var(--svc);}
+  .tpl-chip b{font-weight:800;}
+  .bd-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
   .add-btn-main{color:#fff;background:var(--svc);font-size:13px;padding:9px 18px;box-shadow:0 2px 8px rgba(0,0,0,.1);}
   .add-btn-main:hover{filter:brightness(1.05);background:var(--svc);}
   .tl-num{font-weight:700;color:var(--ink-faint);font-variant-numeric:tabular-nums;}
@@ -442,6 +444,16 @@
     <div id="addBar" class="add-bar"></div>
     <div id="templateBar" class="add-bar"></div>
     <div id="timeline"></div>
+  </div>
+
+  <!-- COURSE BREAKDOWN BY TYPE (filtered views) -->
+  <div class="card">
+    <div class="card-head" style="margin-bottom:6px;">
+      <p class="lbl">Course breakdown — by type</p>
+      <span class="count-pill"><b id="bdTotal">0</b> sessions</span>
+    </div>
+    <p class="lbl2" style="margin:0 0 12px;">The same sessions, filtered into sections — pick a type, or “All” to see each group at once.</p>
+    <div id="breakdown"></div>
   </div>
 
   <!-- SESSIONS PER COURSE -->
@@ -921,6 +933,27 @@ const ACTIVITIES=[
   ["Meals & social",[["breakfast","Breakfast"],["lunch","Lunch"],["dinner","Dinner"],["drinks","Drinks"],["night-out","Night out"],["free-time","Free time"]]],
 ];
 const ACT_LABEL=Object.fromEntries(ACTIVITIES.flatMap(([,items])=>items));
+const ACT_GROUP=Object.fromEntries(ACTIVITIES.flatMap(([g,items])=>items.map(([k])=>[k,g])));
+/* filter categories for the Course-breakdown sections */
+const CATS=[["pool","Pool sessions"],["openwater","Open-water sessions"],["gym","Gym / S&C sessions"],["dryland","Dryland training"],["recovery","Recovery sessions"],["theory","Classroom — theory"],["video","Classroom — video analysis"],["recreation","Group recreation"],["meals","Meals & social"],["meetings","Meetings & meet-ups"],["other","Other"]];
+const CAT_LABEL=Object.fromEntries(CATS);
+function sessionCategory(s){
+  const a=s.act, g=ACT_GROUP[a];
+  if(a==="theory"||a==="briefing") return "theory";
+  if(a==="video-capture"||a==="video-analysis"||a==="feedback") return "video";
+  if(a==="strength-conditioning") return "gym";
+  if(g==="Swim") return "pool";
+  if(g==="Open water") return "openwater";
+  if(g==="Dryland & gym") return "dryland";
+  if(g==="Recovery") return "recovery";
+  if(g==="Recreation & sport") return "recreation";
+  if(g==="Meals & social") return "meals";
+  if(g==="Course") return "meetings";
+  if(s.area==="ocean") return "openwater";
+  if(isPoolArea(s.area)) return "pool";
+  if(s.area==="gym") return "gym";
+  return "other";
+}
 const POOL_AREA_SET=new Set(["olympic-pool","leisure-pool","ocean","hotel-leisure-pool","apart-pool"]);
 function isPoolArea(a){return POOL_AREA_SET.has(a);}
 function areaGroup(a){if(isPoolArea(a))return "Pool/Water";if(a==="gym")return "Gym";if(a==="outdoor"||a==="grass")return "Outdoor";if(a==="indoor")return "Indoor";if(a==="conference")return "Classroom";if(a==="golf-course"||a==="driving-range")return "Golf";if(a==="bodega"||a==="hotel-restaurant"||a==="palapa-bar"||a==="apart-pool-bar")return "Food & bar";return "Other";}
@@ -1375,6 +1408,29 @@ function buildTemplateBar(){
   const n=S.tplTargets.filter(i=>i!==S.tplSrc).length;
   host.innerHTML=`<span class="lbl">Use as template</span><select class="ps-sel" id="tplSrc" style="width:108px">${srcOpts}</select><span class="lbl2" style="color:var(--ink-faint)">copy to →</span><div class="tpl-days">${chips}</div><button class="add-btn add-btn-main" id="tplApply"${n?"":" disabled"}>Copy to ${n} day${n!==1?"s":""}</button>`;
 }
+/* COURSE BREAKDOWN — the plan, filtered into per-type sections */
+function bdRows(arr){
+  return arr.sort((a,b)=>{const au=a.day==null,bu=b.day==null;if(au!==bu)return au?1:-1;return (a.day-b.day)||(""+a.time).localeCompare(""+b.time);})
+    .map(s=>{const t=teacherById(s.lead);return `<tr><td class="day">${s.day==null?"—":esc(COURSE_DAYS[s.day].slice(0,3)+" "+courseDateShort(s.day))}</td><td class="tm">${s.time||"—"}</td><td>${esc(areaLabel(s.area))}</td><td class="nm">${s.act?esc(ACT_LABEL[s.act]||s.act):'<span style="color:var(--ink-faint)">—</span>'}</td><td>${t?esc(t.name):'<span style="color:var(--ink-faint)">—</span>'}</td><td class="cp">${s.dur}m</td></tr>`;}).join("");
+}
+function buildBreakdown(){
+  const host=document.getElementById("breakdown"); if(!host) return;
+  document.getElementById("bdTotal").textContent=S.plan.length;
+  if(!S.plan.length){host.innerHTML=`<p class="lbl2" style="margin:0">No sessions yet — build your course in the Programme schedule and it’ll break down here by type.</p>`;return;}
+  const groups={}; S.plan.forEach(s=>{const c=sessionCategory(s);(groups[c]=groups[c]||[]).push(s);});
+  const present=CATS.filter(([k])=>groups[k]&&groups[k].length);
+  const cur=(S.bdFilter&&(S.bdFilter==="all"||groups[S.bdFilter]))?S.bdFilter:"all";
+  const chips=[["all","All",S.plan.length]].concat(present.map(([k,lab])=>[k,lab,groups[k].length]))
+    .map(([k,lab,n])=>`<button class="tpl-chip${k===cur?" on":""}" data-bd="${k}">${esc(lab)} <b>${n}</b></button>`).join("");
+  const thead=`<thead><tr><th>Day</th><th>Time</th><th>Area</th><th>Activity</th><th>Teacher</th><th>Dur</th></tr></thead>`;
+  let body;
+  if(cur==="all"){
+    body=present.map(([k,lab])=>`<div class="ps-group"><div class="ps-grouph">${esc(lab)} · ${groups[k].length}</div><div class="tl-scroll"><table class="tl">${thead}<tbody>${bdRows(groups[k])}</tbody></table></div></div>`).join("");
+  }else{
+    body=`<div class="tl-scroll"><table class="tl">${thead}<tbody>${bdRows(groups[cur])}</tbody></table></div>`;
+  }
+  host.innerHTML=`<div class="bd-chips">${chips}</div>${body}`;
+}
 /* SESSIONS PER COURSE — now a live read-only tally of what you've built in the Programme schedule */
 function buildSessions(){
   const host=document.getElementById("sessRows"); if(!host) return;
@@ -1610,6 +1666,7 @@ function render(){
   buildRegister();
   buildTimeline();
   buildTemplateBar();
+  buildBreakdown();
   buildSessions();
   buildFacilities();
   buildBusiness();
@@ -1676,6 +1733,7 @@ document.getElementById("templateBar").addEventListener("click",e=>{
   if(e.target.closest("#tplApply")){const day=S.tplSrc,n=copyDayTo(day,S.tplTargets);render();showToast(`Copied ${COURSE_DAYS[day]}’s plan to ${n} day${n!==1?"s":""}`);}
 });
 document.getElementById("templateBar").addEventListener("change",e=>{const s=e.target.closest("#tplSrc");if(s){S.tplSrc=+s.value;S.tplTargets=COURSE_DAYS.map((_,i)=>i).filter(i=>i!==S.tplSrc);buildTemplateBar();}});
+document.getElementById("breakdown").addEventListener("click",e=>{const b=e.target.closest("[data-bd]");if(!b)return;S.bdFilter=b.dataset.bd;buildBreakdown();});
 document.getElementById("newCourseBtn").addEventListener("click",()=>{if(!S.plan.length||confirm("Start a new blank course? Your current unpublished work will be cleared (published courses stay safe).")) newCourse();});
 document.querySelectorAll(".stepper").forEach(st=>{
   st.addEventListener("click",e=>{
