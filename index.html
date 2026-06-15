@@ -70,6 +70,12 @@
   .tl-sel:focus{outline:2px solid rgba(var(--pill-r),var(--pill-g),var(--pill-b),.5);}
   .tl-type{font-weight:700;color:var(--svc);}
   .tl-dur{max-width:72px;}
+  .tl-del{border:0;cursor:pointer;background:transparent;color:var(--ink-faint);font-size:13px;font-weight:700;padding:4px 7px;border-radius:7px;transition:.15s;}
+  .tl-del:hover{color:#e11d48;background:rgba(225,29,72,.1);}
+  .add-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 14px;}
+  .add-bar .lbl{min-width:auto;}
+  .add-btn{border:0;cursor:pointer;font:inherit;font-size:12.5px;font-weight:700;color:var(--svc);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.1);border-radius:999px;padding:7px 14px;transition:.15s;}
+  .add-btn:hover{background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.2);}
   .tl td.tch{font-weight:600;color:var(--ink);white-space:nowrap;}
   .tl-plus{display:inline-block;font-size:10px;font-weight:700;color:var(--svc);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.12);border-radius:999px;padding:1px 6px;margin-left:2px;}
   .tl-ctx{display:flex;flex-wrap:wrap;gap:8px 10px;margin:2px 0 14px;}
@@ -419,6 +425,7 @@
     </div>
     <p class="lbl2" id="courseFrame" style="margin-bottom:14px;"></p>
     <div id="bulkBar" class="bulkbar"></div>
+    <div id="addBar" class="add-bar"></div>
     <div id="timeline"></div>
     <div id="programme"></div>
   </div>
@@ -1007,7 +1014,7 @@ function tlRow(s){
   const classSel=sel("cls",`<option value="">— class —</option>`+CLASS_REGISTER.map(r=>`<option value="${r.id}"${r.id===s.cls?" selected":""}>${esc(r.title)}</option>`).join(""));
   const areaSel=sel("area",areaList.map(([k,lab])=>`<option value="${k}"${k===s.area?" selected":""}>${lab}</option>`).join(""));
   const durSel=`<select class="ps-sel tl-sel tl-dur" data-t="${t}" data-i="${i}" data-f="dur">${[30,60,90].map(m=>`<option value="${m}"${m===s.dur?" selected":""}>${m}m</option>`).join("")}</select>`;
-  return `<tr><td>${dateSel}</td><td>${timeSel}</td><td>${typeSel}</td><td class="tl-classcell">${classSel}</td><td class="tch">${teacherSelect(t,i)}</td><td>${areaSel}</td><td>${durSel}</td></tr>`;
+  return `<tr><td>${dateSel}</td><td>${timeSel}</td><td>${typeSel}</td><td class="tl-classcell">${classSel}</td><td class="tch">${teacherSelect(t,i)}</td><td>${areaSel}</td><td>${durSel}</td><td><button class="tl-del" data-t="${t}" data-i="${i}" title="Remove this session">✕</button></td></tr>`;
 }
 /* COURSE TIMELINE — the master EDITABLE grid; edits write back to the same data the other sections use */
 function buildTimeline(){
@@ -1036,7 +1043,7 @@ function buildTimeline(){
   ];
   const ctx=`<div class="tl-ctx">${meta.map(([k,v])=>`<div class="tl-meta"><span class="tl-mk">${k}</span><span class="tl-mv">${v}</span></div>`).join("")}</div>`;
   const rows=list.map(tlRow).join("");
-  host.innerHTML=`<div class="ps-group"><div class="ps-grouph">Course timeline — every session, fully editable (${list.length})</div>${ctx}<div class="tl-scroll"><table class="tl tl-edit"><thead><tr><th>Date</th><th>Time</th><th>Type</th><th>Class</th><th>Teacher</th><th>Area</th><th>Dur</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  host.innerHTML=`<div class="ps-group"><div class="ps-grouph">Course timeline — every session, fully editable (${list.length})</div>${ctx}<div class="tl-scroll"><table class="tl tl-edit"><thead><tr><th>Date</th><th>Time</th><th>Type</th><th>Class</th><th>Teacher</th><th>Area</th><th>Dur</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
 function schedRow(t,i,areaList){
   const day=sDay(t,i), tm=sTime(t,i), cls=sCls(t,i), area=sArea(t,i), dur=sDur(t,i), short=SHORT_BY_TYPE[t]||"Session";
@@ -1289,6 +1296,11 @@ const POOL_LAYERS=[["biz","Business €"],["occ","Occupancy"],["names","Names"]]
 function buildPoolLayers(){
   const host=document.getElementById("poolLayers"); if(!host) return;
   host.innerHTML=`<span class="pl-lbl">Show:</span>`+POOL_LAYERS.map(([k,lab])=>`<button class="pl-toggle${S.poolLayers[k]?" on":""}" data-layer="${k}" role="switch" aria-checked="${!!S.poolLayers[k]}"><span class="pl-knob"></span>${lab}</button>`).join("");
+}
+/* + Add a class — build the course right in the Programme schedule (Sessions per course reacts) */
+function buildAddBar(){
+  const host=document.getElementById("addBar"); if(!host) return;
+  host.innerHTML=`<span class="lbl">Add a class</span>`+PROG_TYPES.map(([k,,short])=>`<button class="add-btn" data-add="${k}">+ ${esc(short)}</button>`).join("");
 }
 function buildSessions(){
   document.getElementById("sessRows").innerHTML=SESSION_TYPES.map(t=>{
@@ -1581,6 +1593,8 @@ document.getElementById("programme").addEventListener("change",onSchedChange);
 document.getElementById("poolSched").addEventListener("click",onSchedClick);
 document.getElementById("poolSched").addEventListener("change",onSchedChange);
 document.getElementById("timeline").addEventListener("change",onSchedChange);
+document.getElementById("timeline").addEventListener("click",e=>{const d=e.target.closest(".tl-del");if(!d)return;removeSession(d.dataset.t,+d.dataset.i);buildSessions();buildSchedules();render();});
+document.getElementById("addBar").addEventListener("click",e=>{const b=e.target.closest("[data-add]");if(!b)return;const t=b.dataset.add;addSession(t,{day:0,time:"12:00",cls:"",area:defaultArea(t),dur:60,lead:""});buildSessions();buildSchedules();render();});
 document.getElementById("bulkBar").addEventListener("click",e=>{
   const sc=e.target.closest("[data-scope]"); if(sc){S.bulkScope=sc.dataset.scope;buildBulk();return;}
   const ab=e.target.closest(".bulk-apply"),btn=e.target.closest("button[data-v]");
@@ -1704,7 +1718,7 @@ document.getElementById("laneEditor").addEventListener("change",e=>{
 
 /* ── INIT ─────────────────────────────────────────────────── */
 loadPublished();
-buildSvcPills(); buildCoursePills(); syncSizeVis(); buildVenues(); buildCalendar(); buildWeekTrack(); buildSizeSeg(); buildSessions(); buildSchedules(); buildFilters(); buildRoster(); buildEditor(); render();
+buildSvcPills(); buildCoursePills(); syncSizeVis(); buildVenues(); buildCalendar(); buildWeekTrack(); buildSizeSeg(); buildAddBar(); buildSessions(); buildSchedules(); buildFilters(); buildRoster(); buildEditor(); render();
 /* deep-link: re-scroll to a #fragment after dynamic content is built */
 if(location.hash){const el=document.querySelector(location.hash);if(el)setTimeout(()=>el.scrollIntoView({block:"start"}),300);}
 </script>
