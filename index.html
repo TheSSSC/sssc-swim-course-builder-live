@@ -1505,13 +1505,15 @@ function render(){
   if(poolN===0) N.push(["warn","○",`<b>No pool classes yet.</b> Raise the “Pool classes” toggle to build the course.`]);
   document.getElementById("notes").innerHTML=N.map(([c,ic,t])=>`<div class="note ${c}"><span class="ic">${ic}</span><span>${t}</span></div>`).join("");
 
-  /* WEEK */
-  const tt=timetable(), placeText=isGroup?`${perSlot}`:`${total}`;
+  /* WEEK — the pool classes you've actually built; blank until you pick classes, then auto-generated */
+  const placeText=isGroup?`${perSlot}`:`${total}`;
   document.getElementById("timeHead").textContent=isGroup?"Group time":"1-2-1 time";
-  document.getElementById("week").innerHTML=tt.map((row,i)=>{
-    const [name,day,gt,pt]=row, time=isGroup?gt:pt;
-    return `<tr><td><span class="cn">${i+1}</span><span class="nm">${name}</span></td><td class="day">${day}</td><td class="tm">${time}</td><td class="cp">${placeText}</td></tr>`;
-  }).join("");
+  const wkList=[];
+  for(let i=0;i<S.sessions.pool;i++){const id=sCls("pool",i); if(!id) continue; const r=CLASS_REGISTER.find(x=>x.id===id); wkList.push({title:r?r.title:id,day:sDay("pool",i),time:sTime("pool",i)});}
+  wkList.sort((a,b)=>a.day-b.day||a.time.localeCompare(b.time));
+  document.getElementById("week").innerHTML = wkList.length
+    ? wkList.map((c,i)=>`<tr><td><span class="cn">${i+1}</span><span class="nm">${esc(c.title)}</span></td><td class="day">${COURSE_DAYS[c.day]||""}</td><td class="tm">${c.time}</td><td class="cp">${placeText}</td></tr>`).join("")
+    : `<tr><td colspan="4" style="color:var(--ink-faint);padding:14px 2px;">No classes yet — add pool classes in “Sessions per course”, then pick a class for each. They’ll auto-fill here.</td></tr>`;
   document.getElementById("weekLbl").textContent=`The week — ${sv.name}${sv.stroke?" · "+STROKES[S.course].label:""}`;
 
   buildRegister();
