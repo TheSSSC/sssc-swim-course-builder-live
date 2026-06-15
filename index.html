@@ -76,6 +76,13 @@
   .add-bar .lbl{min-width:auto;}
   .add-btn{border:0;cursor:pointer;font:inherit;font-size:12.5px;font-weight:700;color:var(--svc);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.1);border-radius:999px;padding:7px 14px;transition:.15s;}
   .add-btn:hover{background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.2);}
+  .add-btn-main{color:#fff;background:var(--svc);font-size:13px;padding:9px 18px;box-shadow:0 2px 8px rgba(0,0,0,.1);}
+  .add-btn-main:hover{filter:brightness(1.05);background:var(--svc);}
+  .tl-num{font-weight:700;color:var(--ink-faint);font-variant-numeric:tabular-nums;}
+  .tl-date{font-size:12px;font-weight:700;color:var(--ink-soft);white-space:nowrap;}
+  .tally{display:flex;flex-wrap:wrap;gap:8px;}
+  .tally-chip{font-size:12.5px;font-weight:600;color:var(--ink-soft);background:#eef1f6;border-radius:999px;padding:7px 13px;}
+  .tally-chip b{color:var(--svc);font-weight:800;}
   .tl td.tch{font-weight:600;color:var(--ink);white-space:nowrap;}
   .tl-plus{display:inline-block;font-size:10px;font-weight:700;color:var(--svc);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.12);border-radius:999px;padding:1px 6px;margin-left:2px;}
   .tl-ctx{display:flex;flex-wrap:wrap;gap:8px 10px;margin:2px 0 14px;}
@@ -424,10 +431,8 @@
       <span class="count-pill"><b id="progTotal">0</b> sessions</span>
     </div>
     <p class="lbl2" id="courseFrame" style="margin-bottom:14px;"></p>
-    <div id="bulkBar" class="bulkbar"></div>
     <div id="addBar" class="add-bar"></div>
     <div id="timeline"></div>
-    <div id="programme"></div>
   </div>
 
   <!-- SESSIONS PER COURSE -->
@@ -475,10 +480,6 @@
       <div class="ctl" id="sizeCtl" style="grid-column:1/-1;">
         <p class="lbl">Swimmers per group lane</p>
         <div class="seg" id="sizeSeg"></div>
-      </div>
-      <div class="ctl" style="grid-column:1/-1;">
-        <p class="lbl">Pool class schedule — day · time · class · area · duration (pool venues only)</p>
-        <div id="poolSched"></div>
       </div>
     </div>
   </div>
@@ -647,10 +648,10 @@ const CLASS_REGISTER=[
 ];
 /* the course runs Sunday → Friday (fly in Sat afternoon, fly out Sat morning) */
 const COURSE_DAYS=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday"];
-const CLASS_TIMES=["07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00"];
+const CLASS_TIMES=(()=>{const t=[];for(let h=6;h<=23;h++){t.push((h<10?"0"+h:h)+":00");t.push((h<10?"0"+h:h)+":30");}return t;})();
 const WD=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 /* sports facility / area a class runs in */
-const AREAS=[["olympic-pool","Olympic pool"],["open-water","Open water"],["leisure-pool","Leisure pool"],["gym","Gym"],["outdoor","Outdoor training area"],["indoor","Indoor training area"],["grass","Grass"],["beach","Beach"],["promenade","Promenade"],["pool-dryland","Olympic pool dryland training"],["reception","Reception"],["classroom-1","Classroom 1 — Theory classes"],["classroom-2","Classroom 2 — Video analysis"],["classroom-3","Classroom 3 — Meetings &amp; group meet-ups"],["palapa-bar","Palapa bar"],["bodega","Bodega Bar &amp; restaurant"],["hotel-restaurant","Hotel restaurant"],["outside-reception","Outside hotel reception"],["plaza-rambla","Plaza Rambla"],["teatro","Teatro (indoor hall)"],["infinity-pool","Hotel Infinity Pool (adults)"],["apart-family-pool","Apart-hotel family pool"],["apart-pool-bar","Apart-hotel pool bar"]];
+const AREAS=[["olympic-pool","Olympic pool"],["leisure-pool","Leisure pool"],["ocean","Ocean (open water)"],["gym","Gym"],["indoor","Indoor training area"],["outdoor","Outdoor training area"],["grass","Grass"],["promenade","Promenade"],["hotel-reception","Hotel reception"],["conference","Conference rooms"],["outside-reception","Outside hotel reception"],["outside-sportsbooking","Outside sportsbooking"],["sports-shop","Sports shop"],["playa-rambla","Playa Rambla"],["teatro","Teatro"],["bodega","Bodega restaurant"],["hotel-restaurant","Hotel restaurant"],["palapa-bar","Palapa bar"],["apart-pool-bar","Pool bar (apart hotel)"],["hotel-leisure-pool","Hotel leisure pool"],["apart-pool","Apart-hotel pool"],["golf-course","Golf course"],["driving-range","Driving range"]];
 /* pool-only venues — pool classes can only run in a pool (or the ocean) */
 const POOL_AREAS=[["olympic-pool","Olympic pool"],["apart-pool","Apart pool"],["hotel-pool","Hotel pool"],["open-water","Ocean (open water)"]];
 function areaLabel(k){const a=AREAS.find(x=>x[0]===k)||POOL_AREAS.find(x=>x[0]===k);return a?a[1]:k;}
@@ -870,7 +871,8 @@ S.pubWeeks=[S.week];       /* which weeks to publish to (block-booking) */
 S.loadedId=null;           /* id of a published course currently loaded for editing */
 S.poolLayers={biz:false,occ:false,names:false};  /* overlay toggles for the pool visualizer */
 S.areaRates={};            /* per-area €/hr overrides for facility hire (defaults from AREA_COST) */
-S.lead={};                 /* per-session lead-teacher overrides, keyed "type:index" */
+S.lead={};                 /* (legacy, unused) */
+S.plan=[];                 /* THE COURSE: a flat list of sessions, built one at a time */
 
 /* ── HELPERS ──────────────────────────────────────────────── */
 function num(n){return Math.round(n).toLocaleString();}
@@ -898,6 +900,32 @@ function setSched(t,i,f,v){
   if(!S.sched[t][i])S.sched[t][i]={day:i%6,time:"12:00",cls:"",area:defaultArea(t),dur:60};
   S.sched[t][i][f]=v;
 }
+/* ── FLAT SESSION PLAN — the course is built one session at a time ── */
+const ACTIVITIES=[
+  ["Course",[["intro","First introduction"],["group-meetup","Group meet-up"],["meeting","Meeting"],["welcome","Welcome session"]]],
+  ["Swim",[["swim-technique","Swim technique"],["swim-training","Swim training"],["swim-drills","Swim drills"],["stroke-correction","Stroke correction"],["swim-analysis","Swim analysis"],["ramp-test","Ramp test"],["tempo-trainer","Tempo-trainer set"]]],
+  ["Open water",[["ow-swim","Open-water swim"],["ow-training","Open-water training"],["ow-skills","Sighting & navigation"]]],
+  ["Analysis & theory",[["theory","Theory"],["video-capture","Video capture"],["video-analysis","Video analysis"],["feedback","Feedback"]]],
+  ["Dryland & gym",[["strength-conditioning","Strength & conditioning"],["dryland","Dryland training"],["mobility","Mobility & stretch"]]],
+  ["Recovery",[["recovery","Recovery"],["massage","Massage"],["foam-rolling","Foam rolling / self-massage"],["stretch-relax","Stretch & relax"],["relax-unwind","Relax & unwind"],["yoga","Yoga"]]],
+  ["Recreation & sport",[["golf","Golf"],["chip-putt","Chip & putt"],["driving-range","Driving range"],["mini-golf","Mini golf"],["volleyball","Volleyball"],["beach-volleyball","Beach volleyball"],["badminton","Badminton"],["tennis","Tennis"],["padel","Padel"],["table-tennis","Table tennis"],["kayaking","Kayaking"],["sup","Stand-up paddle"],["hike","Hike"],["mountain-ramble","Mountain-top ramble"],["trail-run","Trail run"],["road-run","Road run"],["hill-run","Hill run"],["bike-ride","Bike ride"],["dance","Dance class"],["karaoke","Karaoke"],["multisports","Multisports"],["beach-games","Beach games"],["rugby","Rugby"],["cricket","Cricket"],["rounders","Rounders"],["beach-football","Beach football"],["football","Football"],["basketball","Basketball"],["fun-games","Fun & games"]]],
+  ["Meals & social",[["breakfast","Breakfast"],["lunch","Lunch"],["dinner","Dinner"],["drinks","Drinks"],["night-out","Night out"],["free-time","Free time"]]],
+];
+const ACT_LABEL=Object.fromEntries(ACTIVITIES.flatMap(([,items])=>items));
+const POOL_AREA_SET=new Set(["olympic-pool","leisure-pool","ocean","hotel-leisure-pool","apart-pool"]);
+function isPoolArea(a){return POOL_AREA_SET.has(a);}
+function areaGroup(a){if(isPoolArea(a))return "Pool/Water";if(a==="gym")return "Gym";if(a==="outdoor"||a==="grass")return "Outdoor";if(a==="indoor")return "Indoor";if(a==="conference")return "Classroom";if(a==="golf-course"||a==="driving-range")return "Golf";if(a==="bodega"||a==="hotel-restaurant"||a==="palapa-bar"||a==="apart-pool-bar")return "Food & bar";return "Other";}
+const PLAN_DURS=[15,30,45,60,90,120,150,180,240];
+/* the + Add buttons — each drops in a session pre-set for that category, then you refine it */
+const ADD_CATS=[
+  ["Pool","olympic-pool","swim-training"],["Open water","ocean","ow-swim"],["Gym / S&C","gym","strength-conditioning"],
+  ["Dryland","outdoor","dryland"],["Recovery","leisure-pool","stretch-relax"],["Theory","conference","theory"],
+  ["Analysis","conference","video-analysis"],["Recreation","grass",""],["Meeting","conference","group-meetup"],["Meal","hotel-restaurant","lunch"],
+];
+function addPlan(preset){S.plan.push(Object.assign({day:0,time:"09:00",area:"olympic-pool",act:"",dur:60,lead:""},preset||{}));}
+function removePlan(i){if(i>=0&&i<S.plan.length)S.plan.splice(i,1);}
+function planSorted(){return S.plan.map((s,i)=>({...s,_i:i})).sort((a,b)=>a.day-b.day||a.time.localeCompare(b.time));}
+function poolPlan(){return planSorted().filter(s=>isPoolArea(s.area));}
 function clientColor(g){return g==="male"?"#3b82f6":"#ec4899";}
 function pickClients(side,laneIdx,n){const out=[];for(let k=0;k<n;k++){const gender=side==="male"?"male":side==="female"?"female":(k%2===0?"male":"female");const pool=gender==="male"?DEMO_M:DEMO_F;out.push({name:pool[(laneIdx*3+k)%pool.length],gender,age:22+((laneIdx*5+k*3)%40)});}return out;}
 function laneBookedCount(i,cap){return Math.min(cap,Math.max(0,cap-(i%4)));}
@@ -968,6 +996,7 @@ function buildSizeSeg(){
   document.getElementById("sizeSeg").innerHTML=[0,1,2,3,4,5,6,7,8].map(v=>`<button class="${v===S.size?"on":""}" data-size="${v}">${v}</button>`).join("");
 }
 function courseDateLabel(dayIdx){const s=new Date(+S.week.slice(0,4),+S.week.slice(5,7)-1,+S.week.slice(8,10));s.setDate(s.getDate()+dayIdx+1);return `${WD[s.getDay()]} ${s.getDate()} ${MON[s.getMonth()]}`;}
+function courseDateShort(dayIdx){const s=new Date(+S.week.slice(0,4),+S.week.slice(5,7)-1,+S.week.slice(8,10));s.setDate(s.getDate()+dayIdx+1);return `${s.getDate()} ${MON[s.getMonth()]}`;}
 /* the coaching team for this course = on-shift teachers assigned to the lanes,
    senior-most first; the lead coach heads the course (feeds the timeline) */
 function courseTeam(){
@@ -977,24 +1006,8 @@ function courseTeam(){
   return {team:uniq, lead:uniq[0]||null};
 }
 /* per-session lead-teacher overrides — the timeline teacher column is editable */
-function setLead(t,i,id){const k=t+":"+i;if(id)S.lead[k]=id;else delete S.lead[k];}
-function getLead(t,i){const id=S.lead[t+":"+i];const tt=teacherById(id);return (tt&&tt.on)?id:"";}
-function shiftLeadDown(t,removedIdx){const next={};Object.keys(S.lead).forEach(k=>{const ci=k.indexOf(":"),kt=k.slice(0,ci),ki=+k.slice(ci+1);if(kt!==t){next[k]=S.lead[k];return;}if(ki===removedIdx)return;next[ki>removedIdx?kt+":"+(ki-1):k]=S.lead[k];});S.lead=next;}
-/* normalise every per-session array to its count so splice/push stay aligned */
-function densify(){
-  const n=S.sessions.pool;
-  S.classDays=Array.from({length:n},(_,i)=>sDay("pool",i));
-  S.classTimes=Array.from({length:n},(_,i)=>sTime("pool",i));
-  S.classTypes=Array.from({length:n},(_,i)=>sCls("pool",i));
-  S.classAreas=Array.from({length:n},(_,i)=>sArea("pool",i));
-  S.durations=Array.from({length:n},(_,i)=>sDur("pool",i));
-  ["classroom","gym","dlIndoor","dlOutdoor","recovery"].forEach(tt=>{const m=S.sessions[tt];S.sched[tt]=Array.from({length:m},(_,i)=>({day:sDay(tt,i),time:sTime(tt,i),cls:sCls(tt,i),area:sArea(tt,i),dur:sDur(tt,i)}));});
-}
-function removeSession(t,i){densify();if(t==="pool"){[S.classDays,S.classTimes,S.classTypes,S.classAreas,S.durations].forEach(a=>a.splice(i,1));}else S.sched[t].splice(i,1);S.sessions[t]=Math.max(0,S.sessions[t]-1);shiftLeadDown(t,i);}
-function addSession(t,rec){densify();const i=S.sessions[t];if(t==="pool"){S.classDays[i]=rec.day;S.classTimes[i]=rec.time;S.classTypes[i]=rec.cls;S.classAreas[i]=rec.area;S.durations[i]=rec.dur;}else S.sched[t][i]={day:rec.day,time:rec.time,cls:rec.cls,area:rec.area,dur:rec.dur};S.sessions[t]=i+1;if(rec.lead)S.lead[t+":"+i]=rec.lead;}
-function moveSession(fromT,i,toT){if(fromT===toT||!SESSION_TYPES.some(x=>x.key===toT))return;const rec={day:sDay(fromT,i),time:sTime(fromT,i),cls:sCls(fromT,i),area:defaultArea(toT),dur:sDur(fromT,i),lead:getLead(fromT,i)};removeSession(fromT,i);addSession(toT,rec);}
-function teacherSelect(t,i){
-  const led=courseTeam(), cur=getLead(t,i), on=onShift();
+function teacherSelectPlan(s){
+  const led=courseTeam(), cur=(teacherById(s.lead)&&teacherById(s.lead).on)?s.lead:"", on=onShift();
   const leadName=led.lead?led.lead.name:"unassigned";
   const mine=on.filter(x=>x.tags.services.includes(S.svc)).sort((a,b)=>QUALS[b.qual].rank-QUALS[a.qual].rank);
   const others=on.filter(x=>!mine.includes(x)).sort((a,b)=>QUALS[b.qual].rank-QUALS[a.qual].rank);
@@ -1002,33 +1015,27 @@ function teacherSelect(t,i){
   let o=`<option value=""${cur?"":" selected"}>— lead: ${esc(leadName)} —</option>`;
   if(mine.length)o+=`<optgroup label="${esc(SVC_SHORT[S.svc]||S.svc)} on shift">${mine.map(opt).join("")}</optgroup>`;
   if(others.length)o+=`<optgroup label="Other on shift">${others.map(opt).join("")}</optgroup>`;
-  const plus=(t==="pool"&&led.team.length>1)?`<span class="tl-plus">+${led.team.length-1}</span>`:"";
-  return `<select class="ps-sel tl-sel" data-t="${t}" data-i="${i}" data-f="lead">${o}</select>${plus}`;
+  return `<select class="ps-sel tl-sel" data-i="${s._i}" data-f="lead">${o}</select>`;
 }
-function tlRow(s){
-  const t=s.t,i=s.i,areaList=t==="pool"?POOL_AREAS:AREAS;
-  const sel=(f,opts)=>`<select class="ps-sel tl-sel" data-t="${t}" data-i="${i}" data-f="${f}">${opts}</select>`;
-  const dateSel=sel("day",COURSE_DAYS.map((d,di)=>`<option value="${di}"${di===s.day?" selected":""}>${courseDateLabel(di)}</option>`).join(""));
+function tlRow(s,n){
+  const i=s._i;
+  const sel=(f,opts)=>`<select class="ps-sel tl-sel" data-i="${i}" data-f="${f}">${opts}</select>`;
+  const daySel=sel("day",COURSE_DAYS.map((d,di)=>`<option value="${di}"${di===s.day?" selected":""}>${d}</option>`).join(""));
+  const dateCell=`<span class="tl-date">${esc(courseDateShort(s.day))}</span>`;
   const timeSel=sel("time",CLASS_TIMES.map(x=>`<option${x===s.time?" selected":""}>${x}</option>`).join(""));
-  const typeSel=`<select class="ps-sel tl-sel tl-type" data-t="${t}" data-i="${i}" data-f="type">${PROG_TYPES.map(([k,,short])=>`<option value="${k}"${k===t?" selected":""}>${short}</option>`).join("")}</select>`;
-  const classSel=sel("cls",`<option value="">— class —</option>`+CLASS_REGISTER.map(r=>`<option value="${r.id}"${r.id===s.cls?" selected":""}>${esc(r.title)}</option>`).join(""));
-  const areaSel=sel("area",areaList.map(([k,lab])=>`<option value="${k}"${k===s.area?" selected":""}>${lab}</option>`).join(""));
-  const durSel=`<select class="ps-sel tl-sel tl-dur" data-t="${t}" data-i="${i}" data-f="dur">${[30,60,90].map(m=>`<option value="${m}"${m===s.dur?" selected":""}>${m}m</option>`).join("")}</select>`;
-  return `<tr><td>${dateSel}</td><td>${timeSel}</td><td>${typeSel}</td><td class="tl-classcell">${classSel}</td><td class="tch">${teacherSelect(t,i)}</td><td>${areaSel}</td><td>${durSel}</td><td><button class="tl-del" data-t="${t}" data-i="${i}" title="Remove this session">✕</button></td></tr>`;
+  const locSel=sel("area",AREAS.map(([k,lab])=>`<option value="${k}"${k===s.area?" selected":""}>${lab}</option>`).join(""));
+  const actSel=sel("act",`<option value=""${s.act?"":" selected"}>— what are we doing? —</option>`+ACTIVITIES.map(([g,items])=>`<optgroup label="${esc(g)}">${items.map(([k,lab])=>`<option value="${k}"${k===s.act?" selected":""}>${esc(lab)}</option>`).join("")}</optgroup>`).join(""));
+  const durSel=`<select class="ps-sel tl-sel tl-dur" data-i="${i}" data-f="dur">${PLAN_DURS.map(m=>`<option value="${m}"${m===s.dur?" selected":""}>${m}m</option>`).join("")}</select>`;
+  return `<tr><td class="tl-num">${n}</td><td>${dateCell}</td><td>${daySel}</td><td>${timeSel}</td><td>${locSel}</td><td class="tl-classcell">${actSel}</td><td>${durSel}</td><td class="tch">${teacherSelectPlan(s)}</td><td><button class="tl-del" data-i="${i}" title="Remove this session">✕</button></td></tr>`;
 }
-/* COURSE TIMELINE — the master EDITABLE grid; edits write back to the same data the other sections use */
+/* COURSE TIMELINE — the master builder; build the course one session at a time */
 function buildTimeline(){
   const host=document.getElementById("timeline"); if(!host) return;
-  const list=[];
-  PROG_TYPES.forEach(([t,,short])=>{for(let i=0;i<S.sessions[t];i++)list.push({t,i,short,day:sDay(t,i),time:sTime(t,i),cls:sCls(t,i),area:sArea(t,i),dur:sDur(t,i)});});
-  if(!list.length){host.innerHTML=`<div class="ps-group"><div class="ps-grouph">Course timeline</div><p class="lbl2" style="margin:0">No sessions activated yet — set the counts in “Sessions per course” below to build the timeline.</p></div>`; return;}
-  list.sort((a,b)=>a.day-b.day||a.time.localeCompare(b.time));
   const led=courseTeam();
-  /* gather the global toggle state from every section */
   const sv=SERVICES[S.svc], isGroup=S.mode==="group", lanes=lanesList(), perLane=isGroup?S.size:1, head=lanes.length*perLane;
   const wk=WEEKS.find(w=>w.key===S.week)||WEEKS[0], venue=VENUES.find(v=>v.key===S.venue)||VENUES[0];
   const sc=lanes.reduce((a,ln)=>{a[ln.side]=(a[ln.side]||0)+1;return a;},{});
-  const poolTime=list.filter(s=>s.t==="pool").reduce((a,s)=>a+s.dur,0);
+  const poolTime=S.plan.filter(s=>isPoolArea(s.area)).reduce((a,s)=>a+s.dur,0);
   const meta=[
     ["Service",`<span class="tl-dot" style="background:${sv.hex}"></span>${esc(sv.name)}`],
     ...(sv.stroke?[["Stroke",esc(STROKES[S.course].label)]]:[]),
@@ -1037,13 +1044,14 @@ function buildTimeline(){
     ["Week",`Wk ${wk.wk} · ${esc(wk.range)}`],
     ["Swimmers",`${head} (${lanes.length} lane${lanes.length===1?"":"s"})`],
     ["Lanes",`${sc.male||0} M · ${sc.mixed||0} MIX · ${sc.female||0} F`],
-    ["Sessions",`${list.length} · ${(poolTime/60).toFixed(poolTime%60?1:0)}h pool`],
+    ["Sessions",`${S.plan.length} · ${(poolTime/60).toFixed(poolTime%60?1:0)}h pool`],
     ["Lead coach",led.lead?`${esc(led.lead.name)} · ${QUALS[led.lead.qual].label}`:"—"],
     ["Coaches",`${led.team.length} on the water · ${onShift().length} on shift`],
   ];
   const ctx=`<div class="tl-ctx">${meta.map(([k,v])=>`<div class="tl-meta"><span class="tl-mk">${k}</span><span class="tl-mv">${v}</span></div>`).join("")}</div>`;
-  const rows=list.map(tlRow).join("");
-  host.innerHTML=`<div class="ps-group"><div class="ps-grouph">Course timeline — every session, fully editable (${list.length})</div>${ctx}<div class="tl-scroll"><table class="tl tl-edit"><thead><tr><th>Date</th><th>Time</th><th>Type</th><th>Class</th><th>Teacher</th><th>Area</th><th>Dur</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  if(!S.plan.length){host.innerHTML=`<div class="ps-group">${ctx}<p class="lbl2" style="margin:0">No sessions yet — use <b>+ Add a session</b> above to build your course one session at a time.</p></div>`; return;}
+  const rows=planSorted().map((s,n)=>tlRow(s,n+1)).join("");
+  host.innerHTML=`<div class="ps-group">${ctx}<div class="tl-scroll"><table class="tl tl-edit"><thead><tr><th>#</th><th>Date</th><th>Day</th><th>Time</th><th>Location</th><th>What we're doing</th><th>Dur</th><th>Teacher</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
 function schedRow(t,i,areaList){
   const day=sDay(t,i), tm=sTime(t,i), cls=sCls(t,i), area=sArea(t,i), dur=sDur(t,i), short=SHORT_BY_TYPE[t]||"Session";
@@ -1090,7 +1098,7 @@ function buildBulk(){
     (n?`<div class="bulk-row bulk-fields"><span class="lbl2">Make ${sc==="all"?"all "+n:n+" "+scopeShort(sc).toLowerCase()} session${n===1?"":"s"} the same →</span>${daySeg}${timeSel}${areaSel}${durSeg}</div>`:"");
 }
 function applyBulk(f,v){bulkItems().forEach(([t,i])=>setSched(t,i,f,v));buildSchedules();render();}
-function buildSchedules(){ buildProgramme(); buildPoolSched(); buildBulk(); }
+function buildSchedules(){ /* legacy per-type renderers removed — the flat builder lives in buildTimeline() */ }
 
 /* ── PUBLISH + RESORT WEEKLY CALENDAR ──────────────────────── */
 const LS_KEY="sssc-course-builder-v1";
@@ -1099,9 +1107,8 @@ function savePublished(){try{localStorage.setItem(LS_KEY,JSON.stringify(S.publis
 function sessTotal(s){return Object.values(s).reduce((a,b)=>a+b,0);}
 function snapshotCourse(weekKey){
   const sv=SERVICES[S.svc], wk=WEEKS.find(w=>w.key===weekKey)||WEEKS[0], venue=VENUES.find(v=>v.key===S.venue)||VENUES[0];
-  const led=courseTeam(), list=[];
-  PROG_TYPES.forEach(([t,,short])=>{for(let i=0;i<S.sessions[t];i++){const r=CLASS_REGISTER.find(x=>x.id===sCls(t,i));list.push({type:t,short,day:sDay(t,i),time:sTime(t,i),cls:sCls(t,i),clsTitle:r?r.title:"",area:sArea(t,i),areaLabel:areaLabel(sArea(t,i)),dur:sDur(t,i)});}});
-  list.sort((a,b)=>a.day-b.day||a.time.localeCompare(b.time));
+  const led=courseTeam();
+  const schedule=planSorted().map(s=>({day:s.day,time:s.time,area:s.area,areaLabel:areaLabel(s.area),act:s.act,actLabel:ACT_LABEL[s.act]||"",dur:s.dur,lead:s.lead,leadName:(teacherById(s.lead)||{}).name||""}));
   return {
     id:"c"+Date.now().toString(36)+Math.floor(Math.random()*46656).toString(36), ts:Date.now(),
     resort:S.venue, resortName:venue.name,
@@ -1110,12 +1117,11 @@ function snapshotCourse(weekKey){
     course:S.course, courseLabel:sv.stroke&&STROKES[S.course]?STROKES[S.course].label:"",
     mode:S.mode, size:S.size,
     lanes:{male:S.male,mixed:S.mixed,female:S.female},
-    sessions:{...S.sessions}, schedule:list,
+    sessions:S.plan.length, schedule,
     lead:led.lead?{name:led.lead.name,qual:QUALS[led.lead.qual].label}:null, team:led.team.map(t=>t.name),
     biz:(()=>{const b=computeBusiness();return {revFull:b.revFull,revNow:b.revNow,cost:b.cost,profit:b.profit,beBookings:b.beBookings,capacity:b.capacity,booked:b.booked};})(),
     title:sv.name+(sv.stroke&&STROKES[S.course]?" · "+STROKES[S.course].label:""),
-    raw:{classTypes:[...S.classTypes],classDays:[...S.classDays],classTimes:[...S.classTimes],classAreas:[...S.classAreas],durations:[...S.durations],
-         sched:JSON.parse(JSON.stringify(S.sched)),assign:JSON.parse(JSON.stringify(S.assign)),onShift:S.roster.filter(t=>t.on).map(t=>t.id),lead:JSON.parse(JSON.stringify(S.lead))}
+    raw:{plan:JSON.parse(JSON.stringify(S.plan)),assign:JSON.parse(JSON.stringify(S.assign)),areaRates:JSON.parse(JSON.stringify(S.areaRates)),onShift:S.roster.filter(t=>t.on).map(t=>t.id)}
   };
 }
 function publishCourse(){
@@ -1154,14 +1160,12 @@ function loadCourse(id){
   S.venue=c.resort; S.week=c.week; S.calY=+c.week.slice(0,4); S.calM=+c.week.slice(5,7)-1; S.pubWeeks=[c.week]; S.loadedId=c.id;
   S.svc=c.svc; S.course=c.course||S.course; S.mode=c.mode; S.size=c.size;
   S.male=c.lanes.male; S.mixed=c.lanes.mixed; S.female=c.lanes.female;
-  S.sessions={...S.sessions,...c.sessions};
   if(c.raw){
-    S.classTypes=[...c.raw.classTypes]; S.classDays=[...c.raw.classDays]; S.classTimes=[...c.raw.classTimes];
-    S.classAreas=[...c.raw.classAreas]; S.durations=[...c.raw.durations];
-    S.sched=JSON.parse(JSON.stringify(c.raw.sched)); S.assign=JSON.parse(JSON.stringify(c.raw.assign));
-    S.lead=c.raw.lead?JSON.parse(JSON.stringify(c.raw.lead)):{};
-    S.roster.forEach(t=>t.on=c.raw.onShift.includes(t.id));
-  }
+    S.plan=c.raw.plan?JSON.parse(JSON.stringify(c.raw.plan)):[];
+    S.assign=JSON.parse(JSON.stringify(c.raw.assign||{male:[],mixed:[],female:[]}));
+    S.areaRates=c.raw.areaRates?JSON.parse(JSON.stringify(c.raw.areaRates)):{};
+    S.roster.forEach(t=>t.on=(c.raw.onShift||[]).includes(t.id));
+  } else { S.plan=[]; }
   refreshAll();
   showToast(`Loaded “${c.title}” — Wk ${c.wk} at ${c.resortName}`);
   document.getElementById("publishPanel").scrollIntoView({block:"center"});
@@ -1194,7 +1198,7 @@ function buildResortCal(){
     body=weekKeys.map(wk=>{
       const w=WEEKS.find(x=>x.key===wk)||{wk:"?",range:wk};
       const cards=byWeek[wk].sort((a,b)=>a.ts-b.ts).map(c=>{
-        const sess=sessTotal(c.sessions), lanes=c.lanes.male+c.lanes.mixed+c.lanes.female;
+        const sess=typeof c.sessions==="number"?c.sessions:Object.values(c.sessions||{}).reduce((a,b)=>a+b,0), lanes=c.lanes.male+c.lanes.mixed+c.lanes.female;
         return `<div class="pub-course" style="border-left:4px solid ${c.hex}">
           <div class="pub-course-h"><span class="pub-course-t" style="color:${c.hex}">${esc(c.title)}</span><button class="pub-del" data-del="${c.id}" title="Remove from calendar">✕</button></div>
           <div class="pub-course-m">${c.mode==="group"?`Group · ${c.size}/lane`:"One 2 One"} · ${lanes} lane${lanes!==1?"s":""} · ${sess} sessions${c.lead?` · lead ${esc(c.lead.name)}`:""}</div>
@@ -1219,21 +1223,24 @@ function refreshAll(){
 /* educated Fuerteventura estimates — €/hour to use each resort area.
    pool/water areas are charged per LANE-hour (lane hire); rooms are flat per session-hour */
 const AREA_COST={
-  "olympic-pool":15,"apart-pool":11,"hotel-pool":11,"infinity-pool":12,"apart-family-pool":9,"leisure-pool":8,"pool-dryland":6,"open-water":0,"beach":0,
-  "gym":40,"classroom-1":35,"classroom-2":40,"classroom-3":30,"indoor":30,"outdoor":15,"grass":10,"promenade":0,"teatro":45,"reception":0,
-  "palapa-bar":20,"bodega":25,"hotel-restaurant":25,"outside-reception":0,"plaza-rambla":0,"apart-pool-bar":18
+  "olympic-pool":15,"leisure-pool":8,"ocean":0,"hotel-leisure-pool":8,"apart-pool":10,
+  "gym":40,"indoor":30,"outdoor":15,"grass":10,"promenade":0,
+  "conference":35,"teatro":45,
+  "hotel-reception":0,"outside-reception":0,"outside-sportsbooking":0,"sports-shop":0,"playa-rambla":0,
+  "bodega":25,"hotel-restaurant":25,"palapa-bar":20,"apart-pool-bar":18,
+  "golf-course":60,"driving-range":20
 };
 const COACH_DAY=120, BUS_DAY=180, ADMIN_FLAT=250, COURSE_DAYS_N=6;
 function effectiveRate(area){return S.areaRates[area]!=null?S.areaRates[area]:(area in AREA_COST?AREA_COST[area]:12);}
 /* every facility the course needs, derived live from sessions·lanes·durations */
 function computeFacilities(){
   const lanes=lanesList().length, fac={};
-  PROG_TYPES.forEach(([t])=>{for(let i=0;i<S.sessions[t];i++){
-    const area=sArea(t,i), hrs=sDur(t,i)/60, pool=(t==="pool");
+  S.plan.forEach(s=>{
+    const area=s.area, hrs=s.dur/60, pool=isPoolArea(area);
     const units=pool?hrs*Math.max(1,lanes):hrs; /* lane-hours for pool, hours for rooms */
     const f=fac[area]||(fac[area]={key:area,label:areaLabel(area),pool:false,sessions:0,hours:0,units:0,types:{}});
-    f.sessions++; f.hours+=hrs; f.units+=units; if(pool)f.pool=true; f.types[SHORT_BY_TYPE[t]||t]=1;
-  }});
+    f.sessions++; f.hours+=hrs; f.units+=units; if(pool)f.pool=true; if(s.act)f.types[ACT_LABEL[s.act]||s.act]=1;
+  });
   let total=0;
   const list=Object.values(fac).map(f=>{f.rate=effectiveRate(f.key); f.cost=f.rate*f.units; f.typeList=Object.keys(f.types); total+=f.cost; return f;}).sort((a,b)=>b.cost-a.cost);
   return {list,total,lanes};
@@ -1244,7 +1251,7 @@ function computeBusiness(){
   let booked=0; lanes.forEach((ln,i)=>booked+=laneBookedCount(i,perLane));
   const F=computeFacilities(), facTotal=F.total, facilities=F.list;
   const coachN=onShift().length, coachCost=coachN*COACH_DAY*COURSE_DAYS_N;
-  const hasCourse=sessTotal(S.sessions)>0;
+  const hasCourse=S.plan.length>0;
   const busCost=sv.bus?BUS_DAY*COURSE_DAYS_N:0, admin=hasCourse?ADMIN_FLAT:0;
   const cost=facTotal+coachCost+busCost+admin;
   const revFull=capacity*sv.full, revNow=booked*sv.full;
@@ -1297,21 +1304,24 @@ function buildPoolLayers(){
   const host=document.getElementById("poolLayers"); if(!host) return;
   host.innerHTML=`<span class="pl-lbl">Show:</span>`+POOL_LAYERS.map(([k,lab])=>`<button class="pl-toggle${S.poolLayers[k]?" on":""}" data-layer="${k}" role="switch" aria-checked="${!!S.poolLayers[k]}"><span class="pl-knob"></span>${lab}</button>`).join("");
 }
-/* + Add a class — build the course right in the Programme schedule (Sessions per course reacts) */
+/* + Add buttons — build the course one session at a time; each preset is editable after */
 function buildAddBar(){
   const host=document.getElementById("addBar"); if(!host) return;
-  host.innerHTML=`<span class="lbl">Add a class</span>`+PROG_TYPES.map(([k,,short])=>`<button class="add-btn" data-add="${k}">+ ${esc(short)}</button>`).join("");
+  host.innerHTML=`<span class="lbl">Add a session</span>`+ADD_CATS.map(([lab,area,act])=>`<button class="add-btn" data-area="${area}" data-act="${act}">+ ${esc(lab)}</button>`).join("");
 }
+/* SESSIONS PER COURSE — now a live read-only tally of what you've built in the Programme schedule */
 function buildSessions(){
-  document.getElementById("sessRows").innerHTML=SESSION_TYPES.map(t=>{
-    const cur=S.sessions[t.key];
-    const opts=Array.from({length:19},(_,i)=>i);
-    return `<div class="sess-row"><span class="slbl">${t.label}</span><div class="seg" data-sess="${t.key}">${opts.map(n=>`<button class="${n===cur?"on":""}" data-n="${n}">${n}</button>`).join("")}</div></div>`;
-  }).join("");
-  const nonPool=["classroom","gym","dlIndoor","dlOutdoor","recovery"].reduce((a,k)=>a+S.sessions[k],0);
-  document.getElementById("poolPerCourse").textContent=S.sessions.pool;
-  document.getElementById("classesPerCourse").textContent=nonPool;
-  document.getElementById("courseTotal").textContent=S.sessions.pool+nonPool;
+  const host=document.getElementById("sessRows"); if(!host) return;
+  const groups={}; S.plan.forEach(s=>{const g=areaGroup(s.area);groups[g]=(groups[g]||0)+1;});
+  const order=["Pool/Water","Gym","Classroom","Indoor","Outdoor","Other"];
+  const keys=order.filter(g=>groups[g]).concat(Object.keys(groups).filter(g=>!order.includes(g)));
+  const poolN=S.plan.filter(s=>isPoolArea(s.area)).length, total=S.plan.length;
+  host.innerHTML = total
+    ? `<div class="tally">${keys.map(g=>`<div class="tally-chip"><b>${groups[g]}</b> ${esc(g)}</div>`).join("")}</div>`
+    : `<p class="lbl2" style="margin:0">Nothing yet — add sessions in the Programme schedule above and the breakdown appears here.</p>`;
+  document.getElementById("poolPerCourse").textContent=poolN;
+  document.getElementById("classesPerCourse").textContent=total-poolN;
+  document.getElementById("courseTotal").textContent=total;
 }
 
 /* ── TEACHER CONTACT LIST (rebuilt on roster change) ──────── */
@@ -1421,8 +1431,8 @@ function render(){
   const addD=(n)=>{const d=new Date(satIn);d.setDate(d.getDate()+n);return d;};
   const fday=(d)=>`${WD[d.getDay()]} ${d.getDate()} ${MON[d.getMonth()]}`;
   document.getElementById("courseFrame").innerHTML=`<b>Whole course:</b> fly in ${fday(satIn)} afternoon · starts ${fday(addD(1))} · finishes ${fday(addD(6))} afternoon · fly out ${fday(addD(7))} morning`;
-  const poolN=S.sessions.pool;
-  const classList=Array.from({length:poolN},(_,c)=>({c,day:classDayOf(c),time:classTimeOf(c),ct:classTypeOf(c),dur:S.durations[c]??60,area:classAreaOf(c)}));
+  const classList=poolPlan().map((s,c)=>({c,day:s.day,time:s.time,act:s.act,dur:s.dur,area:s.area}));
+  const poolN=classList.length;
   const courseTime=classList.reduce((s,x)=>s+x.dur,0);
 
   const teachersOn=onShift().length;
@@ -1465,7 +1475,7 @@ function render(){
   });
   const bizBanner=biz?`<div class="pool-bizbar"><span>Revenue <b>€${num(biz.revFull)}</b></span><span>Cost <b>€${num(biz.cost)}</b></span><span class="${biz.profit>=0?'pos':'neg'}">Profit <b>${biz.profit>=0?'+':'−'}€${num(Math.abs(biz.profit))}</b></span><span>Break-even <b>${biz.beBookings}</b>/${biz.capacity}</span><span>Booked now <b>€${num(biz.revNow)}</b> · ${biz.booked} sold</span></div>`:"";
   const poolFrame=(cls)=>{
-    const title=`${venueLabel} · Wk ${wk.wk} · ${fday(addD(cls.day+1))} ${cls.time} · Class ${cls.c+1}${cls.ct?" · "+cls.ct.title:""} · ${areaLabel(cls.area)} · ${cls.dur} min · ${sv.name}${sv.stroke?" · "+STROKES[S.course].label:""}`;
+    const title=`${venueLabel} · Wk ${wk.wk} · ${fday(addD(cls.day+1))} ${cls.time} · Class ${cls.c+1}${cls.act?" · "+esc(ACT_LABEL[cls.act]||cls.act):""} · ${areaLabel(cls.area)} · ${cls.dur} min · ${sv.name}${sv.stroke?" · "+STROKES[S.course].label:""}`;
     return `<div class="pool-frame"><div class="pool-title">${title}</div>${bizBanner}<div class="pool-lanes">${laneBody}</div></div>`;
   };
   const pIdx=Math.max(0,Math.min(S.poolIdx||0,poolN-1)); S.poolIdx=pIdx;
@@ -1524,15 +1534,15 @@ function render(){
   const placeText=isGroup?`${perSlot}`:`${total}`;
   document.getElementById("timeHead").textContent=isGroup?"Group time":"1-2-1 time";
   const wkList=[];
-  for(let i=0;i<S.sessions.pool;i++){const id=sCls("pool",i); if(!id) continue; const r=CLASS_REGISTER.find(x=>x.id===id); wkList.push({title:r?r.title:id,day:sDay("pool",i),time:sTime("pool",i)});}
-  wkList.sort((a,b)=>a.day-b.day||a.time.localeCompare(b.time));
+  poolPlan().forEach(s=>{ if(!s.act) return; wkList.push({title:ACT_LABEL[s.act]||s.act,day:s.day,time:s.time}); });
   document.getElementById("week").innerHTML = wkList.length
     ? wkList.map((c,i)=>`<tr><td><span class="cn">${i+1}</span><span class="nm">${esc(c.title)}</span></td><td class="day">${COURSE_DAYS[c.day]||""}</td><td class="tm">${c.time}</td><td class="cp">${placeText}</td></tr>`).join("")
-    : `<tr><td colspan="4" style="color:var(--ink-faint);padding:14px 2px;">No classes yet — add pool classes in “Sessions per course”, then pick a class for each. They’ll auto-fill here.</td></tr>`;
+    : `<tr><td colspan="4" style="color:var(--ink-faint);padding:14px 2px;">No pool sessions yet — add a session in the Programme schedule with a pool location and an activity. They’ll auto-fill here.</td></tr>`;
   document.getElementById("weekLbl").textContent=`The week — ${sv.name}${sv.stroke?" · "+STROKES[S.course].label:""}`;
 
   buildRegister();
   buildTimeline();
+  buildSessions();
   buildFacilities();
   buildBusiness();
   buildPublish();
@@ -1579,31 +1589,16 @@ document.getElementById("modeToggle").addEventListener("click",e=>{
   syncSizeVis(); render();
 });
 document.getElementById("sizeSeg").addEventListener("click",e=>{const b=e.target.closest("[data-size]");if(!b)return;S.size=+b.dataset.size;buildSizeSeg();render();});
-function onSchedClick(e){const b=e.target.closest("button[data-min]");if(!b)return;const seg=b.closest(".ps-dur");if(!seg)return;setSched(seg.dataset.t,+seg.dataset.i,"dur",+b.dataset.min);buildSchedules();render();}
-function onSchedChange(e){
-  const sel=e.target.closest("select.ps-sel"); if(!sel) return;
-  const t=sel.dataset.t, i=+sel.dataset.i, f=sel.dataset.f;
-  if(f==="type"){ moveSession(t,i,sel.value); buildSessions(); buildSchedules(); render(); return; }
-  if(f==="lead"){ setLead(t,i,sel.value); render(); return; }
-  const v=(f==="day"||f==="dur")?+sel.value:sel.value;
-  setSched(t,i,f,v); buildSchedules(); render();
+/* the Programme schedule builder edits the flat plan directly */
+function onPlanChange(e){
+  const sel=e.target.closest("select.tl-sel"); if(!sel) return;
+  const i=+sel.dataset.i, f=sel.dataset.f; if(!S.plan[i]) return;
+  S.plan[i][f]=(f==="day"||f==="dur")?+sel.value:sel.value;
+  render();
 }
-document.getElementById("programme").addEventListener("click",onSchedClick);
-document.getElementById("programme").addEventListener("change",onSchedChange);
-document.getElementById("poolSched").addEventListener("click",onSchedClick);
-document.getElementById("poolSched").addEventListener("change",onSchedChange);
-document.getElementById("timeline").addEventListener("change",onSchedChange);
-document.getElementById("timeline").addEventListener("click",e=>{const d=e.target.closest(".tl-del");if(!d)return;removeSession(d.dataset.t,+d.dataset.i);buildSessions();buildSchedules();render();});
-document.getElementById("addBar").addEventListener("click",e=>{const b=e.target.closest("[data-add]");if(!b)return;const t=b.dataset.add;addSession(t,{day:0,time:"12:00",cls:"",area:defaultArea(t),dur:60,lead:""});buildSessions();buildSchedules();render();});
-document.getElementById("bulkBar").addEventListener("click",e=>{
-  const sc=e.target.closest("[data-scope]"); if(sc){S.bulkScope=sc.dataset.scope;buildBulk();return;}
-  const ab=e.target.closest(".bulk-apply"),btn=e.target.closest("button[data-v]");
-  if(ab&&btn&&ab.contains(btn))applyBulk(ab.dataset.f,+btn.dataset.v);
-});
-document.getElementById("bulkBar").addEventListener("change",e=>{
-  const ab=e.target.closest("select.bulk-apply"); if(ab&&ab.value!=="")applyBulk(ab.dataset.f,ab.value);
-});
-document.getElementById("sessRows").addEventListener("click",e=>{const b=e.target.closest("[data-n]");if(!b)return;const seg=b.closest("[data-sess]");if(!seg)return;S.sessions[seg.dataset.sess]=+b.dataset.n;buildSessions();buildSchedules();render();});
+document.getElementById("timeline").addEventListener("change",onPlanChange);
+document.getElementById("timeline").addEventListener("click",e=>{const d=e.target.closest(".tl-del");if(!d)return;removePlan(+d.dataset.i);render();});
+document.getElementById("addBar").addEventListener("click",e=>{const b=e.target.closest("[data-area]");if(!b)return;addPlan({area:b.dataset.area,act:b.dataset.act});render();});
 document.querySelectorAll(".stepper").forEach(st=>{
   st.addEventListener("click",e=>{
     const b=e.target.closest("button[data-d]"); if(!b)return;
@@ -1660,7 +1655,7 @@ document.getElementById("weekTrack").addEventListener("click",e=>{
 document.getElementById("poolLayers").addEventListener("click",e=>{const b=e.target.closest("[data-layer]");if(!b)return;S.poolLayers[b.dataset.layer]=!S.poolLayers[b.dataset.layer];render();});
 document.getElementById("facilities").addEventListener("change",e=>{const inp=e.target.closest("input[data-area]");if(!inp)return;S.areaRates[inp.dataset.area]=Math.max(0,+inp.value||0);render();});
 document.getElementById("poolPrev").addEventListener("click",()=>{S.poolIdx=Math.max(0,(S.poolIdx||0)-1);render();});
-document.getElementById("poolNext").addEventListener("click",()=>{S.poolIdx=Math.min((S.sessions.pool||1)-1,(S.poolIdx||0)+1);render();});
+document.getElementById("poolNext").addEventListener("click",()=>{S.poolIdx=Math.min(Math.max(0,poolPlan().length-1),(S.poolIdx||0)+1);render();});
 /* pool — click a START block to reveal client names, click a booked dot for the contact card */
 document.getElementById("pools").addEventListener("click",e=>{
   const start=e.target.closest(".pool-start[data-lane]");
