@@ -409,13 +409,6 @@
         </div>
       </div>
     </div>
-
-    <div class="card-head" style="margin:22px 0 13px;">
-      <p class="lbl">Sessions per course</p>
-      <span class="count-pill"><b id="courseTotal">0</b> total / course</span>
-    </div>
-    <div class="sess-rows" id="sessRows"></div>
-    <p class="lbl2" style="margin-top:14px;">Pool classes per course: <b id="poolPerCourse" style="color:var(--svc)">0</b> &nbsp;·&nbsp; Classes per course (dryland &amp; classroom): <b id="classesPerCourse" style="color:var(--svc)">0</b></p>
   </div>
 
   <!-- PROGRAMME SCHEDULE -->
@@ -428,6 +421,16 @@
     <div id="bulkBar" class="bulkbar"></div>
     <div id="timeline"></div>
     <div id="programme"></div>
+  </div>
+
+  <!-- SESSIONS PER COURSE -->
+  <div class="card">
+    <div class="card-head" style="margin-bottom:13px;">
+      <p class="lbl">Sessions per course</p>
+      <span class="count-pill"><b id="courseTotal">0</b> total / course</span>
+    </div>
+    <div class="sess-rows" id="sessRows"></div>
+    <p class="lbl2" style="margin-top:14px;">Pool classes per course: <b id="poolPerCourse" style="color:var(--svc)">0</b> &nbsp;·&nbsp; Classes per course (dryland &amp; classroom): <b id="classesPerCourse" style="color:var(--svc)">0</b></p>
   </div>
 
   <!-- FACILITY HIRE -->
@@ -1011,7 +1014,7 @@ function buildTimeline(){
   const host=document.getElementById("timeline"); if(!host) return;
   const list=[];
   PROG_TYPES.forEach(([t,,short])=>{for(let i=0;i<S.sessions[t];i++)list.push({t,i,short,day:sDay(t,i),time:sTime(t,i),cls:sCls(t,i),area:sArea(t,i),dur:sDur(t,i)});});
-  if(!list.length){host.innerHTML=`<div class="ps-group"><div class="ps-grouph">Course timeline</div><p class="lbl2" style="margin:0">No sessions activated yet — set the counts in “Sessions per course” above to build the timeline.</p></div>`; return;}
+  if(!list.length){host.innerHTML=`<div class="ps-group"><div class="ps-grouph">Course timeline</div><p class="lbl2" style="margin:0">No sessions activated yet — set the counts in “Sessions per course” below to build the timeline.</p></div>`; return;}
   list.sort((a,b)=>a.day-b.day||a.time.localeCompare(b.time));
   const led=courseTeam();
   /* gather the global toggle state from every section */
@@ -1053,7 +1056,7 @@ function buildProgramme(){
     let rows=""; for(let i=0;i<n;i++) rows+=schedRow(t,i,AREAS);
     groups+=`<div class="ps-group"><div class="ps-grouph">${label} · ${n}</div>${rows}</div>`;
   });
-  document.getElementById("programme").innerHTML = total ? groups : `<p class="lbl2" style="margin:0">No sessions yet — set the counts in Sessions per course above.</p>`;
+  document.getElementById("programme").innerHTML = total ? groups : `<p class="lbl2" style="margin:0">No sessions yet — set the counts in Sessions per course below.</p>`;
   document.getElementById("progTotal").textContent=total;
 }
 function buildPoolSched(){
