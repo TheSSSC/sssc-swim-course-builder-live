@@ -81,7 +81,17 @@
   .tpl-chip:hover{color:var(--ink);}
   .tpl-chip.on{color:#fff;background:var(--svc);}
   .tpl-chip b{font-weight:800;}
-  .bd-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+  .bd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;align-items:start;}
+  .bd-box{background:#f7f8fb;border-radius:13px;padding:12px 14px;}
+  .bd-box-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .bd-ttl{font-size:12px;font-weight:800;letter-spacing:.03em;color:var(--svc);}
+  .bd-box-n{font-size:11px;font-weight:800;color:var(--svc);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.12);border-radius:999px;padding:2px 9px;}
+  .bd-item{padding:7px 0;border-top:1px solid #eaedf2;}
+  .bd-item:first-of-type{border-top:0;}
+  .bd-i1{display:flex;align-items:baseline;gap:8px;justify-content:space-between;}
+  .bd-when{font-size:11.5px;font-weight:700;color:var(--ink-soft);white-space:nowrap;}
+  .bd-act{font-size:12.5px;font-weight:700;color:var(--ink);text-align:right;}
+  .bd-i2{font-size:11px;font-weight:600;color:var(--ink-faint);margin-top:2px;}
   .add-btn-main{color:#fff;background:var(--svc);font-size:13px;padding:9px 18px;box-shadow:0 2px 8px rgba(0,0,0,.1);}
   .add-btn-main:hover{filter:brightness(1.05);background:var(--svc);}
   .tl-num{font-weight:700;color:var(--ink-faint);font-variant-numeric:tabular-nums;}
@@ -452,7 +462,7 @@
       <p class="lbl">Course breakdown — by type</p>
       <span class="count-pill"><b id="bdTotal">0</b> sessions</span>
     </div>
-    <p class="lbl2" style="margin:0 0 12px;">The same sessions, filtered into sections — pick a type, or “All” to see each group at once.</p>
+    <p class="lbl2" style="margin:0 0 12px;">The same sessions, filtered into their own boxes by type — meals, pool, gym, recovery, theory, recreation and more (a box appears for each type you use).</p>
     <div id="breakdown"></div>
   </div>
 
@@ -1408,28 +1418,20 @@ function buildTemplateBar(){
   const n=S.tplTargets.filter(i=>i!==S.tplSrc).length;
   host.innerHTML=`<span class="lbl">Use as template</span><select class="ps-sel" id="tplSrc" style="width:108px">${srcOpts}</select><span class="lbl2" style="color:var(--ink-faint)">copy to →</span><div class="tpl-days">${chips}</div><button class="add-btn add-btn-main" id="tplApply"${n?"":" disabled"}>Copy to ${n} day${n!==1?"s":""}</button>`;
 }
-/* COURSE BREAKDOWN — the plan, filtered into per-type sections */
-function bdRows(arr){
-  return arr.sort((a,b)=>{const au=a.day==null,bu=b.day==null;if(au!==bu)return au?1:-1;return (a.day-b.day)||(""+a.time).localeCompare(""+b.time);})
-    .map(s=>{const t=teacherById(s.lead);return `<tr><td class="day">${s.day==null?"—":esc(COURSE_DAYS[s.day].slice(0,3)+" "+courseDateShort(s.day))}</td><td class="tm">${s.time||"—"}</td><td>${esc(areaLabel(s.area))}</td><td class="nm">${s.act?esc(ACT_LABEL[s.act]||s.act):'<span style="color:var(--ink-faint)">—</span>'}</td><td>${t?esc(t.name):'<span style="color:var(--ink-faint)">—</span>'}</td><td class="cp">${s.dur}m</td></tr>`;}).join("");
-}
+/* COURSE BREAKDOWN — each session type in its own little box */
 function buildBreakdown(){
   const host=document.getElementById("breakdown"); if(!host) return;
   document.getElementById("bdTotal").textContent=S.plan.length;
-  if(!S.plan.length){host.innerHTML=`<p class="lbl2" style="margin:0">No sessions yet — build your course in the Programme schedule and it’ll break down here by type.</p>`;return;}
+  if(!S.plan.length){host.innerHTML=`<p class="lbl2" style="margin:0">No sessions yet — build your course in the Programme schedule and it’ll break down here by type, each in its own box.</p>`;return;}
   const groups={}; S.plan.forEach(s=>{const c=sessionCategory(s);(groups[c]=groups[c]||[]).push(s);});
   const present=CATS.filter(([k])=>groups[k]&&groups[k].length);
-  const cur=(S.bdFilter&&(S.bdFilter==="all"||groups[S.bdFilter]))?S.bdFilter:"all";
-  const chips=[["all","All",S.plan.length]].concat(present.map(([k,lab])=>[k,lab,groups[k].length]))
-    .map(([k,lab,n])=>`<button class="tpl-chip${k===cur?" on":""}" data-bd="${k}">${esc(lab)} <b>${n}</b></button>`).join("");
-  const thead=`<thead><tr><th>Day</th><th>Time</th><th>Area</th><th>Activity</th><th>Teacher</th><th>Dur</th></tr></thead>`;
-  let body;
-  if(cur==="all"){
-    body=present.map(([k,lab])=>`<div class="ps-group"><div class="ps-grouph">${esc(lab)} · ${groups[k].length}</div><div class="tl-scroll"><table class="tl">${thead}<tbody>${bdRows(groups[k])}</tbody></table></div></div>`).join("");
-  }else{
-    body=`<div class="tl-scroll"><table class="tl">${thead}<tbody>${bdRows(groups[cur])}</tbody></table></div>`;
-  }
-  host.innerHTML=`<div class="bd-chips">${chips}</div>${body}`;
+  const box=([k,lab])=>{
+    const items=groups[k].slice().sort((a,b)=>{const au=a.day==null,bu=b.day==null;if(au!==bu)return au?1:-1;return (a.day-b.day)||(""+a.time).localeCompare(""+b.time);})
+      .map(s=>{const t=teacherById(s.lead), when=s.day==null?"—":COURSE_DAYS[s.day].slice(0,3)+(s.time?" "+s.time:"");
+        return `<div class="bd-item"><div class="bd-i1"><span class="bd-when">${esc(when)}</span><span class="bd-act">${s.act?esc(ACT_LABEL[s.act]||s.act):"—"}</span></div><div class="bd-i2">${esc(areaLabel(s.area))} · ${s.dur}m${t?" · "+esc(t.name.split(" ")[0]):""}</div></div>`;}).join("");
+    return `<div class="bd-box"><div class="bd-box-h"><span class="bd-ttl">${esc(lab)}</span><span class="bd-box-n">${groups[k].length}</span></div>${items}</div>`;
+  };
+  host.innerHTML=`<div class="bd-grid">${present.map(box).join("")}</div>`;
 }
 /* SESSIONS PER COURSE — now a live read-only tally of what you've built in the Programme schedule */
 function buildSessions(){
@@ -1733,7 +1735,6 @@ document.getElementById("templateBar").addEventListener("click",e=>{
   if(e.target.closest("#tplApply")){const day=S.tplSrc,n=copyDayTo(day,S.tplTargets);render();showToast(`Copied ${COURSE_DAYS[day]}’s plan to ${n} day${n!==1?"s":""}`);}
 });
 document.getElementById("templateBar").addEventListener("change",e=>{const s=e.target.closest("#tplSrc");if(s){S.tplSrc=+s.value;S.tplTargets=COURSE_DAYS.map((_,i)=>i).filter(i=>i!==S.tplSrc);buildTemplateBar();}});
-document.getElementById("breakdown").addEventListener("click",e=>{const b=e.target.closest("[data-bd]");if(!b)return;S.bdFilter=b.dataset.bd;buildBreakdown();});
 document.getElementById("newCourseBtn").addEventListener("click",()=>{if(!S.plan.length||confirm("Start a new blank course? Your current unpublished work will be cleared (published courses stay safe).")) newCourse();});
 document.querySelectorAll(".stepper").forEach(st=>{
   st.addEventListener("click",e=>{
