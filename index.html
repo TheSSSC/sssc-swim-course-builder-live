@@ -926,10 +926,16 @@ const ADD_CATS=[
   ["Dryland","outdoor","dryland"],["Recovery","leisure-pool","stretch-relax"],["Theory","conference","theory"],
   ["Analysis","conference","video-analysis"],["Recreation","grass",""],["Meeting","conference","group-meetup"],["Meal","hotel-restaurant","lunch"],
 ];
-function addPlan(preset){S.plan.push(Object.assign({day:1,time:"09:00",area:"olympic-pool",act:"",dur:60,lead:""},preset||{}));}
+/* new sessions start UNSCHEDULED (no day/time) so they sit at the bottom until you place them */
+function addPlan(preset){S.plan.push(Object.assign({day:null,time:"",area:"olympic-pool",act:"",dur:60,lead:""},preset||{}));}
 function removePlan(i){if(i>=0&&i<S.plan.length)S.plan.splice(i,1);}
 /* sessions auto-sort by day then time — each lands in its right place; the session # follows that order */
-function planSorted(){return S.plan.map((s,i)=>({...s,_i:i})).sort((a,b)=>a.day-b.day||a.time.localeCompare(b.time));}
+function planSorted(){return S.plan.map((s,i)=>({...s,_i:i})).sort((a,b)=>{
+  const au=(a.day==null||!a.time), bu=(b.day==null||!b.time);   /* unscheduled = no day or no time */
+  if(au!==bu) return au?1:-1;                                    /* unscheduled sink to the bottom */
+  if(au&&bu) return a._i-b._i;                                   /* both unscheduled: keep add order */
+  return a.day-b.day||a.time.localeCompare(b.time);             /* scheduled: chronological */
+});}
 function poolPlan(){return planSorted().filter(s=>isPoolArea(s.area));}
 function clientColor(g){return g==="male"?"#3b82f6":"#ec4899";}
 function pickClients(side,laneIdx,n){const out=[];for(let k=0;k<n;k++){const gender=side==="male"?"male":side==="female"?"female":(k%2===0?"male":"female");const pool=gender==="male"?DEMO_M:DEMO_F;out.push({name:pool[(laneIdx*3+k)%pool.length],gender,age:22+((laneIdx*5+k*3)%40)});}return out;}
@@ -1002,7 +1008,7 @@ function buildSizeSeg(){
 }
 /* dayIdx 0 = Saturday (arrival = the week key); 1 = Sunday … 6 = Friday */
 function courseDateLabel(dayIdx){const s=new Date(+S.week.slice(0,4),+S.week.slice(5,7)-1,+S.week.slice(8,10));s.setDate(s.getDate()+dayIdx);return `${WD[s.getDay()]} ${s.getDate()} ${MON[s.getMonth()]}`;}
-function courseDateShort(dayIdx){const s=new Date(+S.week.slice(0,4),+S.week.slice(5,7)-1,+S.week.slice(8,10));s.setDate(s.getDate()+dayIdx);return `${s.getDate()} ${MON[s.getMonth()]}`;}
+function courseDateShort(dayIdx){if(dayIdx==null)return "—";const s=new Date(+S.week.slice(0,4),+S.week.slice(5,7)-1,+S.week.slice(8,10));s.setDate(s.getDate()+dayIdx);return `${s.getDate()} ${MON[s.getMonth()]}`;}
 /* the coaching team for this course = on-shift teachers assigned to the lanes,
    senior-most first; the lead coach heads the course (feeds the timeline) */
 function courseTeam(){
@@ -1028,9 +1034,9 @@ function teacherSelectPlan(s){
 function tlRow(s,n){
   const i=s._i;
   const sel=(f,opts)=>`<select class="ps-sel tl-sel" data-i="${i}" data-f="${f}">${opts}</select>`;
-  const daySel=sel("day",COURSE_DAYS.map((d,di)=>`<option value="${di}"${di===s.day?" selected":""}>${d}</option>`).join(""));
+  const daySel=sel("day",`<option value=""${s.day==null?" selected":""}>— day —</option>`+COURSE_DAYS.map((d,di)=>`<option value="${di}"${di===s.day?" selected":""}>${d}</option>`).join(""));
   const dateCell=`<span class="tl-date">${esc(courseDateShort(s.day))}</span>`;
-  const timeSel=sel("time",CLASS_TIMES.map(x=>`<option${x===s.time?" selected":""}>${x}</option>`).join(""));
+  const timeSel=sel("time",`<option value=""${!s.time?" selected":""}>— time —</option>`+CLASS_TIMES.map(x=>`<option${x===s.time?" selected":""}>${x}</option>`).join(""));
   const locSel=sel("area",AREAS.map(([k,lab])=>`<option value="${k}"${k===s.area?" selected":""}>${lab}</option>`).join(""));
   const actSel=sel("act",`<option value=""${s.act?"":" selected"}>— what are we doing? —</option>`+ACTIVITIES.map(([g,items])=>`<optgroup label="${esc(g)}">${items.map(([k,lab])=>`<option value="${k}"${k===s.act?" selected":""}>${esc(lab)}</option>`).join("")}</optgroup>`).join(""));
   const durSel=`<select class="ps-sel tl-sel tl-dur" data-i="${i}" data-f="dur">${PLAN_DURS.map(m=>`<option value="${m}"${m===s.dur?" selected":""}>${m}m</option>`).join("")}</select>`;
@@ -1511,7 +1517,8 @@ function render(){
   });
   const bizBanner=biz?`<div class="pool-bizbar"><span>Revenue <b>€${num(biz.revFull)}</b></span><span>Cost <b>€${num(biz.cost)}</b></span><span class="${biz.profit>=0?'pos':'neg'}">Profit <b>${biz.profit>=0?'+':'−'}€${num(Math.abs(biz.profit))}</b></span><span>Break-even <b>${biz.beBookings}</b>/${biz.capacity}</span><span>Booked now <b>€${num(biz.revNow)}</b> · ${biz.booked} sold</span></div>`:"";
   const poolFrame=(cls)=>{
-    const title=`${venueLabel} · Wk ${wk.wk} · ${fday(addD(cls.day))} ${cls.time} · Class ${cls.c+1}${cls.act?" · "+esc(ACT_LABEL[cls.act]||cls.act):""} · ${areaLabel(cls.area)} · ${cls.dur} min · ${sv.name}${sv.stroke?" · "+STROKES[S.course].label:""}`;
+    const when=cls.day==null?"(unscheduled)":`${fday(addD(cls.day))}${cls.time?" "+cls.time:""}`;
+    const title=`${venueLabel} · Wk ${wk.wk} · ${when} · Class ${cls.c+1}${cls.act?" · "+esc(ACT_LABEL[cls.act]||cls.act):""} · ${areaLabel(cls.area)} · ${cls.dur} min · ${sv.name}${sv.stroke?" · "+STROKES[S.course].label:""}`;
     return `<div class="pool-frame"><div class="pool-title">${title}</div>${bizBanner}<div class="pool-lanes">${laneBody}</div></div>`;
   };
   const pIdx=Math.max(0,Math.min(S.poolIdx||0,poolN-1)); S.poolIdx=pIdx;
@@ -1570,7 +1577,7 @@ function render(){
   const placeText=isGroup?`${perSlot}`:`${total}`;
   document.getElementById("timeHead").textContent=isGroup?"Group time":"1-2-1 time";
   const wkList=[];
-  poolPlan().forEach(s=>{ if(!s.act) return; wkList.push({title:ACT_LABEL[s.act]||s.act,day:s.day,time:s.time}); });
+  poolPlan().forEach(s=>{ if(!s.act||s.day==null||!s.time) return; wkList.push({title:ACT_LABEL[s.act]||s.act,day:s.day,time:s.time}); });
   document.getElementById("week").innerHTML = wkList.length
     ? wkList.map((c,i)=>`<tr><td><span class="cn">${i+1}</span><span class="nm">${esc(c.title)}</span></td><td class="day">${COURSE_DAYS[c.day]||""}</td><td class="tm">${c.time}</td><td class="cp">${placeText}</td></tr>`).join("")
     : `<tr><td colspan="4" style="color:var(--ink-faint);padding:14px 2px;">No pool sessions yet — add a session in the Programme schedule with a pool location and an activity. They’ll auto-fill here.</td></tr>`;
@@ -1630,7 +1637,9 @@ document.getElementById("sizeSeg").addEventListener("click",e=>{const b=e.target
 function onPlanChange(e){
   const sel=e.target.closest("select.tl-sel"); if(!sel) return;
   const i=+sel.dataset.i, f=sel.dataset.f; if(!S.plan[i]) return;
-  S.plan[i][f]=(f==="day"||f==="dur")?+sel.value:sel.value;
+  if(f==="day") S.plan[i].day = sel.value===""?null:+sel.value;
+  else if(f==="dur") S.plan[i].dur = +sel.value;
+  else S.plan[i][f] = sel.value;
   if(f==="lead"&&sel.value){const t=teacherById(sel.value); if(t&&!t.on){t.on=true; buildRoster(); buildEditor();}} /* assigning a lead brings them on shift */
   render();
 }
