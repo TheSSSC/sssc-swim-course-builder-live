@@ -72,6 +72,9 @@
   .tl-dur{max-width:72px;}
   .tl-del{border:0;cursor:pointer;background:transparent;color:var(--ink-faint);font-size:13px;font-weight:700;padding:4px 7px;border-radius:7px;transition:.15s;}
   .tl-del:hover{color:#e11d48;background:rgba(225,29,72,.1);}
+  .tl-ins td{padding:0;border:0;text-align:center;height:14px;}
+  .tl-ins-btn{width:18px;height:18px;border-radius:999px;border:0;cursor:pointer;background:#e7eaf1;color:var(--ink-soft);font-size:13px;font-weight:700;line-height:16px;padding:0;opacity:.45;transition:.15s;}
+  .tl-ins-btn:hover{opacity:1;background:var(--svc);color:#fff;transform:scale(1.15);}
   .add-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 14px;}
   .add-bar .lbl{min-width:auto;}
   .add-btn{border:0;cursor:pointer;font:inherit;font-size:12.5px;font-weight:700;color:var(--svc);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.1);border-radius:999px;padding:7px 14px;transition:.15s;}
@@ -928,8 +931,10 @@ const ADD_CATS=[
 ];
 function addPlan(preset){S.plan.push(Object.assign({day:1,time:"09:00",area:"olympic-pool",act:"",dur:60,lead:""},preset||{}));}
 function removePlan(i){if(i>=0&&i<S.plan.length)S.plan.splice(i,1);}
-function planSorted(){return S.plan.map((s,i)=>({...s,_i:i})).sort((a,b)=>a.day-b.day||a.time.localeCompare(b.time));}
+/* sessions are kept in MANUAL order (the session number = its position); not auto-sorted, so you can insert between */
+function planSorted(){return S.plan.map((s,i)=>({...s,_i:i}));}
 function poolPlan(){return planSorted().filter(s=>isPoolArea(s.area));}
+function insertPlan(i){const prev=S.plan[i-1]; S.plan.splice(i,0,{day:prev?prev.day:1,time:"09:00",area:"olympic-pool",act:"",dur:60,lead:""});}
 function clientColor(g){return g==="male"?"#3b82f6":"#ec4899";}
 function pickClients(side,laneIdx,n){const out=[];for(let k=0;k<n;k++){const gender=side==="male"?"male":side==="female"?"female":(k%2===0?"male":"female");const pool=gender==="male"?DEMO_M:DEMO_F;out.push({name:pool[(laneIdx*3+k)%pool.length],gender,age:22+((laneIdx*5+k*3)%40)});}return out;}
 function laneBookedCount(i,cap){return Math.min(cap,Math.max(0,cap-(i%4)));}
@@ -1057,7 +1062,10 @@ function buildTimeline(){
   ];
   const ctx=`<div class="tl-ctx">${meta.map(([k,v])=>`<div class="tl-meta"><span class="tl-mk">${k}</span><span class="tl-mv">${v}</span></div>`).join("")}</div>`;
   if(!S.plan.length){host.innerHTML=`<div class="ps-group">${ctx}<p class="lbl2" style="margin:0">No sessions yet — use <b>+ Add a session</b> above to build your course one session at a time.</p></div>`; return;}
-  const rows=planSorted().map((s,n)=>tlRow(s,n+1)).join("");
+  const list=planSorted();
+  const insRow=i=>`<tr class="tl-ins"><td colspan="9"><button class="tl-ins-btn" data-ins="${i}" title="Insert a session here">＋</button></td></tr>`;
+  let rows=insRow(0);
+  list.forEach((s,n)=>{ rows+=tlRow(s,n+1)+insRow(n+1); });
   host.innerHTML=`<div class="ps-group">${ctx}<div class="tl-scroll"><table class="tl tl-edit"><thead><tr><th>#</th><th>Date</th><th>Day</th><th>Time</th><th>Location</th><th>What we're doing</th><th>Dur</th><th>Teacher</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
 function schedRow(t,i,areaList){
@@ -1634,7 +1642,10 @@ function onPlanChange(e){
   render();
 }
 document.getElementById("timeline").addEventListener("change",onPlanChange);
-document.getElementById("timeline").addEventListener("click",e=>{const d=e.target.closest(".tl-del");if(!d)return;removePlan(+d.dataset.i);render();});
+document.getElementById("timeline").addEventListener("click",e=>{
+  const ins=e.target.closest(".tl-ins-btn"); if(ins){insertPlan(+ins.dataset.ins);render();return;}
+  const d=e.target.closest(".tl-del"); if(d){removePlan(+d.dataset.i);render();}
+});
 document.getElementById("addBar").addEventListener("click",e=>{const b=e.target.closest("[data-area]");if(!b)return;addPlan({area:b.dataset.area,act:b.dataset.act});render();});
 document.getElementById("newCourseBtn").addEventListener("click",()=>{if(!S.plan.length||confirm("Start a new blank course? Your current unpublished work will be cleared (published courses stay safe).")) newCourse();});
 document.querySelectorAll(".stepper").forEach(st=>{
