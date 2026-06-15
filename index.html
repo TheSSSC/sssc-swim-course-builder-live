@@ -409,10 +409,10 @@
 
     <div class="card-head" style="margin:22px 0 13px;">
       <p class="lbl">Sessions per course</p>
-      <span class="count-pill"><b id="courseTotal">14</b> total / course</span>
+      <span class="count-pill"><b id="courseTotal">0</b> total / course</span>
     </div>
     <div class="sess-rows" id="sessRows"></div>
-    <p class="lbl2" style="margin-top:14px;">Pool classes per course: <b id="poolPerCourse" style="color:var(--svc)">8</b> &nbsp;·&nbsp; Classes per course (dryland &amp; classroom): <b id="classesPerCourse" style="color:var(--svc)">6</b></p>
+    <p class="lbl2" style="margin-top:14px;">Pool classes per course: <b id="poolPerCourse" style="color:var(--svc)">0</b> &nbsp;·&nbsp; Classes per course (dryland &amp; classroom): <b id="classesPerCourse" style="color:var(--svc)">0</b></p>
   </div>
 
   <!-- FACILITY HIRE -->
@@ -429,7 +429,7 @@
   <div class="card">
     <div class="card-head" style="margin-bottom:13px;">
       <p class="lbl">Programme schedule — every session · day · time · class · area · duration</p>
-      <span class="count-pill"><b id="progTotal">14</b> sessions</span>
+      <span class="count-pill"><b id="progTotal">0</b> sessions</span>
     </div>
     <p class="lbl2" id="courseFrame" style="margin-bottom:14px;"></p>
     <div id="bulkBar" class="bulkbar"></div>
@@ -775,7 +775,7 @@ const S = {
   /* per-session schedule for the NON-pool session types (pool uses the arrays above) */
   sched:{classroom:[],gym:[],dlIndoor:[],dlOutdoor:[],recovery:[]},
   /* how many of each session type make up one course */
-  sessions:{pool:8,classroom:6,gym:6,dlIndoor:6,dlOutdoor:6,recovery:6},
+  sessions:{pool:0,classroom:0,gym:0,dlIndoor:0,dlOutdoor:0,recovery:0},
   nextId:100,
   /* teacher card expand state + tag filters */
   expanded:new Set(), showFilters:false,
