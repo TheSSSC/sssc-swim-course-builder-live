@@ -110,6 +110,14 @@
   .biz-table tr.biz-total td{border-top:2px solid #e2e7ef;font-weight:800;color:var(--ink);padding-top:9px;}
   .biz-table tr.biz-total td.cp{color:var(--svc);}
   .pub-course-biz{font-size:11px;font-weight:600;color:var(--ink-soft);line-height:1.4;border-top:1px dashed #e2e7ef;padding-top:5px;margin-top:1px;}
+  .fac-table td{vertical-align:middle;}
+  .fac-table td.nm{font-weight:600;}
+  .fac-for{font-size:10px;font-weight:600;color:var(--ink-faint);margin-top:2px;}
+  .fac-rate{white-space:nowrap;}
+  .fac-eur{font-size:12px;font-weight:700;color:var(--ink-soft);margin-right:1px;}
+  .fac-rate-in{width:54px;font:inherit;font-size:13px;font-weight:700;color:var(--ink);text-align:right;border:0;border-radius:8px;padding:6px 8px;background:#fff;box-shadow:inset 1px 1px 4px rgba(174,178,196,.4),inset -1px -1px 2px #fff,inset 0 0 0 1px rgba(0,0,0,.05);}
+  .fac-rate-in:focus{outline:2px solid rgba(var(--pill-r),var(--pill-g),var(--pill-b),.5);}
+  .fac-unit{font-size:10px;font-weight:600;color:var(--ink-faint);margin-left:4px;}
   .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:#1f2733;color:#fff;font-size:13px;font-weight:600;padding:12px 20px;border-radius:12px;box-shadow:0 8px 26px rgba(0,0,0,.28);opacity:0;pointer-events:none;transition:.25s;z-index:90;max-width:90vw;}
   .toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
   .dur-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
@@ -399,6 +407,16 @@
     </div>
     <div class="sess-rows" id="sessRows"></div>
     <p class="lbl2" style="margin-top:14px;">Pool classes per course: <b id="poolPerCourse" style="color:var(--svc)">8</b> &nbsp;·&nbsp; Classes per course (dryland &amp; classroom): <b id="classesPerCourse" style="color:var(--svc)">6</b></p>
+  </div>
+
+  <!-- FACILITY HIRE -->
+  <div class="card">
+    <div class="card-head" style="margin-bottom:6px;">
+      <p class="lbl">Facility hire — wired to your course</p>
+      <span class="count-pill"><b id="facTotal">€0</b> / course</span>
+    </div>
+    <p class="lbl2" style="margin:0 0 13px;">Every space this course needs, pulled live from your sessions, lanes &amp; durations. Pool classes hire lanes (per lane-hour); rooms &amp; training areas are per hour. Edit a rate and it flows straight into the business numbers.</p>
+    <div id="facilities"></div>
   </div>
 
   <!-- PROGRAMME SCHEDULE -->
@@ -832,6 +850,7 @@ S.published=[];            /* published courses (loaded from localStorage) */
 S.pubWeeks=[S.week];       /* which weeks to publish to (block-booking) */
 S.loadedId=null;           /* id of a published course currently loaded for editing */
 S.poolLayers={biz:false,occ:false,names:false};  /* overlay toggles for the pool visualizer */
+S.areaRates={};            /* per-area €/hr overrides for facility hire (defaults from AREA_COST) */
 
 /* ── HELPERS ──────────────────────────────────────────────── */
 function num(n){return Math.round(n).toLocaleString();}
@@ -1149,17 +1168,25 @@ const AREA_COST={
   "palapa-bar":20,"bodega":25,"hotel-restaurant":25,"outside-reception":0,"plaza-rambla":0,"apart-pool-bar":18
 };
 const COACH_DAY=120, BUS_DAY=180, ADMIN_FLAT=250, COURSE_DAYS_N=6;
-function areaCost(k){return (k in AREA_COST)?AREA_COST[k]:12;}
+function effectiveRate(area){return S.areaRates[area]!=null?S.areaRates[area]:(area in AREA_COST?AREA_COST[area]:12);}
+/* every facility the course needs, derived live from sessions·lanes·durations */
+function computeFacilities(){
+  const lanes=lanesList().length, fac={};
+  PROG_TYPES.forEach(([t])=>{for(let i=0;i<S.sessions[t];i++){
+    const area=sArea(t,i), hrs=sDur(t,i)/60, pool=(t==="pool");
+    const units=pool?hrs*Math.max(1,lanes):hrs; /* lane-hours for pool, hours for rooms */
+    const f=fac[area]||(fac[area]={key:area,label:areaLabel(area),pool:false,sessions:0,hours:0,units:0,types:{}});
+    f.sessions++; f.hours+=hrs; f.units+=units; if(pool)f.pool=true; f.types[SHORT_BY_TYPE[t]||t]=1;
+  }});
+  let total=0;
+  const list=Object.values(fac).map(f=>{f.rate=effectiveRate(f.key); f.cost=f.rate*f.units; f.typeList=Object.keys(f.types); total+=f.cost; return f;}).sort((a,b)=>b.cost-a.cost);
+  return {list,total,lanes};
+}
 function computeBusiness(){
   const sv=SERVICES[S.svc], isGroup=S.mode==="group", lanes=lanesList(), nLanes=lanes.length, perLane=isGroup?S.size:1;
   const capacity=nLanes*perLane;
   let booked=0; lanes.forEach((ln,i)=>booked+=laneBookedCount(i,perLane));
-  const fa={}; let facTotal=0;
-  PROG_TYPES.forEach(([t])=>{for(let i=0;i<S.sessions[t];i++){
-    const area=sArea(t,i),hrs=sDur(t,i)/60,pool=(t==="pool"),mult=pool?Math.max(1,nLanes):1,c=areaCost(area)*hrs*mult;
-    (fa[area]=fa[area]||{label:areaLabel(area),sessions:0,hrs:0,cost:0,pool:false});
-    fa[area].sessions++; fa[area].hrs+=hrs; fa[area].cost+=c; if(pool)fa[area].pool=true; facTotal+=c;
-  }});
+  const F=computeFacilities(), facTotal=F.total, facilities=F.list;
   const coachN=onShift().length, coachCost=coachN*COACH_DAY*COURSE_DAYS_N;
   const busCost=sv.bus?BUS_DAY*COURSE_DAYS_N:0, admin=ADMIN_FLAT;
   const cost=facTotal+coachCost+busCost+admin;
@@ -1167,7 +1194,7 @@ function computeBusiness(){
   const beBookings=sv.full>0?Math.ceil(cost/sv.full):0;
   const bePct=capacity>0?Math.round(beBookings/capacity*100):0;
   const profit=revFull-cost, margin=revFull>0?Math.round(profit/revFull*100):0, pnlNow=revNow-cost;
-  return {sv,nLanes,perLane,capacity,booked,fa,facTotal,coachN,coachCost,busCost,admin,cost,revFull,revNow,beBookings,bePct,profit,margin,pnlNow};
+  return {sv,nLanes,perLane,capacity,booked,facilities,facTotal,coachN,coachCost,busCost,admin,cost,revFull,revNow,beBookings,bePct,profit,margin,pnlNow};
 }
 function money(n){return (n<0?"−€":"€")+num(Math.abs(n));}
 function hrsLabel(h){return (h%1?h.toFixed(1):h)+"h";}
@@ -1182,13 +1209,31 @@ function buildBusiness(){
     ["Current position","",money(b.pnlNow),b.pnlNow>=0?"in profit now":`${Math.max(0,b.beBookings-b.booked)} more sales to break even`,b.pnlNow>=0?green:red],
   ];
   document.getElementById("bizMetrics").innerHTML=tiles.map(([k,c,v,sub,col])=>`<div class="m ${c}"><div class="k">${k}</div><div class="v"${col?` style="color:${col}"`:""}>${v}</div><div class="ksub">${sub}</div></div>`).join("");
-  const rows=Object.values(b.fa).sort((x,y)=>y.cost-x.cost).map(a=>`<tr><td class="nm">${esc(a.label)}${a.pool?` <span class="biz-note">lane hire × ${b.nLanes}</span>`:""}</td><td>${a.sessions} session${a.sessions!==1?"s":""}</td><td>${hrsLabel(a.hrs)}</td><td class="cp">€${num(a.cost)}</td></tr>`).join("");
+  const rows=b.facilities.map(a=>`<tr><td class="nm">${esc(a.label)}${a.pool?` <span class="biz-note">lane hire × ${b.nLanes}</span>`:""}</td><td>${a.sessions} session${a.sessions!==1?"s":""}</td><td>${hrsLabel(a.hours)}</td><td class="cp">€${num(a.cost)}</td></tr>`).join("");
   const extra=[[`Coaches — ${b.coachN} on shift × €${COACH_DAY}/day × ${COURSE_DAYS_N} days`,b.coachCost]]
     .concat(b.busCost?[[`Mini-bus / transport — €${BUS_DAY}/day × ${COURSE_DAYS_N} days`,b.busCost]]:[])
     .concat([[`Admin, insurance & safeguarding`,b.admin]])
     .map(([l,c])=>`<tr><td class="nm" colspan="3">${esc(l)}</td><td class="cp">€${num(c)}</td></tr>`).join("");
   document.getElementById("bizBreakdown").innerHTML=`<table class="tl biz-table"><thead><tr><th>Cost line</th><th>Use</th><th>Hours</th><th>Cost</th></tr></thead><tbody>${rows}${extra}<tr class="biz-total"><td class="nm" colspan="3">Total course cost</td><td class="cp">€${num(b.cost)}</td></tr></tbody></table>`;
   document.getElementById("bizTag").textContent=(b.profit>=0?"+":"−")+"€"+num(Math.abs(b.profit))+" projected";
+}
+function buildFacilities(){
+  const host=document.getElementById("facilities"); if(!host) return;
+  const F=computeFacilities();
+  if(!F.list.length){ host.innerHTML=`<p class="lbl2" style="margin:0">No facilities yet — raise the counts in “Sessions per course” above. Pool classes hire lanes; classroom / gym / dryland hire rooms &amp; training areas.</p>`; document.getElementById("facTotal").textContent="€0"; return; }
+  const rows=F.list.map(f=>{
+    const hire=f.pool?`${F.lanes} lane${F.lanes!==1?"s":""} × ${hrsLabel(f.hours)}`:hrsLabel(f.hours);
+    const unit=f.pool?"/lane/hr":"/hr";
+    return `<tr>
+      <td class="nm">${esc(f.label)}${f.pool?` <span class="biz-note">lane hire</span>`:""}<div class="fac-for">${esc(f.typeList.join(" · "))}</div></td>
+      <td>${f.sessions} session${f.sessions!==1?"s":""}</td>
+      <td>${hire}</td>
+      <td class="fac-rate"><span class="fac-eur">€</span><input type="number" min="0" step="1" value="${f.rate}" data-area="${f.key}" class="fac-rate-in" aria-label="Rate for ${esc(f.label)}"><span class="fac-unit">${unit}</span></td>
+      <td class="cp">€${num(f.cost)}</td>
+    </tr>`;
+  }).join("");
+  host.innerHTML=`<table class="tl fac-table"><thead><tr><th>Facility</th><th>Use</th><th>Hire</th><th>Rate</th><th>Cost</th></tr></thead><tbody>${rows}<tr class="biz-total"><td class="nm" colspan="4">Total facility hire / course</td><td class="cp">€${num(F.total)}</td></tr></tbody></table>`;
+  document.getElementById("facTotal").textContent="€"+num(F.total);
 }
 const POOL_LAYERS=[["biz","Business €"],["occ","Occupancy"],["names","Names"]];
 function buildPoolLayers(){
@@ -1424,6 +1469,7 @@ function render(){
 
   buildRegister();
   buildTimeline();
+  buildFacilities();
   buildBusiness();
   buildPublish();
   buildResortCal();
@@ -1538,6 +1584,7 @@ document.getElementById("weekTrack").addEventListener("click",e=>{
 });
 /* pool gallery — one class in view, ‹ › to move through the course */
 document.getElementById("poolLayers").addEventListener("click",e=>{const b=e.target.closest("[data-layer]");if(!b)return;S.poolLayers[b.dataset.layer]=!S.poolLayers[b.dataset.layer];render();});
+document.getElementById("facilities").addEventListener("change",e=>{const inp=e.target.closest("input[data-area]");if(!inp)return;S.areaRates[inp.dataset.area]=Math.max(0,+inp.value||0);render();});
 document.getElementById("poolPrev").addEventListener("click",()=>{S.poolIdx=Math.max(0,(S.poolIdx||0)-1);render();});
 document.getElementById("poolNext").addEventListener("click",()=>{S.poolIdx=Math.min((S.sessions.pool||1)-1,(S.poolIdx||0)+1);render();});
 /* pool — click a START block to reveal client names, click a booked dot for the contact card */
