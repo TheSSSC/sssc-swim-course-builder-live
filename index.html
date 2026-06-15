@@ -444,17 +444,17 @@
       <div class="steppers">
         <div class="stepper-wrap">
           <span class="lbl2"><i class="sd" style="background:#3b82f6"></i>Male lanes</span>
-          <div class="stepper" data-key="male"><button data-d="-1">−</button><span class="sv" id="maleV">3</span><button data-d="1">+</button></div>
+          <div class="stepper" data-key="male"><button data-d="-1">−</button><span class="sv" id="maleV">0</span><button data-d="1">+</button></div>
         </div>
         <div class="stepper-wrap">
           <span class="lbl2"><i class="sd" style="background:#8b5cf6"></i>Mixed lanes</span>
-          <div class="stepper" data-key="mixed"><button data-d="-1">−</button><span class="sv" id="mixedV">2</span><button data-d="1">+</button></div>
+          <div class="stepper" data-key="mixed"><button data-d="-1">−</button><span class="sv" id="mixedV">0</span><button data-d="1">+</button></div>
         </div>
         <div class="stepper-wrap">
           <span class="lbl2"><i class="sd" style="background:#ec4899"></i>Female lanes</span>
-          <div class="stepper" data-key="female"><button data-d="-1">−</button><span class="sv" id="femaleV">3</span><button data-d="1">+</button></div>
+          <div class="stepper" data-key="female"><button data-d="-1">−</button><span class="sv" id="femaleV">0</span><button data-d="1">+</button></div>
         </div>
-        <div class="total-pill"><b id="totalLanes">8</b><span>lanes</span></div>
+        <div class="total-pill"><b id="totalLanes">0</b><span>lanes</span></div>
       </div>
     </div>
 
@@ -770,8 +770,8 @@ const QUAL_BY_ID={
 const S = {
   svc:"swim-school", course:"freestyle", mode:"group",
   week:WEEKS[0].key,
-  male:3, mixed:2, female:3,
-  size:8, durations:[60,60,60], classTypes:[], classDays:[], classTimes:[], classAreas:[], revealed:new Set(), poolIdx:0,
+  male:0, mixed:0, female:0,
+  size:0, durations:[], classTypes:[], classDays:[], classTimes:[], classAreas:[], revealed:new Set(), poolIdx:0,
   /* per-session schedule for the NON-pool session types (pool uses the arrays above) */
   sched:{classroom:[],gym:[],dlIndoor:[],dlOutdoor:[],recovery:[]},
   /* how many of each session type make up one course */
@@ -849,9 +849,9 @@ const S = {
     {id:"tg3",    name:"Noa Frydman",     role:"Swim Coach · Tours",         on:false},
   ],
   /* which teacher (id) is on each lane, per side */
-  assign:{ male:["marco","james","owen"], mixed:["sean","grace"], female:["emma","laura","olivia"] },
+  assign:{ male:[], mixed:[], female:[] },
 };
-S.roster.forEach(t=>{ t.tags=defaultTags(t.id); t.qual=QUAL_BY_ID[t.id]||"assistant"; });
+S.roster.forEach(t=>{ t.tags=defaultTags(t.id); t.qual=QUAL_BY_ID[t.id]||"assistant"; t.on=false; });
 S.published=[];            /* published courses (loaded from localStorage) */
 S.pubWeeks=[S.week];       /* which weeks to publish to (block-booking) */
 S.loadedId=null;           /* id of a published course currently loaded for editing */
@@ -952,7 +952,7 @@ function selectWeek(key){ S.week=key; S.pubWeeks=[key]; S.calY=+key.slice(0,4); 
 
 /* ── NUMBER / DURATION SEGMENTED TOGGLES ─────────────────── */
 function buildSizeSeg(){
-  document.getElementById("sizeSeg").innerHTML=[1,2,3,4,5,6,7,8].map(v=>`<button class="${v===S.size?"on":""}" data-size="${v}">${v}</button>`).join("");
+  document.getElementById("sizeSeg").innerHTML=[0,1,2,3,4,5,6,7,8].map(v=>`<button class="${v===S.size?"on":""}" data-size="${v}">${v}</button>`).join("");
 }
 function courseDateLabel(dayIdx){const s=new Date(+S.week.slice(0,4),+S.week.slice(5,7)-1,+S.week.slice(8,10));s.setDate(s.getDate()+dayIdx+1);return `${WD[s.getDay()]} ${s.getDate()} ${MON[s.getMonth()]}`;}
 /* the coaching team for this course = on-shift teachers assigned to the lanes,
@@ -1231,7 +1231,8 @@ function computeBusiness(){
   let booked=0; lanes.forEach((ln,i)=>booked+=laneBookedCount(i,perLane));
   const F=computeFacilities(), facTotal=F.total, facilities=F.list;
   const coachN=onShift().length, coachCost=coachN*COACH_DAY*COURSE_DAYS_N;
-  const busCost=sv.bus?BUS_DAY*COURSE_DAYS_N:0, admin=ADMIN_FLAT;
+  const hasCourse=sessTotal(S.sessions)>0;
+  const busCost=sv.bus?BUS_DAY*COURSE_DAYS_N:0, admin=hasCourse?ADMIN_FLAT:0;
   const cost=facTotal+coachCost+busCost+admin;
   const revFull=capacity*sv.full, revNow=booked*sv.full;
   const beBookings=sv.full>0?Math.ceil(cost/sv.full):0;
