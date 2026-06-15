@@ -631,13 +631,13 @@ const COURSE_DAYS=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday"];
 const CLASS_TIMES=["07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00"];
 const WD=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 /* sports facility / area a class runs in */
-const AREAS=[["olympic-pool","Olympic pool"],["open-water","Open water"],["leisure-pool","Leisure pool"],["gym","Gym"],["outdoor","Outdoor training area"],["indoor","Indoor training area"],["grass","Grass"],["beach","Beach"],["promenade","Promenade"],["pool-dryland","Olympic pool dryland training"],["reception","Reception"],["conference","Conference room (teaching room)"],["palapa-bar","Palapa bar"],["bodega","Bodega Bar &amp; restaurant"],["hotel-restaurant","Hotel restaurant"],["outside-reception","Outside hotel reception"],["plaza-rambla","Plaza Rambla"],["teatro","Teatro (indoor hall)"],["infinity-pool","Hotel Infinity Pool (adults)"],["apart-family-pool","Apart-hotel family pool"],["apart-pool-bar","Apart-hotel pool bar"]];
+const AREAS=[["olympic-pool","Olympic pool"],["open-water","Open water"],["leisure-pool","Leisure pool"],["gym","Gym"],["outdoor","Outdoor training area"],["indoor","Indoor training area"],["grass","Grass"],["beach","Beach"],["promenade","Promenade"],["pool-dryland","Olympic pool dryland training"],["reception","Reception"],["conference","Conference room — theory teaching"],["conference-video","Conference room — video &amp; technique analysis"],["palapa-bar","Palapa bar"],["bodega","Bodega Bar &amp; restaurant"],["hotel-restaurant","Hotel restaurant"],["outside-reception","Outside hotel reception"],["plaza-rambla","Plaza Rambla"],["teatro","Teatro (indoor hall)"],["infinity-pool","Hotel Infinity Pool (adults)"],["apart-family-pool","Apart-hotel family pool"],["apart-pool-bar","Apart-hotel pool bar"]];
 /* pool-only venues — pool classes can only run in a pool (or the ocean) */
 const POOL_AREAS=[["olympic-pool","Olympic pool"],["apart-pool","Apart pool"],["hotel-pool","Hotel pool"],["open-water","Ocean (open water)"]];
 function areaLabel(k){const a=AREAS.find(x=>x[0]===k)||POOL_AREAS.find(x=>x[0]===k);return a?a[1]:k;}
 /* the 6 session types shown in the programme schedule, in order [key,label,short] */
 const PROG_TYPES=[["pool","Pool classes","Pool"],["classroom","Classroom — theory & video","Classroom"],["gym","Gym sessions","Gym"],["dlIndoor","Dryland — indoor","Indoor"],["dlOutdoor","Dryland — outdoor","Outdoor"],["recovery","Recovery sessions","Recovery"]];
-function defaultArea(t){return t==="gym"?"gym":t==="dlOutdoor"?"outdoor":t==="recovery"?"leisure-pool":(t==="classroom"||t==="dlIndoor")?"indoor":"olympic-pool";}
+function defaultArea(t){return t==="gym"?"gym":t==="dlOutdoor"?"outdoor":t==="recovery"?"leisure-pool":t==="classroom"?"conference":t==="dlIndoor"?"indoor":"olympic-pool";}
 const SHORT_BY_TYPE=Object.fromEntries(PROG_TYPES.map(p=>[p[0],p[2]]));
 /* demo client names for the live register (placeholder data — not real bookings) */
 const DEMO_M=["Liam Carter","Noah Bennett","Oliver Hayes","Jack Morrison","Harry Webb","George Pratt","Charlie Dean","Max Holloway","Leo Fraser","Adam Reid","Sam Whitfield","Ben Marsh"];
@@ -1164,7 +1164,7 @@ function refreshAll(){
    pool/water areas are charged per LANE-hour (lane hire); rooms are flat per session-hour */
 const AREA_COST={
   "olympic-pool":15,"apart-pool":11,"hotel-pool":11,"infinity-pool":12,"apart-family-pool":9,"leisure-pool":8,"pool-dryland":6,"open-water":0,"beach":0,
-  "gym":40,"conference":35,"indoor":30,"outdoor":15,"grass":10,"promenade":0,"teatro":45,"reception":0,
+  "gym":40,"conference":35,"conference-video":40,"indoor":30,"outdoor":15,"grass":10,"promenade":0,"teatro":45,"reception":0,
   "palapa-bar":20,"bodega":25,"hotel-restaurant":25,"outside-reception":0,"plaza-rambla":0,"apart-pool-bar":18
 };
 const COACH_DAY=120, BUS_DAY=180, ADMIN_FLAT=250, COURSE_DAYS_N=6;
