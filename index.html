@@ -428,7 +428,11 @@
   <div class="card">
     <div class="card-head" style="margin-bottom:13px;">
       <p class="lbl">Programme schedule — every session · day · time · class · area · duration</p>
-      <span class="count-pill"><b id="progTotal">0</b> sessions</span>
+      <span style="display:flex;align-items:center;gap:8px;">
+        <span class="lbl2" style="color:var(--ink-faint)">auto-saved</span>
+        <button class="mini-btn" id="newCourseBtn">↺ New course</button>
+        <span class="count-pill"><b id="progTotal">0</b> sessions</span>
+      </span>
     </div>
     <p class="lbl2" id="courseFrame" style="margin-bottom:14px;"></p>
     <div id="addBar" class="add-bar"></div>
@@ -1107,6 +1111,34 @@ function buildSchedules(){ /* legacy per-type renderers removed — the flat bui
 const LS_KEY="sssc-course-builder-v1";
 function loadPublished(){try{const raw=localStorage.getItem(LS_KEY);S.published=raw?JSON.parse(raw):[];}catch(e){S.published=[];}}
 function savePublished(){try{localStorage.setItem(LS_KEY,JSON.stringify(S.published));}catch(e){}}
+/* ── AUTO-SAVE the in-progress working draft (no save button needed) ── */
+const DRAFT_KEY="sssc-course-builder-draft-v1";
+function saveDraft(){try{localStorage.setItem(DRAFT_KEY,JSON.stringify({
+  svc:S.svc,course:S.course,mode:S.mode,week:S.week,venue:S.venue,calY:S.calY,calM:S.calM,
+  male:S.male,mixed:S.mixed,female:S.female,size:S.size,
+  plan:S.plan,areaRates:S.areaRates,assign:S.assign,
+  onShift:S.roster.filter(t=>t.on).map(t=>t.id),pubWeeks:S.pubWeeks,loadedId:S.loadedId
+}));}catch(e){}}
+function loadDraft(){try{
+  const raw=localStorage.getItem(DRAFT_KEY); if(!raw) return;
+  const d=JSON.parse(raw);
+  if(SERVICES[d.svc])S.svc=d.svc; if(STROKES[d.course])S.course=d.course; if(d.mode)S.mode=d.mode;
+  if(WEEKS.some(w=>w.key===d.week)){S.week=d.week;S.calY=d.calY??(+d.week.slice(0,4));S.calM=d.calM??(+d.week.slice(5,7)-1);}
+  if(VENUES.some(v=>v.key===d.venue))S.venue=d.venue;
+  S.male=d.male||0; S.mixed=d.mixed||0; S.female=d.female||0; S.size=d.size||0;
+  S.plan=Array.isArray(d.plan)?d.plan:[]; S.areaRates=d.areaRates||{};
+  S.assign=d.assign||{male:[],mixed:[],female:[]};
+  if(Array.isArray(d.onShift))S.roster.forEach(t=>t.on=d.onShift.includes(t.id));
+  S.pubWeeks=Array.isArray(d.pubWeeks)&&d.pubWeeks.length?d.pubWeeks:[S.week]; S.loadedId=d.loadedId||null;
+}catch(e){}}
+function newCourse(){
+  try{localStorage.removeItem(DRAFT_KEY);}catch(e){}
+  S.svc="swim-school";S.course="freestyle";S.mode="group";S.week=WEEKS[0].key;S.venue="playitas";
+  S.calY=+WEEKS[0].key.slice(0,4);S.calM=+WEEKS[0].key.slice(5,7)-1;
+  S.male=0;S.mixed=0;S.female=0;S.size=0;S.plan=[];S.areaRates={};S.assign={male:[],mixed:[],female:[]};
+  S.roster.forEach(t=>t.on=false); S.pubWeeks=[WEEKS[0].key]; S.loadedId=null; S.poolIdx=0;
+  refreshAll(); showToast("Started a new blank course");
+}
 function sessTotal(s){return Object.values(s).reduce((a,b)=>a+b,0);}
 function snapshotCourse(weekKey){
   const sv=SERVICES[S.svc], wk=WEEKS.find(w=>w.key===weekKey)||WEEKS[0], venue=VENUES.find(v=>v.key===S.venue)||VENUES[0];
@@ -1550,6 +1582,7 @@ function render(){
   buildBusiness();
   buildPublish();
   buildResortCal();
+  saveDraft();
 }
 
 /* ── CONTROLS ─────────────────────────────────────────────── */
@@ -1603,6 +1636,7 @@ function onPlanChange(e){
 document.getElementById("timeline").addEventListener("change",onPlanChange);
 document.getElementById("timeline").addEventListener("click",e=>{const d=e.target.closest(".tl-del");if(!d)return;removePlan(+d.dataset.i);render();});
 document.getElementById("addBar").addEventListener("click",e=>{const b=e.target.closest("[data-area]");if(!b)return;addPlan({area:b.dataset.area,act:b.dataset.act});render();});
+document.getElementById("newCourseBtn").addEventListener("click",()=>{if(!S.plan.length||confirm("Start a new blank course? Your current unpublished work will be cleared (published courses stay safe).")) newCourse();});
 document.querySelectorAll(".stepper").forEach(st=>{
   st.addEventListener("click",e=>{
     const b=e.target.closest("button[data-d]"); if(!b)return;
@@ -1717,6 +1751,7 @@ document.getElementById("laneEditor").addEventListener("change",e=>{
 
 /* ── INIT ─────────────────────────────────────────────────── */
 loadPublished();
+loadDraft();
 buildSvcPills(); buildCoursePills(); syncSizeVis(); buildVenues(); buildCalendar(); buildWeekTrack(); buildSizeSeg(); buildAddBar(); buildSessions(); buildSchedules(); buildFilters(); buildRoster(); buildEditor(); render();
 /* deep-link: re-scroll to a #fragment after dynamic content is built */
 if(location.hash){const el=document.querySelector(location.hash);if(el)setTimeout(()=>el.scrollIntoView({block:"start"}),300);}
