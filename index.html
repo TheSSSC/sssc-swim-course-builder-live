@@ -1008,14 +1008,16 @@ function courseTeam(){
 }
 /* per-session lead-teacher overrides — the timeline teacher column is editable */
 function teacherSelectPlan(s){
-  const led=courseTeam(), cur=(teacherById(s.lead)&&teacherById(s.lead).on)?s.lead:"", on=onShift();
-  const leadName=led.lead?led.lead.name:"unassigned";
-  const mine=on.filter(x=>x.tags.services.includes(S.svc)).sort((a,b)=>QUALS[b.qual].rank-QUALS[a.qual].rank);
-  const others=on.filter(x=>!mine.includes(x)).sort((a,b)=>QUALS[b.qual].rank-QUALS[a.qual].rank);
-  const opt=x=>`<option value="${x.id}"${x.id===cur?" selected":""}>${esc(x.name)} · ${QUALS[x.qual].label}</option>`;
-  let o=`<option value=""${cur?"":" selected"}>— lead: ${esc(leadName)} —</option>`;
-  if(mine.length)o+=`<optgroup label="${esc(SVC_SHORT[S.svc]||S.svc)} on shift">${mine.map(opt).join("")}</optgroup>`;
-  if(others.length)o+=`<optgroup label="Other on shift">${others.map(opt).join("")}</optgroup>`;
+  const cur=teacherById(s.lead)?s.lead:"";
+  /* list EVERY coach — suited to this service first, then the rest by service. Picking one puts them on shift. */
+  const byQual=(a,b)=>QUALS[b.qual].rank-QUALS[a.qual].rank;
+  const mine=S.roster.filter(x=>x.tags.services.includes(S.svc)).sort(byQual);
+  const rest=S.roster.filter(x=>!mine.includes(x));
+  const opt=x=>`<option value="${x.id}"${x.id===cur?" selected":""}>${esc(x.name)} · ${QUALS[x.qual].label}${x.on?"":" · off shift"}</option>`;
+  let o=`<option value=""${cur?"":" selected"}>— pick a coach —</option>`;
+  if(mine.length)o+=`<optgroup label="${esc(SVC_SHORT[S.svc]||S.svc)} coaches (${mine.length})">${mine.map(opt).join("")}</optgroup>`;
+  const bySvc={}; rest.forEach(x=>{const k=x.tags.services[0]||"other";(bySvc[k]=bySvc[k]||[]).push(x);});
+  Object.keys(bySvc).forEach(k=>{bySvc[k].sort(byQual);o+=`<optgroup label="${esc(SVC_SHORT[k]||k)} coaches (${bySvc[k].length})">${bySvc[k].map(opt).join("")}</optgroup>`;});
   return `<select class="ps-sel tl-sel" data-i="${s._i}" data-f="lead">${o}</select>`;
 }
 function tlRow(s,n){
@@ -1595,6 +1597,7 @@ function onPlanChange(e){
   const sel=e.target.closest("select.tl-sel"); if(!sel) return;
   const i=+sel.dataset.i, f=sel.dataset.f; if(!S.plan[i]) return;
   S.plan[i][f]=(f==="day"||f==="dur")?+sel.value:sel.value;
+  if(f==="lead"&&sel.value){const t=teacherById(sel.value); if(t&&!t.on){t.on=true; buildRoster(); buildEditor();}} /* assigning a lead brings them on shift */
   render();
 }
 document.getElementById("timeline").addEventListener("change",onPlanChange);
