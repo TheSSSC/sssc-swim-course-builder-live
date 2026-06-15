@@ -1,0 +1,1605 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SSSC — Swim Course Builder</title>
+<style>
+  :root{
+    --svc:#2563eb; --pill-r:37; --pill-g:99; --pill-b:235;
+    --ink:#1f2733; --ink-soft:#6b7280; --ink-faint:#9aa3b2;
+    --bg:#eceef3; --card:#ffffff;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 22px 64px;}
+  h1{font-size:26px;font-weight:700;letter-spacing:-0.02em;margin:0 0 2px;}
+  .sub{color:var(--ink-soft);font-size:14px;margin:0 0 22px;max-width:780px;}
+  .accent{color:var(--svc);transition:color .25s;}
+
+  .card{background:var(--card);border-radius:18px;padding:18px;margin-bottom:16px;
+    box-shadow:-2px -2px 5px rgba(255,255,255,1),4px 5px 14px rgba(174,178,196,.22),
+      2px 2px 6px rgba(174,178,196,.12),inset 0 0 0 1px rgba(0,0,0,.025);}
+  .card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;}
+  .lbl{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);margin:0;}
+  .lbl2{font-size:11px;font-weight:600;color:var(--ink-soft);display:inline-flex;align-items:center;gap:6px;}
+  .lbl2 .sd,.stepper .sd{width:9px;height:9px;border-radius:50%;display:inline-block;}
+  .count-pill{font-size:11px;font-weight:700;color:var(--svc);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.1);padding:4px 11px;border-radius:999px;}
+
+  /* pills */
+  .pills{display:flex;flex-wrap:wrap;gap:8px;}
+  .pill{border:0;cursor:pointer;font:inherit;font-size:13px;font-weight:600;color:var(--ink-soft);
+    background:linear-gradient(145deg,#fff,#f3f5f8);border-radius:999px;padding:8px 15px;transition:.2s;
+    box-shadow:-2px -2px 5px rgba(255,255,255,.9),3px 3px 8px rgba(174,178,196,.3);}
+  .pill:hover{color:var(--ink);}
+  .pill.on{color:var(--svc);background:linear-gradient(145deg,#fff,#fafbfc);
+    box-shadow:-3px -3px 8px rgba(255,255,255,1),4px 5px 14px rgba(174,174,192,.38),
+      inset 0 0 0 1px rgba(255,255,255,1),
+      0 0 0 2px rgba(var(--pill-r),var(--pill-g),var(--pill-b),.22),
+      0 0 16px 2px rgba(var(--pill-r),var(--pill-g),var(--pill-b),.32);}
+  .pill .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px;vertical-align:1px;}
+
+  /* segmented control — recessed track, active option = white raised pill */
+  .seg{display:inline-flex;max-width:100%;flex-wrap:wrap;gap:4px;background:#e7eaf1;border-radius:18px;padding:4px;
+    box-shadow:inset 1px 1px 4px rgba(174,178,196,.5),inset -1px -1px 2px #fff;}
+  .seg button{border:0;cursor:pointer;font:inherit;font-size:13px;font-weight:600;color:var(--ink-soft);background:transparent;border-radius:999px;padding:8px 15px;transition:.18s;display:inline-flex;align-items:center;gap:7px;}
+  .seg button:hover{color:var(--ink);}
+  .seg button.on{color:var(--svc);font-weight:700;background:#fff;box-shadow:0 1px 3px rgba(174,178,196,.45),0 0 0 1px rgba(var(--pill-r),var(--pill-g),var(--pill-b),.18);}
+  .seg button[disabled]{cursor:default;}
+  .seg button .dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto;}
+  #programme{display:flex;flex-direction:column;gap:14px;}
+  #poolSched{display:flex;flex-direction:column;gap:9px;}
+  .ps-group{display:flex;flex-direction:column;gap:9px;}
+  .ps-grouph{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin:2px 0 1px;}
+  .tl{width:100%;border-collapse:collapse;font-size:12.5px;}
+  .tl th{text-align:left;font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);padding:0 11px 8px;}
+  .tl td{padding:8px 11px;border-top:1px solid #eef0f4;color:var(--ink);vertical-align:middle;}
+  .tl tbody tr:first-child td{border-top:0;}
+  .tl td.day{color:var(--ink-soft);white-space:nowrap;}
+  .tl td.tm{font-weight:700;color:var(--svc);font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .tl td.nm{font-weight:600;}
+  .tl td.cp{text-align:right;font-weight:700;color:var(--ink-soft);font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .tl td.tch{font-weight:600;color:var(--ink);white-space:nowrap;}
+  .tl-plus{display:inline-block;font-size:10px;font-weight:700;color:var(--svc);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.12);border-radius:999px;padding:1px 6px;margin-left:2px;}
+  .tl-ctx{display:flex;flex-wrap:wrap;gap:8px 10px;margin:2px 0 14px;}
+  .tl-meta{display:flex;flex-direction:column;gap:2px;background:#f4f6fa;border-radius:10px;padding:7px 12px;min-width:0;}
+  .tl-mk{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);}
+  .tl-mv{font-size:12.5px;font-weight:700;color:var(--ink);white-space:nowrap;display:flex;align-items:center;gap:6px;}
+  .tl-dot{width:9px;height:9px;border-radius:999px;display:inline-block;flex:0 0 auto;}
+  .bulkbar{display:flex;flex-direction:column;gap:11px;background:#eef1f6;border-radius:14px;padding:13px 15px;margin-bottom:18px;box-shadow:inset 1px 1px 3px rgba(174,178,196,.35),inset -1px -1px 2px #fff;}
+  .bulk-row{display:flex;align-items:center;gap:11px;flex-wrap:wrap;}
+  .bulk-row .lbl{min-width:84px;}
+  /* publish + weekly calendar */
+  .pub-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:9px;flex-wrap:wrap;}
+  .mini-btn{border:0;cursor:pointer;font:inherit;font-size:11px;font-weight:700;color:var(--ink-soft);background:#eef1f6;border-radius:999px;padding:5px 11px;transition:.15s;}
+  .mini-btn:hover{color:var(--ink);background:#e2e7ef;}
+  .wk-chips{display:flex;flex-wrap:wrap;gap:8px;}
+  .wk-chip{border:0;cursor:pointer;font:inherit;background:#fff;border-radius:11px;padding:8px 13px;display:flex;flex-direction:column;gap:1px;text-align:left;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06),0 1px 2px rgba(174,178,196,.3);transition:.15s;}
+  .wk-chip .wkc-n{font-size:12.5px;font-weight:700;color:var(--ink-soft);}
+  .wk-chip .wkc-r{font-size:10px;font-weight:600;color:var(--ink-faint);white-space:nowrap;}
+  .wk-chip:hover{box-shadow:inset 0 0 0 1px rgba(0,0,0,.12),0 1px 3px rgba(174,178,196,.45);}
+  .wk-chip.on{box-shadow:inset 0 0 0 2px var(--svc),0 0 14px 1px rgba(var(--pill-r),var(--pill-g),var(--pill-b),.18);}
+  .wk-chip.on .wkc-n{color:var(--svc);}
+  .pub-actions{margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;}
+  .pub-upd{background:#059669;}
+  .pub-btn{border:0;cursor:pointer;font:inherit;font-size:14px;font-weight:700;color:#fff;border-radius:12px;padding:12px 22px;box-shadow:0 2px 8px rgba(0,0,0,.12);transition:.15s;}
+  .pub-btn:hover{filter:brightness(1.05);}
+  .pub-btn:disabled{cursor:default;filter:none;opacity:.7;}
+  .cal-week{margin-bottom:14px;}
+  .cal-week-h{display:flex;align-items:baseline;gap:10px;padding:0 2px 8px;border-bottom:1px solid #eef0f4;margin-bottom:10px;}
+  .cal-wk{font-size:14px;font-weight:800;}
+  .cal-wr{font-size:11.5px;font-weight:600;color:var(--ink-soft);}
+  .cal-wc{margin-left:auto;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);}
+  .cal-week-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;}
+  .pub-course{background:#f7f8fb;border-radius:11px;padding:11px 13px;display:flex;flex-direction:column;gap:6px;}
+  .pub-course-h{display:flex;align-items:center;gap:8px;}
+  .pub-course-t{font-size:13.5px;font-weight:700;flex:1;}
+  .pub-del{border:0;cursor:pointer;background:transparent;color:var(--ink-faint);font-size:13px;font-weight:700;padding:2px 5px;border-radius:6px;transition:.15s;}
+  .pub-del:hover{color:#e11d48;background:rgba(225,29,72,.1);}
+  .pub-course-m{font-size:11.5px;font-weight:600;color:var(--ink-soft);line-height:1.4;}
+  .pub-course-a{margin-top:1px;}
+  .pub-load{border:0;cursor:pointer;font:inherit;font-size:11px;font-weight:700;color:var(--svc);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.1);border-radius:999px;padding:5px 12px;transition:.15s;}
+  .pub-load:hover{background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.18);}
+  .biz-mtx{grid-template-columns:repeat(auto-fit,minmax(168px,1fr));}
+  .m .ksub{font-size:10.5px;font-weight:600;color:var(--ink-soft);margin-top:3px;line-height:1.3;}
+  .biz-table{margin-top:2px;}
+  .biz-table td.nm{font-weight:600;}
+  .biz-note{font-size:10px;font-weight:700;color:var(--ink-faint);}
+  .biz-table tr.biz-total td{border-top:2px solid #e2e7ef;font-weight:800;color:var(--ink);padding-top:9px;}
+  .biz-table tr.biz-total td.cp{color:var(--svc);}
+  .pub-course-biz{font-size:11px;font-weight:600;color:var(--ink-soft);line-height:1.4;border-top:1px dashed #e2e7ef;padding-top:5px;margin-top:1px;}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:#1f2733;color:#fff;font-size:13px;font-weight:600;padding:12px 20px;border-radius:12px;box-shadow:0 8px 26px rgba(0,0,0,.28);opacity:0;pointer-events:none;transition:.25s;z-index:90;max-width:90vw;}
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
+  .dur-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .sess-rows{display:flex;flex-direction:column;gap:10px;}
+  .sess-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .sess-row .slbl{font-size:12.5px;font-weight:600;color:var(--ink-soft);min-width:236px;}
+  .classsel{flex:1 1 200px;min-width:170px;max-width:340px;font:inherit;font-size:12.5px;font-weight:600;color:var(--ink);background:#fff;border:0;border-radius:9px;padding:7px 10px;cursor:pointer;box-shadow:inset 1px 1px 4px rgba(174,178,196,.4),inset -1px -1px 2px #fff,inset 0 0 0 1px rgba(0,0,0,.04);}
+  .classsel:focus{outline:2px solid rgba(var(--pill-r),var(--pill-g),var(--pill-b),.5);}
+  .daysel,.timesel{flex:0 0 auto;width:84px;font:inherit;font-size:12.5px;font-weight:600;color:var(--ink);background:#fff;border:0;border-radius:9px;padding:7px 8px;cursor:pointer;box-shadow:inset 1px 1px 4px rgba(174,178,196,.4),inset -1px -1px 2px #fff,inset 0 0 0 1px rgba(0,0,0,.04);}
+  .daysel:focus,.timesel:focus{outline:2px solid rgba(var(--pill-r),var(--pill-g),var(--pill-b),.5);}
+  .areasel{flex:0 0 auto;width:170px;font:inherit;font-size:12.5px;font-weight:600;color:var(--ink);background:#fff;border:0;border-radius:9px;padding:7px 9px;cursor:pointer;box-shadow:inset 1px 1px 4px rgba(174,178,196,.4),inset -1px -1px 2px #fff,inset 0 0 0 1px rgba(0,0,0,.04);}
+  .areasel:focus{outline:2px solid rgba(var(--pill-r),var(--pill-g),var(--pill-b),.5);}
+
+  .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px 26px;}
+  .ctl{min-width:0;}
+  .ctl .lbl{margin-bottom:9px;}
+
+  /* sliders */
+  .srow{display:flex;align-items:center;gap:10px;margin-top:2px;}
+  input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:5px;border-radius:999px;background:#dfe3ec;outline:none;
+    box-shadow:inset 1px 1px 3px rgba(174,178,196,.7),inset -1px -1px 2px #fff;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;
+    background:var(--svc);cursor:pointer;border:3px solid #fff;box-shadow:0 2px 6px rgba(var(--pill-r),var(--pill-g),var(--pill-b),.5);}
+  .val{min-width:30px;text-align:center;font-weight:700;font-size:15px;color:var(--svc);}
+
+  /* toggle group */
+  .toggle{display:inline-flex;background:#e7eaf1;border-radius:999px;padding:4px;gap:4px;
+    box-shadow:inset 1px 1px 4px rgba(174,178,196,.5),inset -1px -1px 2px #fff;}
+  .toggle button{border:0;cursor:pointer;font:inherit;font-size:13px;font-weight:700;color:var(--ink-soft);background:transparent;border-radius:999px;padding:7px 16px;transition:.18s;}
+  .toggle button.on{color:var(--svc);background:#fff;box-shadow:0 1px 3px rgba(174,178,196,.45),0 0 0 1px rgba(var(--pill-r),var(--pill-g),var(--pill-b),.18);}
+
+  /* steppers */
+  .steppers{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-end;}
+  .stepper-wrap{display:flex;flex-direction:column;gap:7px;}
+  .stepper{display:inline-flex;align-items:center;background:#fff;border-radius:999px;
+    box-shadow:inset 1px 1px 4px rgba(174,178,196,.4),inset -1px -1px 2px #fff,inset 0 0 0 1px rgba(0,0,0,.04);}
+  .stepper button{border:0;background:transparent;font:inherit;font-size:18px;font-weight:600;color:var(--svc);width:32px;height:32px;cursor:pointer;border-radius:999px;line-height:1;}
+  .stepper button:hover{background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.1);}
+  .stepper .sv{min-width:26px;text-align:center;font-weight:700;font-size:15px;font-variant-numeric:tabular-nums;}
+  .total-pill{display:inline-flex;flex-direction:column;justify-content:center;align-items:center;padding:5px 18px;border-radius:13px;
+    background:linear-gradient(180deg,rgba(var(--pill-r),var(--pill-g),var(--pill-b),.1),rgba(var(--pill-r),var(--pill-g),var(--pill-b),.03));}
+  .total-pill b{font-size:21px;color:var(--svc);font-variant-numeric:tabular-nums;}
+  .total-pill span{font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint);}
+
+  /* venue selector — single-select segmented cards (iOS Venue picker) */
+  .venues{display:flex;flex-wrap:wrap;gap:4px;max-width:760px;background:#e7eaf1;border-radius:16px;padding:4px;box-shadow:inset 1px 1px 4px rgba(174,178,196,.5),inset -1px -1px 2px #fff;}
+  .venue-seg{flex:1 1 0;min-width:118px;border:0;cursor:pointer;background:transparent;border-radius:12px;padding:11px 10px 9px;display:flex;flex-direction:column;align-items:center;gap:4px;transition:.18s;}
+  .venue-seg .vicon{width:27px;height:20px;color:var(--ink-faint);}
+  .venue-seg .vname{font-size:13px;font-weight:600;color:var(--ink-soft);white-space:nowrap;}
+  .venue-seg .vplace{font-size:10.5px;font-weight:500;color:var(--ink-faint);white-space:nowrap;}
+  .venue-seg.on{background:#fff;box-shadow:0 1px 3px rgba(174,178,196,.45),0 0 0 1px rgba(var(--pill-r),var(--pill-g),var(--pill-b),.2),0 0 16px 1px rgba(var(--pill-r),var(--pill-g),var(--pill-b),.2);}
+  .venue-seg.on .vicon{color:var(--svc);}
+  .venue-seg.on .vname{color:var(--ink);font-weight:700;}
+
+  /* teacher contact list */
+  #roster{display:grid;grid-template-columns:1fr;gap:8px;}
+  .tcell{display:flex;flex-direction:column;}
+  .trow{display:flex;align-items:flex-start;gap:9px;padding:8px 11px;border-radius:10px;background:#f6f7fa;box-shadow:inset 0 0 0 1px rgba(0,0,0,.025);}
+  .trow.off{opacity:.62;}
+  .tinfo{display:flex;flex-direction:column;min-width:0;flex:1;cursor:pointer;}
+  .caret{font-size:10px;color:var(--ink-faint);}
+  .tsum{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;}
+  .tchip{display:inline-block;font:inherit;font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:999px;cursor:pointer;border:0;background:#e7eaf1;color:var(--ink-soft);transition:.15s;}
+  .tchip.on{background:var(--svc);color:#fff;}
+  .tchip.ro{cursor:default;background:#eceef3;}
+  .tchip.clr{background:#fdecec;color:#b91c1c;}
+  .tchip.tparent{font-weight:700;box-shadow:inset 0 0 0 1px rgba(var(--pill-r),var(--pill-g),var(--pill-b),.4);}
+  .tchip.tparent.part{background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.16);color:var(--svc);}
+  .tchip.qchip{background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.16);color:var(--svc);}
+  .nofit{font-size:10.5px;font-weight:600;color:#b91c1c;flex:0 0 auto;}
+  .tcard{margin-top:7px;padding:12px 13px;border-radius:11px;background:#fff;box-shadow:inset 0 0 0 1px rgba(0,0,0,.05);display:flex;flex-direction:column;gap:11px;}
+  .tcard-head{display:flex;gap:12px;align-items:flex-start;padding-bottom:11px;border-bottom:1px solid #eef0f4;}
+  .avatar{flex:0 0 auto;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--svc);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.14);}
+  .tcard-meta{min-width:0;flex:1;}
+  .tcard-bio{font-size:12.5px;font-weight:600;color:var(--ink);margin-bottom:5px;}
+  .tcard-facts{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11px;color:var(--ink-soft);}
+  .tcard-facts span{white-space:nowrap;}
+  .tsec-h{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:6px;}
+  .tsec-chips{display:flex;flex-wrap:wrap;gap:5px;}
+  .filterbar{display:flex;align-items:center;gap:11px;margin-bottom:11px;flex-wrap:wrap;}
+  .filterbtn{border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:700;color:var(--svc);background:#fff;border-radius:999px;padding:7px 15px;box-shadow:-2px -2px 5px rgba(255,255,255,.9),3px 3px 8px rgba(174,178,196,.3);}
+  .fpanel{margin-bottom:13px;padding:13px;border-radius:12px;background:#f6f7fa;box-shadow:inset 0 0 0 1px rgba(0,0,0,.025);display:flex;flex-direction:column;gap:11px;}
+  .fpanel[hidden]{display:none;}
+  .tname{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .trole{font-size:10.5px;color:var(--ink-faint);}
+  .switch{flex:0 0 auto;width:42px;height:24px;border-radius:999px;border:0;background:#d7dbe4;cursor:pointer;position:relative;transition:.18s;padding:0;
+    box-shadow:inset 1px 1px 3px rgba(174,178,196,.6),inset -1px -1px 2px #fff;}
+  .switch.on{background:var(--svc);}
+  .switch .knob{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.18s;box-shadow:0 1px 3px rgba(0,0,0,.25);}
+  .switch.on .knob{left:21px;}
+  .addrow{display:flex;gap:8px;margin-top:13px;}
+  .addrow input{flex:1;font:inherit;font-size:13px;font-weight:600;color:var(--ink);border:0;border-radius:9px;padding:9px 12px;background:#fff;box-shadow:inset 1px 1px 4px rgba(174,178,196,.4),inset -1px -1px 2px #fff,inset 0 0 0 1px rgba(0,0,0,.04);}
+  .addrow input:focus{outline:2px solid rgba(var(--pill-r),var(--pill-g),var(--pill-b),.5);}
+  .addrow button{border:0;cursor:pointer;font:inherit;font-size:13px;font-weight:700;color:var(--svc);background:#fff;border-radius:9px;padding:9px 18px;box-shadow:-2px -2px 5px rgba(255,255,255,.9),3px 3px 8px rgba(174,178,196,.3);}
+  .addrow button:hover{box-shadow:-2px -2px 5px rgba(255,255,255,1),3px 3px 10px rgba(174,178,196,.45);}
+
+  /* tabbed lanes / teachers card */
+  .tabs{display:inline-flex;background:#e7eaf1;border-radius:999px;padding:4px;gap:4px;margin-bottom:16px;box-shadow:inset 1px 1px 4px rgba(174,178,196,.5),inset -1px -1px 2px #fff;}
+  .tab{border:0;cursor:pointer;font:inherit;font-size:13px;font-weight:700;color:var(--ink-soft);background:transparent;border-radius:999px;padding:8px 18px;transition:.18s;}
+  .tab.on{color:var(--svc);background:#fff;box-shadow:0 1px 3px rgba(174,178,196,.45),0 0 0 1px rgba(var(--pill-r),var(--pill-g),var(--pill-b),.18);}
+  .tabpanel[hidden]{display:none;}
+  /* lane selector — 3 columns by side, mirroring the pool (M | MIX | F) */
+  #laneEditor{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:16px;}
+  @media(max-width:760px){#laneEditor{grid-template-columns:minmax(0,1fr);}}
+  .lane-col{display:flex;flex-direction:column;gap:9px;min-width:0;}
+  .lane-col-h{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;}
+  .lane-col-empty{font-size:12px;color:var(--ink-faint);font-style:italic;padding:6px 2px;}
+  .lane-edit{display:flex;align-items:center;gap:9px;}
+  .side-badge{flex:0 0 auto;min-width:58px;text-align:center;color:#fff;font-size:10px;font-weight:700;padding:7px 8px;border-radius:8px;letter-spacing:.02em;font-variant-numeric:tabular-nums;}
+  .lane-edit select{flex:1;min-width:0;font:inherit;font-size:13px;font-weight:600;color:var(--ink);background:#fff;border:0;border-radius:9px;padding:8px 11px;cursor:pointer;
+    box-shadow:inset 1px 1px 4px rgba(174,178,196,.4),inset -1px -1px 2px #fff,inset 0 0 0 1px rgba(0,0,0,.04);}
+  .lane-edit select:focus{outline:2px solid rgba(var(--pill-r),var(--pill-g),var(--pill-b),.5);}
+  /* week calendar + week toggle (iOS "Configure your dates") */
+  .cal{max-width:430px;display:flex;flex-direction:column;gap:5px;}
+  .calhead{display:flex;align-items:center;justify-content:space-between;}
+  .calmonth{font-size:15px;font-weight:600;color:var(--ink);}
+  .calnav{border:0;background:transparent;cursor:pointer;font-size:18px;font-weight:700;color:var(--svc);width:30px;height:30px;border-radius:8px;line-height:1;}
+  .calnav:hover{background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.1);}
+  .crow{display:flex;align-items:center;}
+  .cwk{flex:0 0 26px;text-align:center;font-size:11px;font-weight:600;color:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.6);}
+  .cwk.hi{color:var(--svc);font-weight:800;}
+  .cdays{flex:1;display:flex;align-items:center;border-radius:999px;}
+  .cdays.hi{background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.1);box-shadow:inset 0 0 0 1.5px rgba(var(--pill-r),var(--pill-g),var(--pill-b),.45);}
+  .cd{flex:1;display:flex;justify-content:center;padding:2px 0;}
+  .cd .cdn{width:30px;height:30px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;color:var(--ink);}
+  .cd .cdh{font-size:10px;font-weight:700;color:var(--ink-faint);letter-spacing:.03em;}
+  .cd.past .cdn{color:#cbd5e1;}
+  .cd.out .cdn{color:var(--ink-faint);}
+  .cd.bold .cdn{font-weight:700;}
+  .cd.today .cdn{box-shadow:inset 0 0 0 1.5px rgba(var(--pill-r),var(--pill-g),var(--pill-b),.6);}
+  .cd.clickable{cursor:pointer;}
+  .weektrack{display:flex;gap:4px;overflow-x:auto;max-width:560px;background:#e7eaf1;border-radius:14px;padding:4px;box-shadow:inset 1px 1px 4px rgba(174,178,196,.5),inset -1px -1px 2px #fff;}
+  .wk-seg{flex:0 0 auto;min-width:104px;border:0;cursor:pointer;background:transparent;border-radius:11px;padding:8px 14px;display:flex;flex-direction:column;align-items:center;gap:1px;transition:.18s;}
+  .wk-seg .wkn{font-size:13px;font-weight:600;color:var(--ink-soft);white-space:nowrap;}
+  .wk-seg .wkr{font-size:10.5px;font-weight:500;color:var(--ink-faint);white-space:nowrap;}
+  .wk-seg.on{background:#fff;box-shadow:0 1px 3px rgba(174,178,196,.45),0 0 0 1px rgba(var(--pill-r),var(--pill-g),var(--pill-b),.2),0 0 14px 1px rgba(var(--pill-r),var(--pill-g),var(--pill-b),.2);}
+  .wk-seg.on .wkn{color:var(--svc);font-weight:700;}
+
+  /* client pool-lane register */
+  #register{display:flex;flex-direction:column;gap:8px;}
+  .reg-lane{display:flex;align-items:flex-start;gap:11px;padding:9px 11px;border-radius:11px;background:#f6f7fa;box-shadow:inset 0 0 0 1px rgba(0,0,0,.025);}
+  .reg-info{flex:1;min-width:0;}
+  .reg-coach{font-size:11.5px;font-weight:600;color:var(--ink-soft);margin-bottom:5px;}
+  .reg-clients{display:flex;flex-wrap:wrap;gap:5px;}
+  .reg-chip{font-size:11px;font-weight:600;color:#fff;padding:3px 9px;border-radius:999px;white-space:nowrap;}
+  .reg-empty{font-size:11.5px;font-style:italic;color:var(--ink-faint);}
+  .reg-count{flex:0 0 auto;font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;align-self:center;}
+
+  .grid2{display:grid;grid-template-columns:1.55fr 1fr;gap:16px;}
+  @media(max-width:860px){.grid2{grid-template-columns:1fr;}}
+
+  /* pool — ported from SSSC HQ Lane register */
+  .pool-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;}
+  .pool-head .ttl{font-size:15px;font-weight:700;}
+  .pool-head .meta{font-size:12px;color:var(--ink-soft);}
+  .pool-nav{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--ink-soft);font-variant-numeric:tabular-nums;}
+  .pool-nav button{border:0;cursor:pointer;font-size:16px;font-weight:700;color:var(--svc);background:#fff;width:28px;height:28px;border-radius:8px;line-height:1;box-shadow:-1px -1px 3px rgba(255,255,255,.9),2px 2px 6px rgba(174,178,196,.35);}
+  .pool-nav button:hover{box-shadow:-1px -1px 3px #fff,2px 3px 8px rgba(174,178,196,.5);}
+  #pools{display:grid;gap:14px;}
+  .pool-frame{background:#0a3a63;box-shadow:inset 0 0 0 3px #cfe0ee;border-radius:14px;padding:10px;}
+  .pool-title{color:#fff;font-size:12.5px;font-weight:650;padding:2px 4px 8px;letter-spacing:.01em;}
+  .pool-empty{color:#cfe0ee;font-size:12px;padding:16px;text-align:center;}
+  .pool-lanes{display:flex;flex-direction:column;}
+  .pool-rope{display:flex;gap:3px;height:7px;align-items:center;padding:1px 0;overflow:hidden;}
+  .rope-disc{flex:1 1 0;height:6px;border-radius:999px;min-width:4px;}
+  .rope-disc.red{background:#e2473f;} .rope-disc.white{background:#fff;} .rope-disc.blue{background:#2f6fb0;}
+  .pool-lane{display:flex;align-items:stretch;gap:0;height:44px;}
+  .pool-start,.pool-finish{display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-variant-numeric:tabular-nums;border:none;}
+  .pool-start{width:66px;flex:0 0 66px;border-radius:7px 0 0 7px;cursor:default;line-height:1.12;padding:0 2px;}
+  .pool-start.unassigned{opacity:.78;}
+  .pool-start-l{font-size:12px;font-weight:750;}
+  .pool-start-side{font-size:8px;font-weight:600;opacity:.92;text-transform:uppercase;letter-spacing:.03em;}
+  .pool-start-coach{font-size:8px;font-weight:600;opacity:.9;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px;}
+  .pool-finish{width:46px;flex:0 0 46px;border-radius:0 7px 7px 0;font-size:12px;font-weight:700;}
+  .pool-water{flex:1 1 auto;position:relative;background:#2a6ab0;display:flex;align-items:center;min-width:0;}
+  .pool-guide{position:absolute;left:0;right:0;top:50%;height:2px;background:rgba(255,255,255,.32);transform:translateY(-1px);pointer-events:none;}
+  .pool-dots{position:relative;display:flex;align-items:center;justify-content:space-evenly;gap:4px;width:100%;padding:0 8px;}
+  .pool-dot{width:16px;height:16px;flex:0 0 16px;border-radius:999px;border:none;padding:0;position:relative;}
+  .pool-dot.free{background:transparent;box-shadow:inset 0 0 0 2px rgba(255,255,255,.7);}
+  .pool-dot.booked{box-shadow:0 0 0 2px #fff;cursor:pointer;}
+  .pool-dot.booked:hover,.pool-dot.booked.on{box-shadow:0 0 0 2px #fff,0 0 0 4px rgba(255,255,255,.45);}
+  .pool-lane.revealed{height:auto;min-height:58px;}
+  .pool-layers{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 12px;}
+  .pl-lbl{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);}
+  .pl-toggle{border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:700;color:var(--ink-soft);background:#eef1f6;border-radius:999px;padding:6px 13px 6px 7px;display:inline-flex;align-items:center;gap:7px;transition:.15s;}
+  .pl-toggle .pl-knob{width:26px;height:15px;border-radius:999px;background:#cbd2dd;position:relative;transition:.15s;flex:0 0 auto;}
+  .pl-toggle .pl-knob::after{content:"";position:absolute;top:2px;left:2px;width:11px;height:11px;border-radius:999px;background:#fff;transition:.15s;}
+  .pl-toggle:hover{color:var(--ink);}
+  .pl-toggle.on{color:#fff;background:var(--svc);}
+  .pl-toggle.on .pl-knob{background:rgba(255,255,255,.4);}
+  .pl-toggle.on .pl-knob::after{left:13px;}
+  .pool-bizbar{display:flex;flex-wrap:wrap;gap:5px 18px;padding:10px 15px;background:rgba(0,0,0,.22);color:#cfe0f0;font-size:12px;font-weight:600;}
+  .pool-bizbar b{color:#fff;font-weight:800;}
+  .pool-bizbar .pos b{color:#34d399;}
+  .pool-bizbar .neg b{color:#f87171;}
+  .pool-dot-name{position:absolute;top:calc(100% + 3px);left:50%;transform:translateX(-50%);font-size:9px;line-height:1;font-weight:600;color:#fff;white-space:nowrap;max-width:78px;overflow:hidden;text-overflow:ellipsis;pointer-events:none;text-shadow:0 1px 2px rgba(0,0,0,.55);}
+  .pool-pop{position:absolute;bottom:calc(100% + 9px);left:50%;transform:translateX(-50%);width:228px;background:#fff;border-radius:13px;box-shadow:0 1px 3px rgba(174,178,196,.5),0 14px 36px rgba(10,30,55,.34),inset 0 0 0 1px rgba(0,0,0,.05);padding:11px 12px;z-index:50;text-align:left;cursor:default;}
+  .pool-pop::after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);border:7px solid transparent;border-top-color:#fff;}
+  .pool-pop-name{font-size:13.5px;font-weight:700;display:flex;align-items:baseline;gap:8px;color:var(--ink);}
+  .pool-pop-gender{font-size:10px;font-weight:600;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.04em;}
+  .pool-pop-rows{margin:9px 0 0;display:grid;gap:6px;}
+  .pool-pop-rows>div{display:grid;grid-template-columns:56px 1fr;gap:8px;align-items:center;}
+  .pool-pop-rows dt{font-size:10.5px;font-weight:600;color:var(--ink-soft);margin:0;}
+  .pool-pop-rows dd{margin:0;font-size:11.5px;color:var(--ink);}
+  .pay-chip{font-size:10px;font-weight:700;color:#059669;background:rgba(5,150,105,.12);padding:2px 8px;border-radius:999px;}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;align-items:center;font-size:12px;color:var(--ink-soft);margin-top:12px;}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .legend .d{width:12px;height:12px;border-radius:999px;display:inline-block;}
+  .legend .d.free{box-shadow:inset 0 0 0 2px var(--ink-faint);}
+
+  /* metrics */
+  .mtx{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .m{background:#f6f7fa;border-radius:12px;padding:11px 12px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.025);}
+  .m .k{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);}
+  .m .v{font-size:22px;font-weight:800;letter-spacing:-.02em;margin-top:3px;}
+  .m .v small{font-size:12px;font-weight:600;color:var(--ink-soft);}
+  .m.hero{background:linear-gradient(180deg,rgba(var(--pill-r),var(--pill-g),var(--pill-b),.1),rgba(var(--pill-r),var(--pill-g),var(--pill-b),.03));}
+  .m.hero .v{color:var(--svc);}
+
+  /* notes */
+  .notes{display:flex;flex-direction:column;gap:9px;}
+  .note{display:flex;gap:10px;font-size:13px;line-height:1.45;padding:11px 13px;border-radius:11px;background:#f6f7fa;}
+  .note .ic{flex-shrink:0;font-size:15px;line-height:1.3;}
+  .note.good{background:rgba(5,150,105,.08);} .note.good .ic{color:#059669;}
+  .note.warn{background:rgba(245,158,11,.1);} .note.warn .ic{color:#b45309;}
+  .note.bad{background:rgba(244,63,94,.09);} .note.bad .ic{color:#e11d48;}
+  .note b{font-weight:700;}
+
+  /* schedule grid */
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint);padding:0 10px 9px;}
+  td{padding:9px 10px;border-top:1px solid #eef0f4;vertical-align:middle;}
+  td .cn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:7px;
+    background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.12);color:var(--svc);font-size:11px;font-weight:800;margin-right:9px;}
+  td .nm{font-weight:600;}
+  td .day{color:var(--ink-soft);}
+  td .tm{font-weight:700;color:var(--svc);font-variant-numeric:tabular-nums;}
+  td .cp{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;}
+  .foot{margin-top:14px;font-size:11.5px;color:var(--ink-faint);text-align:center;}
+  .foot b{color:var(--ink-soft);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>SSSC — <span class="accent">Swim Course Builder</span></h1>
+  <p class="sub">Design a course for any service — Swim School, Lab, Club, Camps, Online, Teacher Training or Certification — for any week and resort. Set the sessions, pool, schedule and coaches; the Course timeline gathers it all. When it's ready, <b>publish it to that resort's weekly calendar</b> — block-book one design across several weeks at once. Courses have no fixed default: build whatever the week needs. Nothing here touches the live site.</p>
+
+  <!-- CONTROLS -->
+  <div class="card">
+    <div class="controls">
+      <div class="ctl" style="grid-column:1/-1;">
+        <p class="lbl">Sports Resort</p>
+        <div class="venues" id="venues"></div>
+      </div>
+      <div class="ctl" style="grid-column:1/-1;">
+        <p class="lbl">Week number</p>
+        <div class="cal" id="cal"></div>
+        <p class="lbl2" style="margin:11px 0 6px;">Week</p>
+        <div class="weektrack" id="weekTrack"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONFIGURE THE CLASS -->
+  <div class="card">
+    <div class="controls">
+      <div class="ctl" style="grid-column:1/-1;">
+        <p class="lbl">Service</p>
+        <div class="seg" id="svcPills"></div>
+      </div>
+      <div class="ctl" style="grid-column:1/-1;">
+        <p class="lbl" id="courseLbl">Course</p>
+        <div class="seg" id="coursePills"></div>
+      </div>
+      <div class="ctl">
+        <p class="lbl">Type of course</p>
+        <div class="toggle" id="modeToggle">
+          <button data-mode="group" class="on">Group</button>
+          <button data-mode="o2o">One 2 One</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-head" style="margin:22px 0 13px;">
+      <p class="lbl">Sessions per course</p>
+      <span class="count-pill"><b id="courseTotal">14</b> total / course</span>
+    </div>
+    <div class="sess-rows" id="sessRows"></div>
+    <p class="lbl2" style="margin-top:14px;">Pool classes per course: <b id="poolPerCourse" style="color:var(--svc)">8</b> &nbsp;·&nbsp; Classes per course (dryland &amp; classroom): <b id="classesPerCourse" style="color:var(--svc)">6</b></p>
+  </div>
+
+  <!-- PROGRAMME SCHEDULE -->
+  <div class="card">
+    <div class="card-head" style="margin-bottom:13px;">
+      <p class="lbl">Programme schedule — every session · day · time · class · area · duration</p>
+      <span class="count-pill"><b id="progTotal">14</b> sessions</span>
+    </div>
+    <p class="lbl2" id="courseFrame" style="margin-bottom:14px;"></p>
+    <div id="bulkBar" class="bulkbar"></div>
+    <div id="timeline"></div>
+    <div id="programme"></div>
+  </div>
+
+  <!-- POOL COMPOSITION -->
+  <div class="card">
+    <div>
+      <p class="lbl" style="margin-bottom:11px;">Pool composition — lanes by side</p>
+      <div class="steppers">
+        <div class="stepper-wrap">
+          <span class="lbl2"><i class="sd" style="background:#3b82f6"></i>Male lanes</span>
+          <div class="stepper" data-key="male"><button data-d="-1">−</button><span class="sv" id="maleV">3</span><button data-d="1">+</button></div>
+        </div>
+        <div class="stepper-wrap">
+          <span class="lbl2"><i class="sd" style="background:#8b5cf6"></i>Mixed lanes</span>
+          <div class="stepper" data-key="mixed"><button data-d="-1">−</button><span class="sv" id="mixedV">2</span><button data-d="1">+</button></div>
+        </div>
+        <div class="stepper-wrap">
+          <span class="lbl2"><i class="sd" style="background:#ec4899"></i>Female lanes</span>
+          <div class="stepper" data-key="female"><button data-d="-1">−</button><span class="sv" id="femaleV">3</span><button data-d="1">+</button></div>
+        </div>
+        <div class="total-pill"><b id="totalLanes">8</b><span>lanes</span></div>
+      </div>
+    </div>
+
+    <div class="controls" style="margin-top:20px;">
+      <div class="ctl" id="sizeCtl" style="grid-column:1/-1;">
+        <p class="lbl">Swimmers per group lane</p>
+        <div class="seg" id="sizeSeg"></div>
+      </div>
+      <div class="ctl" style="grid-column:1/-1;">
+        <p class="lbl">Pool class schedule — day · time · class · area · duration (pool venues only)</p>
+        <div id="poolSched"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LANE SELECTOR + TEACHERS (tabbed) -->
+  <div class="card">
+    <div class="tabs">
+      <button class="tab on" data-tab="lanes">Lane selector</button>
+      <button class="tab" data-tab="teachers">Teachers</button>
+    </div>
+
+    <div class="tabpanel" data-panel="lanes">
+      <div class="card-head" style="margin-bottom:13px;">
+        <p class="lbl">Assign a coach — only teachers suited to each lane's class, gender &amp; level (sorted by qualification)</p>
+      </div>
+      <div id="laneEditor"></div>
+    </div>
+
+    <div class="tabpanel" data-panel="teachers" hidden>
+      <div class="card-head" style="margin-bottom:13px;">
+        <p class="lbl">Contact list &amp; on-shift switches</p>
+        <span class="count-pill"><b id="teacherCount">8</b> on shift</span>
+      </div>
+      <div class="filterbar"><button class="filterbtn" id="filterToggle">Filters ▸</button><span class="trole">filter by tag to use teachers where they're best</span></div>
+      <div class="fpanel" id="filterPanel" hidden></div>
+      <div id="roster"></div>
+      <div class="addrow">
+        <input type="text" id="addName" placeholder="Add a teacher to the contact list…">
+        <button id="addBtn">Add teacher</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLIENT POOL-LANE REGISTER -->
+  <div class="card">
+    <div class="card-head" style="margin-bottom:13px;">
+      <p class="lbl">Client pool-lane register — live</p>
+      <span class="count-pill"><b id="regCount">0/0</b> booked · demo clients</span>
+    </div>
+    <div id="register"></div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="grid2">
+    <div class="card" style="margin:0;">
+      <div class="pool-head">
+        <span class="ttl">The pool</span>
+        <span class="meta" id="poolMeta"></span>
+        <span class="pool-nav"><button id="poolPrev" aria-label="Previous class">‹</button><span id="poolPos">1 / 8</span><button id="poolNext" aria-label="Next class">›</button></span>
+      </div>
+      <div class="pool-layers" id="poolLayers"></div>
+      <div id="pools"></div>
+      <div class="legend" id="poolLegend"></div>
+      <div class="foot" id="poolFoot"></div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div class="card" style="margin:0;">
+        <p class="lbl">The numbers</p>
+        <div class="mtx" id="metrics"></div>
+      </div>
+      <div class="card" style="margin:0;">
+        <p class="lbl">Solutions &amp; flags</p>
+        <div class="notes" id="notes"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BUSINESS — REVENUE, COST & BREAK-EVEN -->
+  <div class="card" style="margin-top:16px;">
+    <div class="card-head" style="margin-bottom:13px;">
+      <p class="lbl">Business — revenue, cost &amp; break-even</p>
+      <span class="count-pill" id="bizTag">—</span>
+    </div>
+    <div class="mtx biz-mtx" id="bizMetrics"></div>
+    <div id="bizBreakdown" style="margin-top:16px;"></div>
+    <p class="foot" style="margin:12px 0 0;">Resort-area rates, coach day-rate and transport are educated estimates for Fuerteventura — edit the <code>AREA_COST</code> / rate constants in the file to match real quotes.</p>
+  </div>
+
+  <!-- SCHEDULE -->
+  <div class="card" style="margin-top:16px;">
+    <p class="lbl" id="weekLbl">The week</p>
+    <table>
+      <thead><tr><th>Class</th><th>Day</th><th id="timeHead">Group time</th><th style="text-align:right;">Places</th></tr></thead>
+      <tbody id="week"></tbody>
+    </table>
+  </div>
+
+  <!-- PUBLISH + RESORT WEEKLY CALENDAR -->
+  <div class="card" style="margin-top:16px;">
+    <div class="card-head" style="margin-bottom:13px;">
+      <p class="lbl">Publish course → resort weekly calendar</p>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button class="mini-btn" id="exportCal">⤓ Export calendar</button>
+        <label class="mini-btn" for="importCal" style="cursor:pointer;">⤒ Import</label>
+        <input type="file" id="importCal" accept="application/json" hidden>
+        <span class="count-pill"><b id="pubCount">0</b> published</span>
+      </div>
+    </div>
+    <div id="publishPanel"></div>
+    <div id="calendarView" style="margin-top:20px;"></div>
+  </div>
+
+  <p class="foot" style="margin-top:20px;">Built from the live SSSC data — real services, prices, colours, team and the 8-class curricula. Pool layout, capacity &amp; revenue are computed from your inputs. Published courses are saved in this browser for the demo.</p>
+</div>
+<div id="toast" class="toast"></div>
+
+<script>
+/* ── REAL SSSC DATA ───────────────────────────────────────── */
+const SERVICES = {
+  "swim-school":{name:"Swim School",short:"School",hex:"#2563eb",rgb:[37,99,235],session:60,price:70,full:400,stroke:true},
+  "swim-lab":{name:"Swim Lab",short:"Lab",hex:"#a855f7",rgb:[168,85,247],session:75,price:90,full:520,stroke:false},
+  "swim-club":{name:"Swim Club",short:"Club",hex:"#059669",rgb:[5,150,105],session:75,price:60,full:350,stroke:false},
+  "swim-camps":{name:"Swim Camps",short:"Camps",hex:"#ff6b2b",rgb:[255,107,43],session:60,price:80,full:450,stroke:true},
+  "online-coaching":{name:"Online Coaching",short:"Online",hex:"#0d9488",rgb:[13,148,136],session:45,price:40,full:300,stroke:true},
+  "teacher-training":{name:"Teacher Training",short:"Teacher Tr.",hex:"#d97706",rgb:[217,119,6],session:90,price:120,full:900,stroke:false},
+  "teacher-certification":{name:"Teacher Certification",short:"Cert.",hex:"#4f46e5",rgb:[79,70,229],session:120,price:150,full:1200,stroke:false},
+  "fuerteventura-tours":{name:"Fuerteventura Swim Tours",short:"Tours",hex:"#06b6d4",rgb:[6,182,212],session:120,price:65,full:520,stroke:true,bus:true},
+};
+const STROKE_TIMES = [
+  ["Monday","12:00","14:00"],["Tuesday","12:00","14:00"],["Wednesday","12:00","14:00"],
+  ["Thursday","12:00","14:00"],["Friday","12:00","14:00"],["Friday","13:00","15:00"],
+  ["Saturday","12:00","14:00"],["Sunday","12:00","14:00"],
+];
+const STROKES = {
+  "freestyle":{label:"Freestyle",classes:["Posture, Line & Balance","Leg Kick","Arm Recovery","Catch & Pull","Rhythm & Timing","Breathing","Starts & Turns","Swim Drills"]},
+  "backstroke":{label:"Backstroke",classes:["Supine Body Position","Backstroke Kick","Arm Recovery & Entry","Catch & Pull","Rotation & Timing","Breathing & Head Position","Starts & Turns","Swim Drills"]},
+  "breaststroke":{label:"Breaststroke",classes:["Streamline & Glide","Breaststroke Kick","Pull & Coupling Motions","Timing & Coordination","Stroke Rate & Distance","Breathing & Head Position","Pullouts & Turns","Swim Drills"]},
+  "butterfly":{label:"Butterfly",classes:["Body Dolphin & Undulation","Dolphin Kick","Arm Recovery & Entry","Catch & Pull","Rhythm & Timing","Breathing","Starts & Turns","Swim Drills"]},
+  "individual-medley":{label:"Individual Medley",classes:["Butterfly Foundations","Backstroke Foundations","Breaststroke Foundations","Freestyle Foundations","Transition Turns","Pacing & Race Strategy","Starts & Underwater","Swim Drills"]},
+  "open-water":{label:"Open Water",classes:["Open Water Body Position","Kick for Open Water","Sighting & Navigation","Stroke Adaptation","Drafting & Pack Swimming","Breathing & Bilateral Skills","Entries, Exits & Feeding","Swim Drills"]},
+  "starts-turns":{label:"Starts & Turns",classes:["Dive Starts","Freestyle Flip Turns","Backstroke Turns","Breaststroke & Butterfly Turns","IM Transitions","Underwater Streamline & Dolphins","Breakout Technique","Race Simulation"]},
+};
+const FIXED = {
+  "swim-lab":[["Video Capture & Baseline","Monday","11:00","14:00"],["Body Position Analysis","Tuesday","11:00","14:00"],["Kick Analysis","Wednesday","11:00","14:00"],["Catch & Pull Analysis","Thursday","11:00","14:00"],["Stroke Rate & Timing","Friday","11:00","14:00"],["Breathing Mechanics","Friday","12:00","15:00"],["Starts & Turns Analysis","Saturday","11:00","14:00"],["Full Report & Correction Plan","Sunday","11:00","14:00"]],
+  "swim-club":[["Aerobic Base","Monday","07:00","14:00"],["Threshold Training","Tuesday","07:00","14:00"],["Technique Under Fatigue","Wednesday","07:00","14:00"],["Speed Work","Thursday","07:00","14:00"],["Race Pace Sets","Friday","07:00","14:00"],["IM & Stroke Variety","Friday","08:00","15:00"],["Race Strategy & Starts","Saturday","07:00","14:00"],["Endurance & Recovery","Sunday","08:00","14:00"]],
+  "teacher-training":[["Teaching Principles & Safeguarding","Monday","09:00","12:00"],["Pool-Deck Management","Tuesday","09:00","12:00"],["Stroke Fundamentals to Teach","Wednesday","09:00","12:00"],["Lesson Planning & Progression","Thursday","09:00","12:00"],["Delivering a Class (practical)","Friday","09:00","12:00"],["Feedback & Correction Skills","Friday","13:00","16:00"],["Observed Teaching Practice","Saturday","09:00","12:00"],["Review & Next Steps","Sunday","09:00","12:00"]],
+  "teacher-certification":[["Certification Briefing & Standards","Monday","09:00","12:00"],["Theory Examination","Tuesday","09:00","12:00"],["Stroke Technical Assessment","Wednesday","09:00","12:00"],["Lesson Delivery Assessment","Thursday","09:00","12:00"],["Safeguarding & First-Aid Sign-off","Friday","09:00","12:00"],["Rescue & Emergency Assessment","Friday","13:00","16:00"],["Practical Teaching Exam","Saturday","09:00","12:00"],["Certification Panel & Results","Sunday","09:00","12:00"]],
+};
+const GENDER={male:"#3b82f6",mixed:"#8b5cf6",female:"#ec4899"};
+const SIDE={male:"M",mixed:"MIX",female:"F"};
+/* the session types a course is built from (pool is counted separately) */
+const SESSION_TYPES=[
+  {key:"pool",label:"Pool classes",pool:true},
+  {key:"classroom",label:"Classroom — theory & video analysis"},
+  {key:"gym",label:"Gym sessions"},
+  {key:"dlIndoor",label:"Dryland — indoor training"},
+  {key:"dlOutdoor",label:"Dryland — outdoor training"},
+  {key:"recovery",label:"Dryland — recovery"},
+];
+/* class type register — each pool class is named from this list (Sean's curriculum) */
+const CLASS_REGISTER=[
+  {id:"plb1",title:"Posture, Line & Balance — Part 1",info:"Horizontal streamline body position. Hold your posture, hold your frame, don't collapse."},
+  {id:"plb2",title:"Posture, Line & Balance — Part 2",info:"Propulsion & balance — legs & feet."},
+  {id:"plb3",title:"Posture, Line & Balance — Part 3",info:"Rotation & breathing on the side (both sides)."},
+  {id:"breathing",title:"Breathing",info:"How to breathe, and how to breathe in a rhythm; where and how to catch your breath, why it goes wrong, and how to relax and breathe when swimming."},
+  {id:"armrecovery",title:"Arm Recovery",info:"The correct arm recovery technique — 3 styles: shoulder-driven, hip-driven, hybrid. A long-distance adaptation, front-quadrant swimming, and effective recycling of momentum."},
+  {id:"catch",title:"Catch",info:"Hold the water, anchor yourself in the water, and use the momentum above the water (weight further forward) to hold water and rotate past your anchor point."},
+  {id:"catchbreathe",title:"Catch & Breathe",info:"Learn to catch & breathe."},
+  {id:"timing",title:"Timing & Co-ordination (with/without breathing)",info:"Timing and co-ordination — without breathing first, then with breathing."},
+  {id:"biomechanics",title:"Biomechanics",info:"Understand your biomechanics and work with them, not against them — using stroke rate vs stroke distance to shift into a better swimming gear for your strengths and weaknesses."},
+  {id:"raterlength",title:"Stroke Rate vs Stroke Length",info:"Practical guide through all the swim gears to find which one feels right to you, and how distance affects it."},
+  {id:"3types",title:"3 Different Types of Swimming",info:"Shoulder-driven vs hip-driven vs hybrid swimming — when to use each, and the stroke-rate range for each."},
+  {id:"owadapt",title:"Open Water Swimming Adaptation",info:"Which swim style to use in open water, the stroke rate you normally see, and the adaptations needed when swimming in open water."},
+  {id:"owsession",title:"Open Water Swim Session",info:"A quick introduction to open water swimming — a guide to open water and the skills needed to swim it successfully."},
+];
+/* the course runs Sunday → Friday (fly in Sat afternoon, fly out Sat morning) */
+const COURSE_DAYS=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday"];
+const CLASS_TIMES=["07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00"];
+const WD=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+/* sports facility / area a class runs in */
+const AREAS=[["olympic-pool","Olympic pool"],["open-water","Open water"],["leisure-pool","Leisure pool"],["gym","Gym"],["outdoor","Outdoor training area"],["indoor","Indoor training area"],["grass","Grass"],["beach","Beach"],["promenade","Promenade"],["pool-dryland","Olympic pool dryland training"],["reception","Reception"],["conference","Conference room (teaching room)"],["palapa-bar","Palapa bar"],["bodega","Bodega Bar &amp; restaurant"],["hotel-restaurant","Hotel restaurant"],["outside-reception","Outside hotel reception"],["plaza-rambla","Plaza Rambla"],["teatro","Teatro (indoor hall)"],["infinity-pool","Hotel Infinity Pool (adults)"],["apart-family-pool","Apart-hotel family pool"],["apart-pool-bar","Apart-hotel pool bar"]];
+/* pool-only venues — pool classes can only run in a pool (or the ocean) */
+const POOL_AREAS=[["olympic-pool","Olympic pool"],["apart-pool","Apart pool"],["hotel-pool","Hotel pool"],["open-water","Ocean (open water)"]];
+function areaLabel(k){const a=AREAS.find(x=>x[0]===k)||POOL_AREAS.find(x=>x[0]===k);return a?a[1]:k;}
+/* the 6 session types shown in the programme schedule, in order [key,label,short] */
+const PROG_TYPES=[["pool","Pool classes","Pool"],["classroom","Classroom — theory & video","Classroom"],["gym","Gym sessions","Gym"],["dlIndoor","Dryland — indoor","Indoor"],["dlOutdoor","Dryland — outdoor","Outdoor"],["recovery","Recovery sessions","Recovery"]];
+function defaultArea(t){return t==="gym"?"gym":t==="dlOutdoor"?"outdoor":t==="recovery"?"leisure-pool":(t==="classroom"||t==="dlIndoor")?"indoor":"olympic-pool";}
+const SHORT_BY_TYPE=Object.fromEntries(PROG_TYPES.map(p=>[p[0],p[2]]));
+/* demo client names for the live register (placeholder data — not real bookings) */
+const DEMO_M=["Liam Carter","Noah Bennett","Oliver Hayes","Jack Morrison","Harry Webb","George Pratt","Charlie Dean","Max Holloway","Leo Fraser","Adam Reid","Sam Whitfield","Ben Marsh"];
+const DEMO_F=["Olivia Shaw","Amelia Pike","Isla Reed","Ava Coleman","Mia Dalton","Grace Nolan","Freya Lyle","Ruby Vance","Ella Mercer","Chloe Ward","Daisy Hart","Lucy Boyd"];
+/* venues — the real iOS dataset (roster.ts VENUES) */
+const VENUES=[
+  {key:"playitas",name:"Playitas",place:"Fuerteventura"},
+  {key:"lasanta",name:"Club La Santa",place:"Lanzarote"},
+  {key:"t3",name:"T3",place:"Tenerife"},
+  {key:"fortevillage",name:"Forte Village",place:"Sardinia"},
+  {key:"thanyapura",name:"Thanyapura",place:"Phuket"},
+];
+/* swimmer glyph (≈ SF Symbol figure.pool.swim) — head, stroke, water wave */
+const SWIMMER=`<svg class="vicon" viewBox="0 0 28 22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="19" cy="5.4" r="1.9" fill="currentColor" stroke="none"/><path d="M3.5 11.3c2 -1.6 4 -1.6 6 0 2 1.6 4 1.6 6 0l3 -2.4"/><path d="M3 16.4 q1.5 -1.7 3 0 t3 0 t3 0 t3 0 t3 0 t3 0"/></svg>`;
+
+/* ── WEEK DATASET — ported from the iOS booking app (WeekPicker / CalendarMonth) ──
+   Camp weeks keyed by arrival Saturday; the week NUMBER is the ISO week of the
+   course's Monday (arrival Saturday + 2), so it lines up with the pool schedule. */
+const _pad=n=>String(n).padStart(2,"0");
+const _ymd=d=>`${d.getFullYear()}-${_pad(d.getMonth()+1)}-${_pad(d.getDate())}`;
+function isoWeek(date){const d=new Date(Date.UTC(date.getFullYear(),date.getMonth(),date.getDate()));const dn=(d.getUTCDay()+6)%7;d.setUTCDate(d.getUTCDate()-dn+3);const ft=new Date(Date.UTC(d.getUTCFullYear(),0,4));const fdn=(ft.getUTCDay()+6)%7;ft.setUTCDate(ft.getUTCDate()-fdn+3);return 1+Math.round((d.getTime()-ft.getTime())/(7*86400000));}
+function courseWeek(sat){const m=new Date(sat);m.setDate(m.getDate()+2);return isoWeek(m);}
+function firstArrivalSaturday(){const t=new Date();t.setHours(0,0,0,0);const s=new Date(t);s.setDate(s.getDate()-((s.getDay()+1)%7));if(s<t)s.setDate(s.getDate()+7);return s;}
+const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function buildWeeks(count){const s0=firstArrivalSaturday();const out=[];for(let i=0;i<count;i++){const sat=new Date(s0);sat.setDate(s0.getDate()+i*7);const dep=new Date(sat);dep.setDate(sat.getDate()+7);const range=sat.getMonth()===dep.getMonth()?`${sat.getDate()}–${dep.getDate()} ${MON[sat.getMonth()]}`:`${sat.getDate()} ${MON[sat.getMonth()]} – ${dep.getDate()} ${MON[dep.getMonth()]}`;out.push({key:_ymd(sat),wk:courseWeek(sat),range,year:sat.getFullYear()});}return out;}
+const WEEKS=buildWeeks(30);
+
+/* ── TEACHER TAG TAXONOMY — what they teach / services / courses / levels / prefers ── */
+const T_TEACHES=[["pool","Pool"],["open-water","Open water"],["gym","Gym S&C"],["dryland","Dryland training"],["recovery","Recovery"],["stroke-analysis","Stroke analysis"],["video-analysis","Video analysis"],["stroke-correction","Stroke correction"],["pool-training","Pool swim training"],["ow-training","Open-water training"],["online-school","Online · School"],["online-lab","Online · Lab"],["online-club","Online · Club"]];
+const T_SERVICES=[["swim-school","Swim School"],["swim-lab","Swim Lab"],["swim-club","Swim Club"],["swim-camps","Swim Camps"],["online-coaching","Online Coaching"],["teacher-training","Teacher Training"],["teacher-certification","Teacher Certification"],["fuerteventura-tours","Fuerteventura Swim Tours"]];
+const T_COURSES=[["freestyle","Freestyle"],["backstroke","Backstroke"],["breaststroke","Breaststroke"],["butterfly","Butterfly"],["individual-medley","Individual Medley"],["starts-turns","Starts, Turns & Transitions"],["open-water-freestyle","Open Water Freestyle"]];
+const T_LEVELS=[["adults","Adults"],["children","Children"],["beginner","Beginner"],["intermediate","Intermediate"],["advanced","Advanced"],["age-grouper","Age grouper"],["pro-athlete","Pro athlete"]];
+const T_PREFERS=[["female","Female"],["male","Male"],["mixed","Mixed"],["disabilities","Disabilities"]];
+const T_LANGS=[["en","English"],["es","Spanish"],["de","German"],["fr","French"],["it","Italian"],["pl","Polish"],["pt","Portuguese"]];
+const T_CHECKS=[["safeguarding","Safeguarding"],["first-aid","First aid"],["para","Para-trained"],["dbs","DBS / Cert. checked"]];
+/* [key,label,children,parentLabel] — the parent toggle selects/clears all children */
+const TAG_CATS=[["teaches","Teaches",T_TEACHES,"All"],["services","Services",T_SERVICES,"All"],["courses","Courses",T_COURSES,"All"],["levels","Levels & abilities",T_LEVELS,"All levels & abilities"],["prefers","Prefers working with",T_PREFERS,"All"],["langs","Languages",T_LANGS,"All"],["checks","Compliance & checks",T_CHECKS,"All"]];
+function catOpts(cat){const c=TAG_CATS.find(x=>x[0]===cat);return c?c[2]:[];}
+function catKeys(cat){return catOpts(cat).map(o=>o[0]);}
+const SVC_SHORT={"swim-school":"School","swim-lab":"Lab","swim-club":"Club","swim-camps":"Camps","online-coaching":"Online","teacher-training":"Teacher Tr.","teacher-certification":"Cert.","fuerteventura-tours":"Tours"};
+const TEACHER_TAGS={
+  /* SWIM SCHOOL */
+  sean:{teaches:["pool","stroke-analysis","stroke-correction","video-analysis"],services:["swim-school"],courses:"*",levels:"*",prefers:"*"},
+  emma:{teaches:["pool","stroke-analysis","stroke-correction"],services:["swim-school"],courses:["freestyle","backstroke","breaststroke","butterfly"],levels:["adults","beginner","intermediate","advanced"],prefers:["female","mixed"]},
+  james:{teaches:["pool","stroke-correction"],services:["swim-school"],courses:["freestyle","backstroke","individual-medley","starts-turns"],levels:["adults","beginner","intermediate"],prefers:["male","mixed"]},
+  laura:{teaches:["pool","stroke-analysis","stroke-correction"],services:["swim-school"],courses:["freestyle","breaststroke","butterfly"],levels:["children","beginner","intermediate"],prefers:["female","mixed"]},
+  owen:{teaches:["pool","stroke-correction"],services:["swim-school"],courses:["freestyle","butterfly","individual-medley","starts-turns"],levels:["intermediate","advanced","age-grouper"],prefers:["male","mixed"]},
+  grace:{teaches:["pool","stroke-analysis","stroke-correction"],services:["swim-school"],courses:["freestyle","backstroke","breaststroke"],levels:["children","beginner","intermediate"],prefers:["female","mixed","disabilities"]},
+  olivia:{teaches:["pool","stroke-correction"],services:["swim-school"],courses:["freestyle","backstroke"],levels:["children","beginner"],prefers:["female","mixed"]},
+  marco:{teaches:["pool"],services:["swim-school"],courses:["freestyle"],levels:["children","beginner"],prefers:["male","mixed"]},
+  /* SWIM LAB */
+  alex:{teaches:["pool","video-analysis","stroke-analysis"],services:["swim-lab"],courses:"*",levels:"*",prefers:"*"},
+  rachel:{teaches:["pool","video-analysis","stroke-analysis","stroke-correction"],services:["swim-lab"],courses:"*",levels:"*",prefers:"*"},
+  tom:{teaches:["pool","video-analysis","stroke-analysis"],services:["swim-lab"],courses:"*",levels:["advanced","age-grouper","pro-athlete"],prefers:"*"},
+  lena:{teaches:["pool","video-analysis","stroke-analysis"],services:["swim-lab"],courses:"*",levels:["adults","intermediate","advanced"],prefers:["female","mixed"]},
+  raj:{teaches:["pool","video-analysis","stroke-correction"],services:["swim-lab"],courses:"*",levels:["adults","beginner","intermediate"],prefers:["male","mixed"]},
+  clara:{teaches:["pool","video-analysis","stroke-analysis"],services:["swim-lab"],courses:"*",levels:"*",prefers:["female","mixed","disabilities"]},
+  hugo:{teaches:["pool","video-analysis","stroke-analysis"],services:["swim-lab"],courses:"*",levels:["intermediate","advanced","pro-athlete"],prefers:"*"},
+  smarin:{teaches:["pool","video-analysis","stroke-correction"],services:["swim-lab"],courses:"*",levels:["adults","intermediate","advanced"],prefers:["female","mixed"]},
+  /* SWIM CLUB */
+  mark:{teaches:["pool-training","gym","dryland","open-water","ow-training"],services:["swim-club"],courses:["freestyle","individual-medley"],levels:["advanced","age-grouper","pro-athlete"],prefers:"*"},
+  sarah:{teaches:["pool-training","gym","dryland","recovery"],services:["swim-club"],courses:["freestyle","backstroke","individual-medley"],levels:["intermediate","advanced","age-grouper"],prefers:["female","mixed"]},
+  david:{teaches:["pool-training","open-water","ow-training","gym"],services:["swim-club"],courses:["freestyle","open-water-freestyle"],levels:["advanced","pro-athlete","age-grouper"],prefers:"*"},
+  carlos:{teaches:["pool-training","gym","dryland","open-water"],services:["swim-club"],courses:["freestyle","individual-medley"],levels:["intermediate","advanced","age-grouper","pro-athlete"],prefers:"*"},
+  sofia:{teaches:["pool-training","recovery"],services:["swim-club"],courses:["freestyle","backstroke"],levels:["intermediate","advanced"],prefers:["female","mixed"]},
+  nina:{teaches:["pool-training","gym","dryland","recovery"],services:["swim-club"],courses:"*",levels:"*",prefers:"*"},
+  yuki:{teaches:["pool-training","gym","dryland"],services:["swim-club"],courses:["freestyle","individual-medley"],levels:["intermediate","advanced","age-grouper","pro-athlete"],prefers:"*"},
+  pieter:{teaches:["pool-training","gym","dryland","recovery"],services:["swim-club"],courses:"*",levels:"*",prefers:"*"},
+  /* SWIM CAMPS */
+  hayley:{teaches:["pool","open-water","recovery","dryland"],services:["swim-camps"],courses:["freestyle","open-water-freestyle"],levels:"*",prefers:["female","mixed"]},
+  jakub:{teaches:["open-water","ow-training","dryland","pool"],services:["swim-camps"],courses:["open-water-freestyle","freestyle"],levels:["advanced","pro-athlete","age-grouper"],prefers:"*"},
+  tomas:{teaches:["pool","open-water","dryland"],services:["swim-camps"],courses:["freestyle","individual-medley"],levels:["intermediate","advanced","age-grouper"],prefers:["male","mixed"]},
+  anna:{teaches:["pool","recovery","dryland"],services:["swim-camps"],courses:["freestyle","backstroke"],levels:["adults","intermediate","advanced"],prefers:["female","mixed"]},
+  ben:{teaches:["open-water","ow-training","pool"],services:["swim-camps"],courses:["open-water-freestyle","freestyle"],levels:["advanced","age-grouper","pro-athlete"],prefers:"*"},
+  isabella:{teaches:["pool","recovery"],services:["swim-camps"],courses:["freestyle","breaststroke"],levels:["adults","beginner","intermediate"],prefers:["female","mixed"]},
+  felix:{teaches:["pool","open-water","dryland","ow-training"],services:["swim-camps"],courses:["freestyle","individual-medley","open-water-freestyle"],levels:["intermediate","advanced","pro-athlete"],prefers:"*"},
+  maya:{teaches:["pool","recovery"],services:["swim-camps"],courses:["freestyle","backstroke"],levels:["adults","intermediate","advanced"],prefers:["female","mixed","disabilities"]},
+  /* ONLINE COACHING */
+  oc1:{teaches:["online-school","online-lab","online-club","video-analysis"],services:["online-coaching"],courses:"*",levels:"*",prefers:"*"},
+  oc2:{teaches:["online-school","online-club","video-analysis"],services:["online-coaching"],courses:["freestyle","backstroke","breaststroke"],levels:["adults","beginner","intermediate"],prefers:"*"},
+  oc3:{teaches:["online-lab","online-club","video-analysis"],services:["online-coaching"],courses:["freestyle","individual-medley","open-water-freestyle"],levels:["intermediate","advanced","age-grouper"],prefers:"*"},
+  oc4:{teaches:["online-school","video-analysis"],services:["online-coaching"],courses:["freestyle","backstroke"],levels:["adults","beginner"],prefers:["female","mixed"]},
+  oc5:{teaches:["online-club","online-lab","video-analysis"],services:["online-coaching"],courses:"*",levels:["advanced","age-grouper","pro-athlete"],prefers:"*"},
+  oc6:{teaches:["online-school","video-analysis"],services:["online-coaching"],courses:["freestyle","breaststroke"],levels:["adults","beginner","intermediate"],prefers:["female","mixed"]},
+  /* TEACHER TRAINING (tutors) */
+  tt1:{teaches:["pool","stroke-correction","video-analysis","dryland"],services:["teacher-training"],courses:"*",levels:["adults"],prefers:"*"},
+  tt2:{teaches:["pool","stroke-correction","stroke-analysis","dryland"],services:["teacher-training"],courses:"*",levels:["adults"],prefers:"*"},
+  tt3:{teaches:["pool","stroke-correction","recovery"],services:["teacher-training"],courses:["freestyle","backstroke","breaststroke","butterfly"],levels:["adults"],prefers:["female","mixed"]},
+  tt4:{teaches:["pool","stroke-correction","gym","dryland"],services:["teacher-training"],courses:["freestyle","individual-medley","starts-turns"],levels:["adults"],prefers:["male","mixed"]},
+  tt5:{teaches:["pool","stroke-correction","dryland"],services:["teacher-training"],courses:"*",levels:["adults"],prefers:"*"},
+  tt6:{teaches:["pool","stroke-correction"],services:["teacher-training"],courses:["freestyle","backstroke"],levels:["adults"],prefers:["female","mixed"]},
+  /* TEACHER CERTIFICATION (assessors) */
+  tc1:{teaches:["pool","stroke-analysis","video-analysis"],services:["teacher-certification"],courses:"*",levels:["adults"],prefers:"*"},
+  tc2:{teaches:["pool","stroke-analysis","video-analysis"],services:["teacher-certification"],courses:"*",levels:["adults"],prefers:"*"},
+  tc3:{teaches:["pool","stroke-analysis","stroke-correction","video-analysis"],services:["teacher-certification"],courses:"*",levels:["adults"],prefers:"*"},
+  tc4:{teaches:["pool","stroke-analysis"],services:["teacher-certification"],courses:["freestyle","backstroke","breaststroke","butterfly"],levels:["adults"],prefers:["male","mixed"]},
+  tc5:{teaches:["pool","stroke-analysis","video-analysis"],services:["teacher-certification"],courses:"*",levels:["adults"],prefers:["female","mixed"]},
+  tc6:{teaches:["pool","stroke-analysis","video-analysis"],services:["teacher-certification"],courses:"*",levels:["adults"],prefers:"*"},
+  /* FUERTEVENTURA SWIM TOURS (open-water guides) */
+  tg1:{teaches:["open-water","ow-training","recovery","pool"],services:["fuerteventura-tours"],courses:["open-water-freestyle","freestyle"],levels:["adults","intermediate","advanced"],prefers:"*"},
+  tg2:{teaches:["open-water","ow-training","pool"],services:["fuerteventura-tours"],courses:["open-water-freestyle","freestyle"],levels:["adults","beginner","intermediate"],prefers:"*"},
+  tg3:{teaches:["open-water","ow-training","recovery"],services:["fuerteventura-tours"],courses:["open-water-freestyle","freestyle"],levels:["adults","intermediate","advanced"],prefers:["female","mixed"]},
+};
+function expandTags(v,arr){return v==="*"?arr.map(x=>x[0]):(Array.isArray(v)?v.slice():[]);}
+function _h(s){let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h;}
+function autoLangs(id){const h=_h(id),out=["en"];if(h%3!==0)out.push("es");const ex=["de","fr","it","pl","pt"];if(h%2===0)out.push(ex[h%ex.length]);return out;}
+function autoChecks(id){const h=_h(id),out=["safeguarding","first-aid"];if(h%2===0)out.push("dbs");if(h%4===0)out.push("para");return out;}
+function defaultTags(id){const d=TEACHER_TAGS[id]||{};return{teaches:expandTags(d.teaches,T_TEACHES),services:expandTags(d.services,T_SERVICES),courses:expandTags(d.courses,T_COURSES),levels:expandTags(d.levels,T_LEVELS),prefers:expandTags(d.prefers,T_PREFERS),langs:d.langs?expandTags(d.langs,T_LANGS):autoLangs(id),checks:d.checks?expandTags(d.checks,T_CHECKS):autoChecks(id)};}
+function teacherInfo(t){const p=t.name.split(" "),first=p[0],last=p[p.length-1],h=_h(t.id);return{initials:(first[0]+(last[0]||"")).toUpperCase(),email:`${first.toLowerCase()}.${last.toLowerCase()}@sssc.example`,phone:`+34 6${10+h%90} ${100+h%900} ${100+(h>>3)%900}`,years:2+h%22,based:VENUES[h%VENUES.length].name};}
+function teacherBio(t){const svc=t.tags.services.map(s=>SVC_SHORT[s]).slice(0,2).join(" & ")||"general";const tch=t.tags.teaches[0]?(T_TEACHES.find(x=>x[0]===t.tags.teaches[0])||[])[1]:"";return `${QUALS[t.qual].label} · ${svc}${tch?" · "+tch:""}`;}
+/* qualification ladder — senior can manage the coaches & teachers around them */
+const QUALS={assistant:{label:"Assistant Teacher",rank:1},teacher:{label:"Teacher",rank:2},coach:{label:"Swim Coach",rank:3},senior:{label:"Senior Swim Coach",rank:4}};
+const QUAL_BY_ID={
+  sean:"senior",emma:"teacher",james:"teacher",laura:"teacher",owen:"coach",grace:"teacher",olivia:"assistant",marco:"assistant",
+  alex:"coach",rachel:"senior",tom:"coach",lena:"coach",raj:"teacher",clara:"coach",hugo:"coach",smarin:"teacher",
+  mark:"coach",sarah:"coach",david:"coach",carlos:"coach",sofia:"coach",nina:"senior",yuki:"coach",pieter:"senior",
+  hayley:"senior",jakub:"coach",tomas:"coach",anna:"teacher",ben:"coach",isabella:"teacher",felix:"coach",maya:"teacher",
+  oc1:"senior",oc2:"coach",oc3:"coach",oc4:"teacher",oc5:"coach",oc6:"teacher",
+  tt1:"senior",tt2:"senior",tt3:"coach",tt4:"coach",tt5:"coach",tt6:"teacher",
+  tc1:"senior",tc2:"senior",tc3:"senior",tc4:"coach",tc5:"coach",tc6:"senior",
+  tg1:"senior",tg2:"coach",tg3:"coach"};
+
+/* ── STATE ────────────────────────────────────────────────── */
+const S = {
+  svc:"swim-school", course:"freestyle", mode:"group",
+  week:WEEKS[0].key,
+  male:3, mixed:2, female:3,
+  size:8, durations:[60,60,60], classTypes:[], classDays:[], classTimes:[], classAreas:[], revealed:new Set(), poolIdx:0,
+  /* per-session schedule for the NON-pool session types (pool uses the arrays above) */
+  sched:{classroom:[],gym:[],dlIndoor:[],dlOutdoor:[],recovery:[]},
+  /* how many of each session type make up one course */
+  sessions:{pool:8,classroom:6,gym:6,dlIndoor:6,dlOutdoor:6,recovery:6},
+  nextId:100,
+  /* teacher card expand state + tag filters */
+  expanded:new Set(), showFilters:false,
+  filters:{teaches:[],services:[],courses:[],levels:[],prefers:[],langs:[],checks:[]},
+  /* selected sports resort (single-select, like the iOS Venue picker) */
+  venue:"playitas",
+  /* calendar month on view — defaults to the month of the selected week */
+  calY:+WEEKS[0].key.slice(0,4), calM:+WEEKS[0].key.slice(5,7)-1,
+  /* the teacher contact list — the real SSSC team (schedule.ts / team.ts) */
+  roster:[
+    /* SWIM SCHOOL — 8 (on shift by default) */
+    {id:"sean",   name:"Sean Sutton",     role:"Senior Swim Coach · School", on:true},
+    {id:"emma",   name:"Emma Clarke",     role:"Teacher · School",           on:true},
+    {id:"james",  name:"James O'Brien",   role:"Teacher · School",           on:true},
+    {id:"laura",  name:"Laura Mitchell",  role:"Teacher · School",           on:true},
+    {id:"owen",   name:"Owen Pryce",      role:"Swim Coach · School",        on:true},
+    {id:"grace",  name:"Grace Adeyemi",   role:"Teacher · School (Para)",    on:true},
+    {id:"olivia", name:"Olivia Stone",    role:"Assistant Teacher · School", on:true},
+    {id:"marco",  name:"Marco Rossi",     role:"Assistant Teacher · School", on:true},
+    /* SWIM LAB — 8 */
+    {id:"alex",   name:"Dr. Alex Morgan", role:"Swim Coach · Lab",          on:false},
+    {id:"rachel", name:"Dr. Rachel Webb", role:"Senior Swim Coach · Lab",   on:false},
+    {id:"tom",    name:"Dr. Tom Harris",  role:"Swim Coach · Lab",          on:false},
+    {id:"lena",   name:"Dr. Lena Fischer",role:"Swim Coach · Lab",          on:false},
+    {id:"raj",    name:"Dr. Raj Patel",   role:"Teacher · Lab",             on:false},
+    {id:"clara",  name:"Dr. Clara Voss",  role:"Swim Coach · Lab (Para)",   on:false},
+    {id:"hugo",   name:"Dr. Hugo Berg",   role:"Swim Coach · Lab",          on:false},
+    {id:"smarin", name:"Dr. Sofia Marin", role:"Teacher · Lab",             on:false},
+    /* SWIM CLUB — 8 */
+    {id:"mark",   name:"Mark Thompson",   role:"Swim Coach · Club",         on:false},
+    {id:"sarah",  name:"Sarah Jenkins",   role:"Swim Coach · Club",         on:false},
+    {id:"david",  name:"David Chen",      role:"Swim Coach · Club",         on:false},
+    {id:"carlos", name:"Carlos Ferreira", role:"Swim Coach · Club",         on:false},
+    {id:"sofia",  name:"Sofia Mendez",    role:"Swim Coach · Club",         on:false},
+    {id:"nina",   name:"Nina Brandt",     role:"Senior Swim Coach · Club",  on:false},
+    {id:"yuki",   name:"Yuki Tanaka",     role:"Swim Coach · Club",         on:false},
+    {id:"pieter", name:"Pieter de Vries", role:"Senior Swim Coach · Club",  on:false},
+    /* SWIM CAMPS — 8 */
+    {id:"hayley", name:"Hayley Sutton",   role:"Senior Swim Coach · Camps", on:false},
+    {id:"jakub",  name:"Jakub Wozniak",   role:"Swim Coach · Camps",        on:false},
+    {id:"tomas",  name:"Tomás Rivera",    role:"Swim Coach · Camps",        on:false},
+    {id:"anna",   name:"Anna Kowalski",   role:"Teacher · Camps",           on:false},
+    {id:"ben",    name:"Ben Whitfield",   role:"Swim Coach · Camps",        on:false},
+    {id:"isabella",name:"Isabella Conti", role:"Teacher · Camps",           on:false},
+    {id:"felix",  name:"Felix Braun",     role:"Swim Coach · Camps",        on:false},
+    {id:"maya",   name:"Maya Lindqvist",  role:"Teacher · Camps (Para)",    on:false},
+    /* ONLINE COACHING — 6 */
+    {id:"oc1",    name:"Daniel Reed",     role:"Senior Swim Coach · Online", on:false},
+    {id:"oc2",    name:"Priya Nair",      role:"Swim Coach · Online",        on:false},
+    {id:"oc3",    name:"Marcus Lee",      role:"Swim Coach · Online",        on:false},
+    {id:"oc4",    name:"Elena Rossi",     role:"Teacher · Online",           on:false},
+    {id:"oc5",    name:"Sam Carter",      role:"Swim Coach · Online",        on:false},
+    {id:"oc6",    name:"Aisha Khan",      role:"Teacher · Online",           on:false},
+    /* TEACHER TRAINING — 6 (tutors) */
+    {id:"tt1",    name:"Margaret Hughes", role:"Senior Swim Coach · Tutor",  on:false},
+    {id:"tt2",    name:"Robert Sinclair", role:"Senior Swim Coach · Tutor",  on:false},
+    {id:"tt3",    name:"Lucia Moreno",    role:"Swim Coach · Tutor",         on:false},
+    {id:"tt4",    name:"Kofi Mensah",     role:"Swim Coach · Tutor",         on:false},
+    {id:"tt5",    name:"Greta Hansen",    role:"Swim Coach · Tutor",         on:false},
+    {id:"tt6",    name:"Paolo Bianchi",   role:"Teacher · Tutor",            on:false},
+    /* TEACHER CERTIFICATION — 6 (assessors) */
+    {id:"tc1",    name:"Dr. Helen Frost", role:"Senior Swim Coach · Assessor",on:false},
+    {id:"tc2",    name:"Victor Almeida",  role:"Senior Swim Coach · Assessor",on:false},
+    {id:"tc3",    name:"Naomi Schwartz",  role:"Senior Swim Coach · Assessor",on:false},
+    {id:"tc4",    name:"Ian McLeod",      role:"Swim Coach · Assessor",      on:false},
+    {id:"tc5",    name:"Fatima Zahra",    role:"Swim Coach · Assessor",      on:false},
+    {id:"tc6",    name:"George Papadakis",role:"Senior Swim Coach · Assessor",on:false},
+    /* FUERTEVENTURA SWIM TOURS — 3 (open-water guides) */
+    {id:"tg1",    name:"Lina Sosa",       role:"Senior Swim Coach · Tours",  on:false},
+    {id:"tg2",    name:"Diego Castillo",  role:"Swim Coach · Tours",         on:false},
+    {id:"tg3",    name:"Noa Frydman",     role:"Swim Coach · Tours",         on:false},
+  ],
+  /* which teacher (id) is on each lane, per side */
+  assign:{ male:["marco","james","owen"], mixed:["sean","grace"], female:["emma","laura","olivia"] },
+};
+S.roster.forEach(t=>{ t.tags=defaultTags(t.id); t.qual=QUAL_BY_ID[t.id]||"assistant"; });
+S.published=[];            /* published courses (loaded from localStorage) */
+S.pubWeeks=[S.week];       /* which weeks to publish to (block-booking) */
+S.loadedId=null;           /* id of a published course currently loaded for editing */
+S.poolLayers={biz:false,occ:false,names:false};  /* overlay toggles for the pool visualizer */
+
+/* ── HELPERS ──────────────────────────────────────────────── */
+function num(n){return Math.round(n).toLocaleString();}
+function fmtMins(m){const h=Math.floor(m/60),mm=m%60;return h?(mm?`${h}h ${mm}m`:`${h}h`):`${mm}m`;}
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+function rope(){const N=30,E=4;let h="";for(let i=0;i<N;i++){const end=i<E||i>=N-E;const c=end?"red":(i%2===0?"white":"blue");h+=`<span class="rope-disc ${c}"></span>`;}return `<div class="pool-rope">${h}</div>`;}
+function lanesList(){const out=[];["male","mixed","female"].forEach(side=>{for(let i=0;i<S[side];i++)out.push({side,idx:i});});return out;}
+function onShift(){return S.roster.filter(t=>t.on);}
+function teacherById(id){return S.roster.find(t=>t.id===id);}
+function assignedId(ln){return S.assign[ln.side][ln.idx]||"";}
+function coachOf(ln){const t=teacherById(assignedId(ln));return (t&&t.on)?t.name:"";}
+function clearTeacher(id){["male","mixed","female"].forEach(s=>{S.assign[s]=S.assign[s].map(x=>x===id?"":x);});}
+function classTypeOf(c){const id=S.classTypes[c]??(CLASS_REGISTER[c]?CLASS_REGISTER[c].id:"");return CLASS_REGISTER.find(r=>r.id===id)||null;}
+function classDayOf(c){return S.classDays[c]??(c%6);}
+function classTimeOf(c){return S.classTimes[c]??"12:00";}
+function classAreaOf(c){return S.classAreas[c]??"olympic-pool";}
+/* unified per-session accessors — pool reads the pool arrays, other types read S.sched */
+function sDay(t,i){return t==="pool"?classDayOf(i):(S.sched[t][i]?.day??(i%6));}
+function sTime(t,i){return t==="pool"?classTimeOf(i):(S.sched[t][i]?.time??"12:00");}
+function sCls(t,i){if(t==="pool"){const c=classTypeOf(i);return c?c.id:"";}return S.sched[t][i]?.cls??"";}
+function sArea(t,i){return t==="pool"?classAreaOf(i):(S.sched[t][i]?.area??defaultArea(t));}
+function sDur(t,i){return t==="pool"?(S.durations[i]??60):(S.sched[t][i]?.dur??60);}
+function setSched(t,i,f,v){
+  if(t==="pool"){if(f==="day")S.classDays[i]=v;else if(f==="time")S.classTimes[i]=v;else if(f==="cls")S.classTypes[i]=v;else if(f==="area")S.classAreas[i]=v;else if(f==="dur")S.durations[i]=v;return;}
+  if(!S.sched[t][i])S.sched[t][i]={day:i%6,time:"12:00",cls:"",area:defaultArea(t),dur:60};
+  S.sched[t][i][f]=v;
+}
+function clientColor(g){return g==="male"?"#3b82f6":"#ec4899";}
+function pickClients(side,laneIdx,n){const out=[];for(let k=0;k<n;k++){const gender=side==="male"?"male":side==="female"?"female":(k%2===0?"male":"female");const pool=gender==="male"?DEMO_M:DEMO_F;out.push({name:pool[(laneIdx*3+k)%pool.length],gender,age:22+((laneIdx*5+k*3)%40)});}return out;}
+function laneBookedCount(i,cap){return Math.min(cap,Math.max(0,cap-(i%4)));}
+/* THE LANE LAW (iOS roster.ts): males lanes 1·2·3 Beginner→Advanced, females
+   lanes 8·7·6 Beginner→Advanced — so ability ramps up toward the middle; mixed = flex */
+const ABIL=["Beginner","Intermediate","Advanced"];
+function laneAbility(side,idx){if(side==="mixed")return "Mixed";return side==="male"?ABIL[Math.min(idx,2)]:ABIL[Math.max(0,2-idx)];}
+function abilAbbr(a){return a==="Beginner"?"Beg":a==="Intermediate"?"Int":a==="Advanced"?"Adv":"Mix";}
+function abilPlural(a){return a==="Beginner"?"Beginners":a==="Intermediate"?"Intermediates":a==="Advanced"?"Advanced":"";}
+function laneDesc(side,idx){return side==="mixed"?"Mixed ability":`${side==="male"?"Male":"Female"} ${abilPlural(laneAbility(side,idx))}`;}
+/* is this teacher suited to this lane's class, gender & level? */
+function suitableForLane(t,ln){
+  const sv=SERVICES[S.svc];
+  if(!t.tags.services.includes(S.svc)) return false;
+  if(sv.stroke && !t.tags.courses.includes(S.course)) return false;
+  if(!(t.tags.teaches.includes("pool")||t.tags.teaches.includes("pool-training"))) return false;
+  if(!t.tags.prefers.includes(ln.side)) return false;
+  const ab=laneAbility(ln.side,ln.idx).toLowerCase();
+  if(ab!=="mixed" && !t.tags.levels.includes(ab)) return false;
+  return true;
+}
+function timetable(){const sv=SERVICES[S.svc];return sv.stroke?STROKES[S.course].classes.map((c,i)=>[c,...STROKE_TIMES[i]]):FIXED[S.svc];}
+function setCssColor(){const sv=SERVICES[S.svc],r=document.documentElement.style;r.setProperty("--svc",sv.hex);r.setProperty("--pill-r",sv.rgb[0]);r.setProperty("--pill-g",sv.rgb[1]);r.setProperty("--pill-b",sv.rgb[2]);}
+
+/* ── VENUE PICKER — single-select segmented (iOS Venue) ────── */
+function buildVenues(){
+  document.getElementById("venues").innerHTML=VENUES.map(v=>
+    `<button class="venue-seg${v.key===S.venue?" on":""}" data-venue="${v.key}">${SWIMMER}<span class="vname">${esc(v.name)}</span><span class="vplace">${esc(v.place)}</span></button>`).join("");
+}
+
+/* ── WEEK CALENDAR + WEEK TOGGLE (iOS "Configure your dates") ── */
+function saturdayOf(dayKey){
+  const [y,m,d]=dayKey.split("-").map(Number); const dt=new Date(y,m-1,d);
+  dt.setDate(dt.getDate()-((dt.getDay()+1)%7));
+  const first=firstArrivalSaturday();
+  return _ymd(dt<first?first:dt);
+}
+function buildCalendar(){
+  const today=new Date(); today.setHours(0,0,0,0);
+  const first=new Date(S.calY,S.calM,1);
+  const offset=(first.getDay()+1)%7;
+  const gridStart=new Date(S.calY,S.calM,1-offset);
+  const monthLabel=first.toLocaleDateString("en-GB",{month:"long",year:"numeric"});
+  let rows=`<div class="calhead"><button class="calnav" data-go="-1">‹</button><span class="calmonth">${monthLabel}</span><button class="calnav" data-go="1">›</button></div>`;
+  rows+=`<div class="crow"><span class="cwk"></span><div class="cdays">${["Sa","Su","Mo","Tu","We","Th","Fr"].map(x=>`<div class="cd"><span class="cdh">${x}</span></div>`).join("")}</div></div>`;
+  for(let w=0;w<6;w++){
+    const ws=new Date(gridStart); ws.setDate(gridStart.getDate()+w*7);
+    const hi=_ymd(ws)===S.week;
+    let days="";
+    for(let d=0;d<7;d++){
+      const day=new Date(gridStart); day.setDate(gridStart.getDate()+w*7+d);
+      const inMonth=day.getMonth()===S.calM, past=day.getTime()<today.getTime(), isToday=day.getTime()===today.getTime();
+      const cls=["cd",past?"past":(inMonth?"":"out"),isToday?"today":"",(hi||isToday)?"bold":"",past?"":"clickable"].filter(Boolean).join(" ");
+      days+=`<div class="${cls}" data-day="${_ymd(day)}"><span class="cdn">${day.getDate()}</span></div>`;
+    }
+    rows+=`<div class="crow"><span class="cwk${hi?" hi":""}">${courseWeek(ws)}</span><div class="cdays${hi?" hi":""}">${days}</div></div>`;
+  }
+  document.getElementById("cal").innerHTML=rows;
+}
+function buildWeekTrack(){
+  document.getElementById("weekTrack").innerHTML=WEEKS.map(w=>`<button class="wk-seg${w.key===S.week?" on":""}" data-wk="${w.key}"><span class="wkn">Wk ${w.wk}</span><span class="wkr">${w.range}</span></button>`).join("");
+  const on=document.querySelector("#weekTrack .wk-seg.on"); if(on) on.scrollIntoView({block:"nearest",inline:"center"});
+}
+function selectWeek(key){ S.week=key; S.pubWeeks=[key]; S.calY=+key.slice(0,4); S.calM=+key.slice(5,7)-1; buildCalendar(); buildWeekTrack(); render(); }
+
+/* ── NUMBER / DURATION SEGMENTED TOGGLES ─────────────────── */
+function buildSizeSeg(){
+  document.getElementById("sizeSeg").innerHTML=[1,2,3,4,5,6,7,8].map(v=>`<button class="${v===S.size?"on":""}" data-size="${v}">${v}</button>`).join("");
+}
+function courseDateLabel(dayIdx){const s=new Date(+S.week.slice(0,4),+S.week.slice(5,7)-1,+S.week.slice(8,10));s.setDate(s.getDate()+dayIdx+1);return `${WD[s.getDay()]} ${s.getDate()} ${MON[s.getMonth()]}`;}
+/* the coaching team for this course = on-shift teachers assigned to the lanes,
+   senior-most first; the lead coach heads the course (feeds the timeline) */
+function courseTeam(){
+  const seen=new Set(),uniq=[];
+  lanesList().map(assignedId).map(teacherById).forEach(t=>{if(t&&t.on&&!seen.has(t.id)){seen.add(t.id);uniq.push(t);}});
+  uniq.sort((a,b)=>QUALS[b.qual].rank-QUALS[a.qual].rank);
+  return {team:uniq, lead:uniq[0]||null};
+}
+function teacherCell(type,led){
+  if(!led.lead) return '<span style="color:var(--ink-faint)">— assign in Lane selector —</span>';
+  const extra=(type==="pool"&&led.team.length>1)?` <span class="tl-plus">+${led.team.length-1}</span>`:"";
+  return esc(led.lead.name)+extra;
+}
+/* COURSE TIMELINE — read-only database: every section feeds in here */
+function buildTimeline(){
+  const host=document.getElementById("timeline"); if(!host) return;
+  const list=[];
+  PROG_TYPES.forEach(([t,,short])=>{for(let i=0;i<S.sessions[t];i++)list.push({t,short,day:sDay(t,i),time:sTime(t,i),cls:sCls(t,i),area:sArea(t,i),dur:sDur(t,i)});});
+  if(!list.length){host.innerHTML=`<div class="ps-group"><div class="ps-grouph">Course timeline</div><p class="lbl2" style="margin:0">No sessions activated yet — set the counts in “Sessions per course” above to build the timeline.</p></div>`; return;}
+  list.sort((a,b)=>a.day-b.day||a.time.localeCompare(b.time));
+  const led=courseTeam();
+  /* gather the global toggle state from every section */
+  const sv=SERVICES[S.svc], isGroup=S.mode==="group", lanes=lanesList(), perLane=isGroup?S.size:1, head=lanes.length*perLane;
+  const wk=WEEKS.find(w=>w.key===S.week)||WEEKS[0], venue=VENUES.find(v=>v.key===S.venue)||VENUES[0];
+  const sc=lanes.reduce((a,ln)=>{a[ln.side]=(a[ln.side]||0)+1;return a;},{});
+  const poolTime=list.filter(s=>s.t==="pool").reduce((a,s)=>a+s.dur,0);
+  const meta=[
+    ["Service",`<span class="tl-dot" style="background:${sv.hex}"></span>${esc(sv.name)}`],
+    ...(sv.stroke?[["Stroke",esc(STROKES[S.course].label)]]:[]),
+    ["Format",isGroup?`Group · ${S.size}/lane`:"One 2 One"],
+    ["Resort",`${esc(venue.name)} · ${esc(venue.place)}`],
+    ["Week",`Wk ${wk.wk} · ${esc(wk.range)}`],
+    ["Swimmers",`${head} (${lanes.length} lane${lanes.length===1?"":"s"})`],
+    ["Lanes",`${sc.male||0} M · ${sc.mixed||0} MIX · ${sc.female||0} F`],
+    ["Sessions",`${list.length} · ${(poolTime/60).toFixed(poolTime%60?1:0)}h pool`],
+    ["Lead coach",led.lead?`${esc(led.lead.name)} · ${QUALS[led.lead.qual].label}`:"—"],
+    ["Coaches",`${led.team.length} on the water · ${onShift().length} on shift`],
+  ];
+  const ctx=`<div class="tl-ctx">${meta.map(([k,v])=>`<div class="tl-meta"><span class="tl-mk">${k}</span><span class="tl-mv">${v}</span></div>`).join("")}</div>`;
+  const rows=list.map(s=>{const r=CLASS_REGISTER.find(x=>x.id===s.cls);return `<tr><td class="day">${courseDateLabel(s.day)}</td><td class="tm">${s.time}</td><td>${s.short}</td><td class="nm">${r?esc(r.title):'<span style="color:var(--ink-faint)">—</span>'}</td><td class="tch">${teacherCell(s.t,led)}</td><td>${areaLabel(s.area)}</td><td class="cp">${s.dur}m</td></tr>`;}).join("");
+  host.innerHTML=`<div class="ps-group"><div class="ps-grouph">Course timeline — every session, all sections gathered (${list.length})</div>${ctx}<table class="tl"><thead><tr><th>Date</th><th>Time</th><th>Type</th><th>Class</th><th>Teacher</th><th>Area</th><th>Dur</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+function schedRow(t,i,areaList){
+  const day=sDay(t,i), tm=sTime(t,i), cls=sCls(t,i), area=sArea(t,i), dur=sDur(t,i), short=SHORT_BY_TYPE[t]||"Session";
+  return `<div class="dur-row"><span class="lbl2" style="min-width:88px">${short} ${i+1}</span>`+
+    `<select class="ps-sel daysel" data-t="${t}" data-i="${i}" data-f="day">${COURSE_DAYS.map((d,di)=>`<option value="${di}"${di===day?" selected":""}>${d.slice(0,3)}</option>`).join("")}</select>`+
+    `<select class="ps-sel timesel" data-t="${t}" data-i="${i}" data-f="time">${CLASS_TIMES.map(x=>`<option${x===tm?" selected":""}>${x}</option>`).join("")}</select>`+
+    `<select class="ps-sel classsel" data-t="${t}" data-i="${i}" data-f="cls"><option value="">— pick a class —</option>${CLASS_REGISTER.map(r=>`<option value="${r.id}"${r.id===cls?" selected":""}>${esc(r.title)}</option>`).join("")}</select>`+
+    `<select class="ps-sel areasel" data-t="${t}" data-i="${i}" data-f="area">${areaList.map(([k,lab])=>`<option value="${k}"${k===area?" selected":""}>${lab}</option>`).join("")}</select>`+
+    `<div class="seg ps-dur" data-t="${t}" data-i="${i}">${[30,60,90].map(m=>`<button class="${m===dur?"on":""}" data-min="${m}">${m} min</button>`).join("")}</div>`+
+  `</div>`;
+}
+function buildProgramme(){
+  let groups="", total=0;
+  PROG_TYPES.forEach(([t,label])=>{
+    const n=S.sessions[t]; if(!n) return; total+=n;
+    if(t==="pool") return; /* pool lives in the pool section + the timeline above */
+    let rows=""; for(let i=0;i<n;i++) rows+=schedRow(t,i,AREAS);
+    groups+=`<div class="ps-group"><div class="ps-grouph">${label} · ${n}</div>${rows}</div>`;
+  });
+  document.getElementById("programme").innerHTML = total ? groups : `<p class="lbl2" style="margin:0">No sessions yet — set the counts in Sessions per course above.</p>`;
+  document.getElementById("progTotal").textContent=total;
+}
+function buildPoolSched(){
+  const n=S.sessions.pool; let h="";
+  for(let i=0;i<n;i++) h+=schedRow("pool",i,POOL_AREAS);
+  document.getElementById("poolSched").innerHTML=n?h:`<p class="lbl2" style="margin:0">No pool classes — raise “Pool classes” in Sessions per course.</p>`;
+}
+/* ── BULK "set them all the same" controls ─────────────────── */
+const BULK_SCOPES=[["all","All sessions"],...PROG_TYPES.filter(([t])=>t!=="pool").map(([t,,short])=>[t,short])];
+function scopeShort(sc){const f=BULK_SCOPES.find(x=>x[0]===sc);return f?f[1]:sc;}
+function bulkItems(){const sc=S.bulkScope||"all",out=[];PROG_TYPES.forEach(([t])=>{if(sc!=="all"&&sc!==t)return;for(let i=0;i<S.sessions[t];i++)out.push([t,i]);});return out;}
+function bulkCommon(items,get){if(!items.length)return null;const v0=get(items[0][0],items[0][1]);return items.every(([t,i])=>get(t,i)===v0)?v0:null;}
+function buildBulk(){
+  const sc=S.bulkScope||"all",items=bulkItems();
+  const scopeSeg=`<div class="seg bulk-scope">${BULK_SCOPES.map(([k,lab])=>`<button class="${k===sc?"on":""}" data-scope="${k}">${lab}</button>`).join("")}</div>`;
+  const cDay=bulkCommon(items,sDay),cTime=bulkCommon(items,sTime),cDur=bulkCommon(items,sDur),cArea=bulkCommon(items,sArea);
+  const daySeg=`<div class="seg bulk-apply" data-f="day">${COURSE_DAYS.map((d,di)=>`<button class="${di===cDay?"on":""}" data-v="${di}">${d.slice(0,3)}</button>`).join("")}</div>`;
+  const timeSel=`<select class="ps-sel bulk-apply" data-f="time" style="width:104px"><option value="">Time…</option>${CLASS_TIMES.map(x=>`<option${x===cTime?" selected":""}>${x}</option>`).join("")}</select>`;
+  const durSeg=`<div class="seg bulk-apply" data-f="dur">${[30,60,90].map(m=>`<button class="${m===cDur?"on":""}" data-v="${m}">${m} min</button>`).join("")}</div>`;
+  const areaSel=sc==="all"?"":`<select class="ps-sel bulk-apply" data-f="area" style="width:178px"><option value="">Area…</option>${AREAS.map(([k,lab])=>`<option value="${k}"${k===cArea?" selected":""}>${lab}</option>`).join("")}</select>`;
+  const n=items.length;
+  document.getElementById("bulkBar").innerHTML=
+    `<div class="bulk-row"><span class="lbl">Set together</span>${scopeSeg}</div>`+
+    (n?`<div class="bulk-row bulk-fields"><span class="lbl2">Make ${sc==="all"?"all "+n:n+" "+scopeShort(sc).toLowerCase()} session${n===1?"":"s"} the same →</span>${daySeg}${timeSel}${areaSel}${durSeg}</div>`:"");
+}
+function applyBulk(f,v){bulkItems().forEach(([t,i])=>setSched(t,i,f,v));buildSchedules();render();}
+function buildSchedules(){ buildProgramme(); buildPoolSched(); buildBulk(); }
+
+/* ── PUBLISH + RESORT WEEKLY CALENDAR ──────────────────────── */
+const LS_KEY="sssc-course-builder-v1";
+function loadPublished(){try{const raw=localStorage.getItem(LS_KEY);S.published=raw?JSON.parse(raw):[];}catch(e){S.published=[];}}
+function savePublished(){try{localStorage.setItem(LS_KEY,JSON.stringify(S.published));}catch(e){}}
+function sessTotal(s){return Object.values(s).reduce((a,b)=>a+b,0);}
+function snapshotCourse(weekKey){
+  const sv=SERVICES[S.svc], wk=WEEKS.find(w=>w.key===weekKey)||WEEKS[0], venue=VENUES.find(v=>v.key===S.venue)||VENUES[0];
+  const led=courseTeam(), list=[];
+  PROG_TYPES.forEach(([t,,short])=>{for(let i=0;i<S.sessions[t];i++){const r=CLASS_REGISTER.find(x=>x.id===sCls(t,i));list.push({type:t,short,day:sDay(t,i),time:sTime(t,i),cls:sCls(t,i),clsTitle:r?r.title:"",area:sArea(t,i),areaLabel:areaLabel(sArea(t,i)),dur:sDur(t,i)});}});
+  list.sort((a,b)=>a.day-b.day||a.time.localeCompare(b.time));
+  return {
+    id:"c"+Date.now().toString(36)+Math.floor(Math.random()*46656).toString(36), ts:Date.now(),
+    resort:S.venue, resortName:venue.name,
+    week:weekKey, wk:wk.wk, weekRange:wk.range,
+    svc:S.svc, svcName:sv.name, svcShort:sv.short, hex:sv.hex, stroke:sv.stroke,
+    course:S.course, courseLabel:sv.stroke&&STROKES[S.course]?STROKES[S.course].label:"",
+    mode:S.mode, size:S.size,
+    lanes:{male:S.male,mixed:S.mixed,female:S.female},
+    sessions:{...S.sessions}, schedule:list,
+    lead:led.lead?{name:led.lead.name,qual:QUALS[led.lead.qual].label}:null, team:led.team.map(t=>t.name),
+    biz:(()=>{const b=computeBusiness();return {revFull:b.revFull,revNow:b.revNow,cost:b.cost,profit:b.profit,beBookings:b.beBookings,capacity:b.capacity,booked:b.booked};})(),
+    title:sv.name+(sv.stroke&&STROKES[S.course]?" · "+STROKES[S.course].label:""),
+    raw:{classTypes:[...S.classTypes],classDays:[...S.classDays],classTimes:[...S.classTimes],classAreas:[...S.classAreas],durations:[...S.durations],
+         sched:JSON.parse(JSON.stringify(S.sched)),assign:JSON.parse(JSON.stringify(S.assign)),onShift:S.roster.filter(t=>t.on).map(t=>t.id)}
+  };
+}
+function publishCourse(){
+  const weeks=(S.pubWeeks&&S.pubWeeks.length)?S.pubWeeks:[S.week];
+  weeks.forEach(wk=>S.published.push(snapshotCourse(wk)));
+  S.loadedId=null;
+  savePublished(); buildPublish(); buildResortCal();
+  const venue=VENUES.find(v=>v.key===S.venue)||VENUES[0];
+  showToast(`✓ Published ${SERVICES[S.svc].name} to ${weeks.length} week${weeks.length!==1?"s":""} at ${venue.name}`);
+}
+function updateLoadedCourse(){
+  if(!S.loadedId) return;
+  const idx=S.published.findIndex(c=>c.id===S.loadedId); if(idx<0){S.loadedId=null;buildPublish();return;}
+  const snap=snapshotCourse(S.week); snap.id=S.loadedId; /* keep identity, publish to the current week */
+  S.published[idx]=snap;
+  savePublished(); buildPublish(); buildResortCal();
+  showToast(`✓ Updated “${snap.title}” — Wk ${snap.wk} at ${snap.resortName}`);
+}
+function exportCalendar(){
+  const data=JSON.stringify({app:"sssc-course-builder",version:1,courses:S.published},null,2);
+  const blob=new Blob([data],{type:"application/json"}), url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download="sssc-resort-calendar.json"; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  showToast(`Exported ${S.published.length} course${S.published.length!==1?"s":""} → sssc-resort-calendar.json`);
+}
+function importCalendar(file){
+  const r=new FileReader();
+  r.onload=()=>{try{const d=JSON.parse(r.result), arr=Array.isArray(d)?d:(d.courses||[]); if(!Array.isArray(arr))throw 0;
+    S.published=arr; savePublished(); buildPublish(); buildResortCal(); showToast(`Imported ${arr.length} course${arr.length!==1?"s":""}`);
+  }catch(e){showToast("Couldn't read that file — not a valid calendar export");}};
+  r.readAsText(file);
+}
+function deletePublished(id){S.published=S.published.filter(c=>c.id!==id);savePublished();buildPublish();buildResortCal();}
+function loadCourse(id){
+  const c=S.published.find(x=>x.id===id); if(!c)return;
+  S.venue=c.resort; S.week=c.week; S.calY=+c.week.slice(0,4); S.calM=+c.week.slice(5,7)-1; S.pubWeeks=[c.week]; S.loadedId=c.id;
+  S.svc=c.svc; S.course=c.course||S.course; S.mode=c.mode; S.size=c.size;
+  S.male=c.lanes.male; S.mixed=c.lanes.mixed; S.female=c.lanes.female;
+  S.sessions={...S.sessions,...c.sessions};
+  if(c.raw){
+    S.classTypes=[...c.raw.classTypes]; S.classDays=[...c.raw.classDays]; S.classTimes=[...c.raw.classTimes];
+    S.classAreas=[...c.raw.classAreas]; S.durations=[...c.raw.durations];
+    S.sched=JSON.parse(JSON.stringify(c.raw.sched)); S.assign=JSON.parse(JSON.stringify(c.raw.assign));
+    S.roster.forEach(t=>t.on=c.raw.onShift.includes(t.id));
+  }
+  refreshAll();
+  showToast(`Loaded “${c.title}” — Wk ${c.wk} at ${c.resortName}`);
+  document.getElementById("publishPanel").scrollIntoView({block:"center"});
+}
+function buildPublish(){
+  const sv=SERVICES[S.svc], venue=VENUES.find(v=>v.key===S.venue)||VENUES[0];
+  if(!S.pubWeeks||!S.pubWeeks.length) S.pubWeeks=[S.week];
+  const sel=new Set(S.pubWeeks);
+  const chips=WEEKS.map(w=>`<button class="wk-chip${sel.has(w.key)?" on":""}" data-pubwk="${w.key}"><span class="wkc-n">Wk ${w.wk}</span><span class="wkc-r">${esc(w.range)}</span></button>`).join("");
+  document.getElementById("publishPanel").innerHTML=
+    `<p class="lbl2" style="margin:0 0 11px">Publish this <b style="color:${sv.hex}">${esc(sv.name)}${sv.stroke&&STROKES[S.course]?" · "+esc(STROKES[S.course].label):""}</b> design to <b>${esc(venue.name)}</b> — pick one or more weeks to block-book the same course.</p>`+
+    `<div class="pub-toolbar"><span class="lbl">Weeks</span><button class="mini-btn" data-puball="1">Select all</button><button class="mini-btn" data-pubnone="1">Clear</button><button class="mini-btn" data-pubthis="1">Just this week</button></div>`+
+    `<div class="wk-chips">${chips}</div>`+
+    `<div class="pub-actions">`+
+      (S.loadedId&&S.published.some(c=>c.id===S.loadedId)?`<button class="pub-btn pub-upd" id="updateBtn">Update loaded course</button>`:"")+
+      `<button class="pub-btn" id="publishBtn"${sel.size?"":" disabled"} style="background:${sel.size?sv.hex:"#9aa3b2"}">${S.loadedId?"Publish as new":"Publish course"} → ${sel.size} week${sel.size!==1?"s":""}</button>`+
+    `</div>`+
+    (S.loadedId&&S.published.some(c=>c.id===S.loadedId)?`<p class="lbl2" style="margin:9px 0 0;color:var(--ink-faint)">Editing a published course. “Update” overwrites it; “Publish as new” adds copies to the selected week(s).</p>`:"");
+  document.getElementById("pubCount").textContent=S.published.length;
+}
+function buildResortCal(){
+  const venue=VENUES.find(v=>v.key===S.venue)||VENUES[0];
+  const mine=S.published.filter(c=>c.resort===S.venue);
+  const byWeek={}; mine.forEach(c=>{(byWeek[c.week]=byWeek[c.week]||[]).push(c);});
+  const weekKeys=Object.keys(byWeek).sort();
+  let body;
+  if(!mine.length){
+    body=`<p class="lbl2" style="margin:0">No courses published to ${esc(venue.name)} yet — design a course above and hit <b>Publish</b>.</p>`;
+  }else{
+    body=weekKeys.map(wk=>{
+      const w=WEEKS.find(x=>x.key===wk)||{wk:"?",range:wk};
+      const cards=byWeek[wk].sort((a,b)=>a.ts-b.ts).map(c=>{
+        const sess=sessTotal(c.sessions), lanes=c.lanes.male+c.lanes.mixed+c.lanes.female;
+        return `<div class="pub-course" style="border-left:4px solid ${c.hex}">
+          <div class="pub-course-h"><span class="pub-course-t" style="color:${c.hex}">${esc(c.title)}</span><button class="pub-del" data-del="${c.id}" title="Remove from calendar">✕</button></div>
+          <div class="pub-course-m">${c.mode==="group"?`Group · ${c.size}/lane`:"One 2 One"} · ${lanes} lane${lanes!==1?"s":""} · ${sess} sessions${c.lead?` · lead ${esc(c.lead.name)}`:""}</div>
+          ${c.biz?`<div class="pub-course-biz">Projected <b style="color:${c.biz.profit>=0?"#059669":"#e11d48"}">${c.biz.profit>=0?"+":"−"}€${num(Math.abs(c.biz.profit))}</b> · revenue €${num(c.biz.revFull)} · cost €${num(c.biz.cost)} · break-even ${c.biz.beBookings}/${c.biz.capacity}</div>`:""}
+          <div class="pub-course-a"><button class="pub-load" data-load="${c.id}">Load &amp; edit</button></div>
+        </div>`;
+      }).join("");
+      return `<div class="cal-week"><div class="cal-week-h"><span class="cal-wk" style="color:var(--svc)">Wk ${w.wk}</span><span class="cal-wr">${esc(w.range)}</span><span class="cal-wc">${byWeek[wk].length} course${byWeek[wk].length!==1?"s":""}</span></div><div class="cal-week-body">${cards}</div></div>`;
+    }).join("");
+  }
+  document.getElementById("calendarView").innerHTML=`<div class="card-head" style="margin:0 0 12px"><p class="lbl">${esc(venue.name)} — weekly calendar</p><span class="count-pill">${mine.length} course${mine.length!==1?"s":""}</span></div>${body}`;
+}
+let _toastT=null;
+function showToast(msg){const el=document.getElementById("toast");if(!el)return;el.textContent=msg;el.classList.add("on");if(_toastT)clearTimeout(_toastT);_toastT=setTimeout(()=>el.classList.remove("on"),3200);}
+function refreshAll(){
+  buildSvcPills();buildCoursePills();syncSizeVis();buildVenues();buildCalendar();buildWeekTrack();buildSizeSeg();buildSessions();
+  ["male","mixed","female"].forEach(k=>{const el=document.getElementById(k+"V");if(el)el.textContent=S[k];});
+  buildSchedules();buildFilters();buildRoster();buildEditor();render();buildPublish();buildResortCal();
+}
+
+/* ── BUSINESS — REVENUE, COST & BREAK-EVEN ─────────────────── */
+/* educated Fuerteventura estimates — €/hour to use each resort area.
+   pool/water areas are charged per LANE-hour (lane hire); rooms are flat per session-hour */
+const AREA_COST={
+  "olympic-pool":15,"apart-pool":11,"hotel-pool":11,"infinity-pool":12,"apart-family-pool":9,"leisure-pool":8,"pool-dryland":6,"open-water":0,"beach":0,
+  "gym":40,"conference":35,"indoor":30,"outdoor":15,"grass":10,"promenade":0,"teatro":45,"reception":0,
+  "palapa-bar":20,"bodega":25,"hotel-restaurant":25,"outside-reception":0,"plaza-rambla":0,"apart-pool-bar":18
+};
+const COACH_DAY=120, BUS_DAY=180, ADMIN_FLAT=250, COURSE_DAYS_N=6;
+function areaCost(k){return (k in AREA_COST)?AREA_COST[k]:12;}
+function computeBusiness(){
+  const sv=SERVICES[S.svc], isGroup=S.mode==="group", lanes=lanesList(), nLanes=lanes.length, perLane=isGroup?S.size:1;
+  const capacity=nLanes*perLane;
+  let booked=0; lanes.forEach((ln,i)=>booked+=laneBookedCount(i,perLane));
+  const fa={}; let facTotal=0;
+  PROG_TYPES.forEach(([t])=>{for(let i=0;i<S.sessions[t];i++){
+    const area=sArea(t,i),hrs=sDur(t,i)/60,pool=(t==="pool"),mult=pool?Math.max(1,nLanes):1,c=areaCost(area)*hrs*mult;
+    (fa[area]=fa[area]||{label:areaLabel(area),sessions:0,hrs:0,cost:0,pool:false});
+    fa[area].sessions++; fa[area].hrs+=hrs; fa[area].cost+=c; if(pool)fa[area].pool=true; facTotal+=c;
+  }});
+  const coachN=onShift().length, coachCost=coachN*COACH_DAY*COURSE_DAYS_N;
+  const busCost=sv.bus?BUS_DAY*COURSE_DAYS_N:0, admin=ADMIN_FLAT;
+  const cost=facTotal+coachCost+busCost+admin;
+  const revFull=capacity*sv.full, revNow=booked*sv.full;
+  const beBookings=sv.full>0?Math.ceil(cost/sv.full):0;
+  const bePct=capacity>0?Math.round(beBookings/capacity*100):0;
+  const profit=revFull-cost, margin=revFull>0?Math.round(profit/revFull*100):0, pnlNow=revNow-cost;
+  return {sv,nLanes,perLane,capacity,booked,fa,facTotal,coachN,coachCost,busCost,admin,cost,revFull,revNow,beBookings,bePct,profit,margin,pnlNow};
+}
+function money(n){return (n<0?"−€":"€")+num(Math.abs(n));}
+function hrsLabel(h){return (h%1?h.toFixed(1):h)+"h";}
+function buildBusiness(){
+  const b=computeBusiness(), green="#059669", red="#e11d48";
+  const tiles=[
+    ["Projected revenue","hero",money(b.revFull),`${b.capacity} places · full house`,""],
+    ["Currently booked","",money(b.revNow),`${b.booked} / ${b.capacity} places sold`,""],
+    ["Total course cost","",money(b.cost),"areas + coaches"+(b.busCost?" + bus":"")+" + admin",""],
+    ["Break-even","",`${b.beBookings} sales`,`${b.bePct}% of capacity`,""],
+    ["Projected profit","hero",money(b.profit),`${b.margin}% margin`,b.profit>=0?green:red],
+    ["Current position","",money(b.pnlNow),b.pnlNow>=0?"in profit now":`${Math.max(0,b.beBookings-b.booked)} more sales to break even`,b.pnlNow>=0?green:red],
+  ];
+  document.getElementById("bizMetrics").innerHTML=tiles.map(([k,c,v,sub,col])=>`<div class="m ${c}"><div class="k">${k}</div><div class="v"${col?` style="color:${col}"`:""}>${v}</div><div class="ksub">${sub}</div></div>`).join("");
+  const rows=Object.values(b.fa).sort((x,y)=>y.cost-x.cost).map(a=>`<tr><td class="nm">${esc(a.label)}${a.pool?` <span class="biz-note">lane hire × ${b.nLanes}</span>`:""}</td><td>${a.sessions} session${a.sessions!==1?"s":""}</td><td>${hrsLabel(a.hrs)}</td><td class="cp">€${num(a.cost)}</td></tr>`).join("");
+  const extra=[[`Coaches — ${b.coachN} on shift × €${COACH_DAY}/day × ${COURSE_DAYS_N} days`,b.coachCost]]
+    .concat(b.busCost?[[`Mini-bus / transport — €${BUS_DAY}/day × ${COURSE_DAYS_N} days`,b.busCost]]:[])
+    .concat([[`Admin, insurance & safeguarding`,b.admin]])
+    .map(([l,c])=>`<tr><td class="nm" colspan="3">${esc(l)}</td><td class="cp">€${num(c)}</td></tr>`).join("");
+  document.getElementById("bizBreakdown").innerHTML=`<table class="tl biz-table"><thead><tr><th>Cost line</th><th>Use</th><th>Hours</th><th>Cost</th></tr></thead><tbody>${rows}${extra}<tr class="biz-total"><td class="nm" colspan="3">Total course cost</td><td class="cp">€${num(b.cost)}</td></tr></tbody></table>`;
+  document.getElementById("bizTag").textContent=(b.profit>=0?"+":"−")+"€"+num(Math.abs(b.profit))+" projected";
+}
+const POOL_LAYERS=[["biz","Business €"],["occ","Occupancy"],["names","Names"]];
+function buildPoolLayers(){
+  const host=document.getElementById("poolLayers"); if(!host) return;
+  host.innerHTML=`<span class="pl-lbl">Show:</span>`+POOL_LAYERS.map(([k,lab])=>`<button class="pl-toggle${S.poolLayers[k]?" on":""}" data-layer="${k}" role="switch" aria-checked="${!!S.poolLayers[k]}"><span class="pl-knob"></span>${lab}</button>`).join("");
+}
+function buildSessions(){
+  document.getElementById("sessRows").innerHTML=SESSION_TYPES.map(t=>{
+    const cur=S.sessions[t.key];
+    const opts=Array.from({length:19},(_,i)=>i);
+    return `<div class="sess-row"><span class="slbl">${t.label}</span><div class="seg" data-sess="${t.key}">${opts.map(n=>`<button class="${n===cur?"on":""}" data-n="${n}">${n}</button>`).join("")}</div></div>`;
+  }).join("");
+  const nonPool=["classroom","gym","dlIndoor","dlOutdoor","recovery"].reduce((a,k)=>a+S.sessions[k],0);
+  document.getElementById("poolPerCourse").textContent=S.sessions.pool;
+  document.getElementById("classesPerCourse").textContent=nonPool;
+  document.getElementById("courseTotal").textContent=S.sessions.pool+nonPool;
+}
+
+/* ── TEACHER CONTACT LIST (rebuilt on roster change) ──────── */
+function teacherMatches(t){return TAG_CATS.every(([cat])=>S.filters[cat].every(tag=>t.tags[cat].includes(tag)));}
+function buildFilters(){
+  const active=TAG_CATS.reduce((n,[cat])=>n+S.filters[cat].length,0);
+  document.getElementById("filterToggle").textContent=`Filters${active?" · "+active:""} ${S.showFilters?"▾":"▸"}`;
+  const panel=document.getElementById("filterPanel");
+  panel.hidden=!S.showFilters;
+  if(!S.showFilters) return;
+  panel.innerHTML=TAG_CATS.map(([cat,label,opts,plabel])=>{
+    const sel=S.filters[cat], all=opts.every(([k])=>sel.includes(k)), some=!all&&opts.some(([k])=>sel.includes(k));
+    const par=`<button class="tchip tparent${all?" on":some?" part":""}" data-fpcat="${cat}">${all?"✓ ":""}${plabel}</button>`;
+    const chips=opts.map(([k,lab])=>`<button class="tchip${sel.includes(k)?" on":""}" data-fcat="${cat}" data-ftag="${k}">${lab}</button>`).join("");
+    return `<div class="tsec"><div class="tsec-h">${label}</div><div class="tsec-chips">${par}${chips}</div></div>`;
+  }).join("")+(active?`<div><button class="tchip clr" id="clearFilters">Clear all filters</button></div>`:"");
+}
+function buildRoster(){
+  document.getElementById("teacherCount").textContent=onShift().length;
+  const list=S.roster.filter(teacherMatches);
+  document.getElementById("roster").innerHTML=list.map(t=>{
+    const exp=S.expanded.has(t.id);
+    const sum=`<span class="tchip ro qchip">${QUALS[t.qual].label}</span>`+t.tags.services.map(s=>`<span class="tchip ro">${SVC_SHORT[s]||s}</span>`).join("")+`<span class="tchip ro">${t.tags.langs.map(l=>l.toUpperCase()).join("·")}</span>`;
+    let card="";
+    if(exp){
+      const info=teacherInfo(t);
+      const head=`<div class="tcard-head"><div class="avatar">${info.initials}</div><div class="tcard-meta"><div class="tcard-bio">${esc(teacherBio(t))}</div><div class="tcard-facts"><span>✉ ${esc(info.email)}</span><span>☎ ${esc(info.phone)}</span><span>★ ${info.years} yrs experience</span><span>⌖ ${esc(info.based)}</span></div></div></div>`;
+      const qualSec=`<div class="tsec"><div class="tsec-h">Qualification</div><div class="tsec-chips">${Object.entries(QUALS).map(([k,q])=>`<button class="tchip${t.qual===k?" on":""}" data-tid="${t.id}" data-qual="${k}">${q.label}</button>`).join("")}</div></div>`;
+      card=`<div class="tcard">`+head+qualSec+TAG_CATS.map(([cat,label,opts,plabel])=>{
+        const sel=t.tags[cat], all=opts.every(([k])=>sel.includes(k)), some=!all&&opts.some(([k])=>sel.includes(k));
+        const par=`<button class="tchip tparent${all?" on":some?" part":""}" data-tid="${t.id}" data-pcat="${cat}">${all?"✓ ":""}${plabel}</button>`;
+        const chips=opts.map(([k,lab])=>`<button class="tchip${sel.includes(k)?" on":""}" data-tid="${t.id}" data-cat="${cat}" data-tag="${k}">${lab}</button>`).join("");
+        return `<div class="tsec"><div class="tsec-h">${label}</div><div class="tsec-chips">${par}${chips}</div></div>`;
+      }).join("")+`</div>`;
+    }
+    return `<div class="tcell">
+      <div class="trow${t.on?"":" off"}">
+        <div class="tinfo" data-expand="${t.id}"><span class="tname">${esc(t.name)} <span class="caret">${exp?"▾":"▸"}</span></span><span class="trole">${esc(t.role)}</span><div class="tsum">${sum}</div></div>
+        <button class="switch${t.on?" on":""}" data-tid="${t.id}" role="switch" aria-checked="${t.on}" aria-label="${esc(t.name)} on shift"><span class="knob"></span></button>
+      </div>${card}
+    </div>`;
+  }).join("")||`<div class="foot" style="margin:0">No teachers match the filters.</div>`;
+}
+
+/* ── LANE ASSIGNMENT EDITOR (rebuilt on composition / roster change) ── */
+function buildEditor(){
+  const lanes=lanesList(), opts=onShift(), box=document.getElementById("laneEditor");
+  if(!lanes.length){ box.innerHTML=`<div class="foot" style="margin:0;grid-column:1/-1">No lanes yet — add lanes in the controls above.</div>`; return; }
+  const cols={male:[],mixed:[],female:[]};
+  const byQual=(a,b)=>QUALS[b.qual].rank-QUALS[a.qual].rank;
+  lanes.forEach((ln,i)=>{
+    const cur=assignedId(ln), curT=teacherById(cur);
+    /* show EVERY teacher — suited ones first, then the rest grouped by service */
+    const optHtml=t=>`<option value="${t.id}"${t.id===cur?" selected":""}>${esc(t.name)} · ${QUALS[t.qual].label}${t.on?"":" · off shift"}</option>`;
+    const suit=S.roster.filter(t=>suitableForLane(t,ln)).sort(byQual);
+    const rest=S.roster.filter(t=>!suit.includes(t));
+    let o=`<option value="">— unassigned —</option>`;
+    if(suit.length) o+=`<optgroup label="✓ Suited to this lane (${suit.length})">${suit.map(optHtml).join("")}</optgroup>`;
+    const bySvc={};
+    rest.forEach(t=>{const sk=t.tags.services[0]||"other";(bySvc[sk]=bySvc[sk]||[]).push(t);});
+    Object.keys(bySvc).sort((a,b)=>(a===S.svc?-1:b===S.svc?1:0)).forEach(sk=>{
+      bySvc[sk].sort(byQual);
+      o+=`<optgroup label="${(SVC_SHORT[sk]||sk)} coaches (${bySvc[sk].length})">${bySvc[sk].map(optHtml).join("")}</optgroup>`;
+    });
+    const unsuited=curT&&!suit.includes(curT);
+    const note=unsuited?`<span class="nofit">${curT.on?"not suited to this lane":"off shift"}</span>`:"";
+    cols[ln.side].push(`<label class="lane-edit">
+      <span class="side-badge" style="background:${GENDER[ln.side]}">L${i+1} · ${SIDE[ln.side]}</span>
+      <select data-side="${ln.side}" data-idx="${ln.idx}">${o}</select>${note}
+    </label>`);
+  });
+  const col=(side,label)=>`<div class="lane-col"><div class="lane-col-h" style="color:${GENDER[side]}">${label} lanes</div>${cols[side].join("")||`<div class="lane-col-empty">none</div>`}</div>`;
+  box.innerHTML=col("male","Male")+col("mixed","Mixed")+col("female","Female");
+}
+
+/* ── CLIENT POOL-LANE REGISTER (live, demo clients) ──────── */
+function buildRegister(){
+  const lanes=lanesList(), isGroup=S.mode==="group", cap=isGroup?S.size:1;
+  let tBooked=0,tCap=0;
+  const html=lanes.map((ln,i)=>{
+    const coach=coachOf(ln)||"— no teacher —";
+    const booked=laneBookedCount(i,cap);
+    tBooked+=booked; tCap+=cap;
+    const chips=pickClients(ln.side,i,booked).map(c=>`<span class="reg-chip" style="background:${clientColor(c.gender)}">${esc(c.name)} · ${c.age}</span>`).join("");
+    const tone=booked>=cap?"#e11d48":booked>=cap-2?"#b45309":"#059669";
+    return `<div class="reg-lane">
+      <span class="side-badge" style="background:${GENDER[ln.side]}">L${i+1} · ${SIDE[ln.side]}</span>
+      <div class="reg-info"><div class="reg-coach">${laneDesc(ln.side,ln.idx)} · ${esc(coach)}</div><div class="reg-clients">${chips||'<span class="reg-empty">no clients booked yet</span>'}</div></div>
+      <span class="reg-count" style="color:${tone}">${booked}/${cap}</span>
+    </div>`;
+  }).join("");
+  document.getElementById("register").innerHTML=html||`<div class="foot" style="margin:0">No lanes yet — build the pool above.</div>`;
+  document.getElementById("regCount").textContent=`${tBooked}/${tCap}`;
+}
+
+/* ── RENDER (pool, numbers, notes, week — never the editors) ── */
+function render(){
+  const sv=SERVICES[S.svc]; setCssColor();
+  const isGroup=S.mode==="group";
+  const perLane=isGroup?S.size:1;
+  const lanes=lanesList();
+  const total=lanes.length;
+  const perSlot=total*perLane;
+  const venueLabel=(VENUES.find(v=>v.key===S.venue)||VENUES[0]).name;
+  const wk=WEEKS.find(w=>w.key===S.week)||WEEKS[0];
+  const satIn=new Date(+S.week.slice(0,4),+S.week.slice(5,7)-1,+S.week.slice(8,10));
+  const addD=(n)=>{const d=new Date(satIn);d.setDate(d.getDate()+n);return d;};
+  const fday=(d)=>`${WD[d.getDay()]} ${d.getDate()} ${MON[d.getMonth()]}`;
+  document.getElementById("courseFrame").innerHTML=`<b>Whole course:</b> fly in ${fday(satIn)} afternoon · starts ${fday(addD(1))} · finishes ${fday(addD(6))} afternoon · fly out ${fday(addD(7))} morning`;
+  const poolN=S.sessions.pool;
+  const classList=Array.from({length:poolN},(_,c)=>({c,day:classDayOf(c),time:classTimeOf(c),ct:classTypeOf(c),dur:S.durations[c]??60,area:classAreaOf(c)}));
+  const courseTime=classList.reduce((s,x)=>s+x.dur,0);
+
+  const teachersOn=onShift().length;
+  const validIds=lanes.map(assignedId).filter(id=>{const t=teacherById(id);return t&&t.on;});
+  const lanesAssigned=validIds.length;
+  const distinctUsed=new Set(validIds).size;
+  const idle=Math.max(0,teachersOn-distinctUsed);
+  const unassigned=total-lanesAssigned;
+  document.getElementById("totalLanes").textContent=total;
+
+  /* POOL — one frame per pool class; optional overlays (Business € / Occupancy / Names) */
+  buildPoolLayers();
+  const PL=S.poolLayers||{}, biz=PL.biz?computeBusiness():null;
+  let bookedIdx=0;
+  let laneBody=rope();
+  if(total===0) laneBody+=`<div class="pool-empty">No lanes yet — add male, mixed or female lanes.</div>`;
+  lanes.forEach((ln,i)=>{
+    const col=GENDER[ln.side], coach=coachOf(ln), first=coach?coach.split(" ")[0]:"—";
+    const booked=laneBookedCount(i,perLane), clients=pickClients(ln.side,i,booked), revealed=S.revealed.has(i)||!!PL.names;
+    let dots="";
+    for(let s=0;s<perLane;s++){
+      if(s<booked){const cl=clients[s];
+        let bg=clientColor(cl.gender), tip=`${cl.name} · ${cl.gender}`;
+        if(biz){const profit=bookedIdx>=biz.beBookings; bg=profit?"#22c55e":"#d97706"; tip=`${cl.name} · ${profit?"profit seat":"covering cost"}`; bookedIdx++;}
+        dots+=`<button class="pool-dot booked" data-lane="${i}" data-seat="${s}" style="background:${bg}" title="${esc(tip)}">${revealed?`<span class="pool-dot-name">${esc(cl.name.split(" ")[0])}</span>`:""}</button>`;
+      }else dots+='<span class="pool-dot free"></span>';
+    }
+    let finishVal=`${booked}/${perLane}`, finishBg=(booked>=perLane&&perLane>0)?'#b1342f':col;
+    if(biz){ finishVal=`€${num(booked*biz.sv.full)}`; finishBg=col; }
+    else if(PL.occ){ const pct=perLane?Math.round(booked/perLane*100):0; finishVal=`${pct}%`; finishBg=pct>=100?'#b1342f':pct>=60?'#059669':pct>=30?'#b45309':'#64748b'; }
+    laneBody+=`<div class="pool-lane${revealed?" revealed":""}">
+      <button class="pool-start${coach?"":" unassigned"}" data-lane="${i}" style="background:${col}" title="${coach?esc(coach):"No teacher assigned"} · L${i+1} ${SIDE[ln.side]} — click to reveal clients">
+        <span class="pool-start-l">L${i+1}</span>
+        <span class="pool-start-side">${!isGroup?"1-2-1":ln.side==="mixed"?"MIX":SIDE[ln.side]+"·"+abilAbbr(laneAbility(ln.side,ln.idx))}</span>
+        <span class="pool-start-coach">${esc(first)}</span>
+      </button>
+      <div class="pool-water"><span class="pool-guide"></span><div class="pool-dots">${dots}</div></div>
+      <div class="pool-finish" style="background:${finishBg}">${finishVal}</div></div>`;
+    laneBody+=rope();
+  });
+  const bizBanner=biz?`<div class="pool-bizbar"><span>Revenue <b>€${num(biz.revFull)}</b></span><span>Cost <b>€${num(biz.cost)}</b></span><span class="${biz.profit>=0?'pos':'neg'}">Profit <b>${biz.profit>=0?'+':'−'}€${num(Math.abs(biz.profit))}</b></span><span>Break-even <b>${biz.beBookings}</b>/${biz.capacity}</span><span>Booked now <b>€${num(biz.revNow)}</b> · ${biz.booked} sold</span></div>`:"";
+  const poolFrame=(cls)=>{
+    const title=`${venueLabel} · Wk ${wk.wk} · ${fday(addD(cls.day+1))} ${cls.time} · Class ${cls.c+1}${cls.ct?" · "+cls.ct.title:""} · ${areaLabel(cls.area)} · ${cls.dur} min · ${sv.name}${sv.stroke?" · "+STROKES[S.course].label:""}`;
+    return `<div class="pool-frame"><div class="pool-title">${title}</div>${bizBanner}<div class="pool-lanes">${laneBody}</div></div>`;
+  };
+  const pIdx=Math.max(0,Math.min(S.poolIdx||0,poolN-1)); S.poolIdx=pIdx;
+  document.getElementById("pools").innerHTML = poolN
+    ? poolFrame(classList[pIdx])
+    : `<div class="pool-frame"><div class="pool-empty">No pool classes — raise the “Pool classes” toggle to build the course.</div></div>`;
+  document.getElementById("poolPos").textContent = poolN?`${pIdx+1} / ${poolN}`:"0 / 0";
+  document.getElementById("poolMeta").textContent=`${total} lane${total!==1?"s":""} · ${S.male}M · ${S.mixed}MIX · ${S.female}F · ${poolN} pool class${poolN!==1?"es":""}`;
+  document.getElementById("poolLegend").innerHTML = biz
+    ? `<span><i class="d" style="background:#d97706"></i>covers cost</span><span><i class="d" style="background:#22c55e"></i>profit</span><span><i class="d free"></i>unsold seat</span>`
+    : PL.occ
+    ? `<span><i class="d" style="background:#059669"></i>60%+ full</span><span><i class="d" style="background:#b45309"></i>30–59%</span><span><i class="d" style="background:#64748b"></i>&lt;30%</span><span><i class="d free"></i>open</span>`
+    : `<span><i class="d" style="background:${GENDER.male}"></i>male</span><span><i class="d" style="background:${GENDER.mixed}"></i>mixed</span><span><i class="d" style="background:${GENDER.female}"></i>female</span><span><i class="d free"></i>${isGroup?"open seat":"1-2-1 seat"}</span>`;
+  document.getElementById("poolFoot").innerHTML = biz
+    ? `Each full programme = <b>€${num(biz.sv.full)}</b> · the first <b>${biz.beBookings}</b> of ${biz.capacity} places cover the <b>€${num(biz.cost)}</b> cost (amber), the rest are profit (green)`
+    : isGroup
+    ? `<b>${perSlot}</b> swimmers per class · <b>${poolN}</b> pool class${poolN!==1?"es":""} · <b>${fmtMins(courseTime)}</b> total course pool time`
+    : `<b>${total}</b> private session${total!==1?"s":""} per class · <b>${poolN}</b> pool class${poolN!==1?"es":""}`;
+
+  /* METRICS */
+  const M=[];
+  if(isGroup){
+    M.push(["In the water","hero",`${perSlot} <small>per class</small>`]);
+    M.push(["Pool classes","",`${poolN}`]);
+    M.push(["Course pool time","",`${fmtMins(courseTime)}`]);
+    M.push(["Class places","",`${perSlot*poolN} <small>over the course</small>`]);
+    M.push(["€ / single class","",`€${num(perSlot*sv.price)}`]);
+    M.push(["€ / full programme","hero",`€${num(perSlot*sv.full)}`]);
+  }else{
+    M.push(["Side by side","hero",`${total} <small>1-2-1s</small>`]);
+    M.push(["Pool classes","",`${poolN}`]);
+    M.push(["Course pool time","",`${fmtMins(courseTime)}`]);
+    M.push(["Class places","",`${total*poolN} <small>over the course</small>`]);
+    M.push(["€ / class","",`€${num(total*sv.price)}`]);
+    M.push(["€ / full programme","hero",`€${num(total*sv.full)}`]);
+  }
+  M.push(["Teachers on shift","",`${teachersOn}`]);
+  M.push(["Lanes assigned","",`${lanesAssigned}<small>/${total}</small>`]);
+  document.getElementById("metrics").innerHTML=M.map(([k,c,v])=>`<div class="m ${c}"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+
+  /* NOTES */
+  const N=[];
+  if(total===0){
+    N.push(["warn","○",`<b>No lanes yet.</b> Add male, mixed and female lanes with the steppers, then assign a teacher to each.`]);
+  }else{
+    if(isGroup) N.push(["good","◐",`<b>Pool: ${S.male} male · ${S.mixed} mixed · ${S.female} female.</b> ${total} lanes, laid out male → mixed → female, the HQ register order.`]);
+    if(unassigned>0) N.push(["warn","!",`<b>${unassigned} lane${unassigned!==1?"s":""} with no teacher.</b> Assign one from the contact list${idle>0?"":" — or toggle more teachers on shift"}.`]);
+    if(idle>0) N.push(["warn","○",`<b>${idle} teacher${idle!==1?"s":""} on shift with no lane.</b> On the bench — open more lanes, or send them to parallel 1-2-1s${unassigned>0?", including the unassigned lanes above":""}.`]);
+    if(unassigned===0 && idle===0) N.push(["good","✓",`<b>Clean fit.</b> ${teachersOn} teachers on shift, ${total} lanes, everyone on the water — nobody benched, no lane empty.`]);
+  }
+  if(total>0 && poolN>0) N.push(["good","↻",`<b>${poolN} pool class${poolN!==1?"es":""} · ${fmtMins(courseTime)} of pool time</b> across the course. Each class puts <b>${perSlot}</b> ${isGroup?"swimmers":"1-2-1s"} in the water — ${perSlot*poolN} class places in total.`]);
+  if(poolN===0) N.push(["warn","○",`<b>No pool classes yet.</b> Raise the “Pool classes” toggle to build the course.`]);
+  document.getElementById("notes").innerHTML=N.map(([c,ic,t])=>`<div class="note ${c}"><span class="ic">${ic}</span><span>${t}</span></div>`).join("");
+
+  /* WEEK */
+  const tt=timetable(), placeText=isGroup?`${perSlot}`:`${total}`;
+  document.getElementById("timeHead").textContent=isGroup?"Group time":"1-2-1 time";
+  document.getElementById("week").innerHTML=tt.map((row,i)=>{
+    const [name,day,gt,pt]=row, time=isGroup?gt:pt;
+    return `<tr><td><span class="cn">${i+1}</span><span class="nm">${name}</span></td><td class="day">${day}</td><td class="tm">${time}</td><td class="cp">${placeText}</td></tr>`;
+  }).join("");
+  document.getElementById("weekLbl").textContent=`The week — ${sv.name}${sv.stroke?" · "+STROKES[S.course].label:""}`;
+
+  buildRegister();
+  buildTimeline();
+  buildBusiness();
+  buildPublish();
+  buildResortCal();
+}
+
+/* ── CONTROLS ─────────────────────────────────────────────── */
+function buildSvcPills(){
+  document.getElementById("svcPills").innerHTML=Object.entries(SERVICES).map(([k,v])=>
+    `<button class="${k===S.svc?"on":""}" data-svc="${k}"><span class="dot" style="background:${v.hex}"></span>${v.name}</button>`).join("");
+}
+function buildCoursePills(){
+  const sv=SERVICES[S.svc],wrap=document.getElementById("coursePills"),lbl=document.getElementById("courseLbl");
+  if(sv.stroke){
+    lbl.textContent="Course / stroke";
+    wrap.innerHTML=Object.entries(STROKES).map(([k,v])=>`<button class="${k===S.course?"on":""}" data-course="${k}">${v.label}</button>`).join("");
+  }else{
+    lbl.textContent="Course";
+    wrap.innerHTML=`<button class="on" disabled>${sv.name} — single fixed programme</button>`;
+  }
+}
+function syncSizeVis(){document.getElementById("sizeCtl").style.display=S.mode==="group"?"":"none";}
+function addTeacher(){
+  const inp=document.getElementById("addName"), name=inp.value.trim(); if(!name)return;
+  S.roster.push({id:"t"+(S.nextId++),name,role:"Added · on shift",on:true,qual:"assistant",tags:{teaches:[],services:[],courses:[],levels:[],prefers:[],langs:["en"],checks:[]}});
+  inp.value="";
+  buildRoster(); buildEditor(); render();
+}
+
+document.getElementById("svcPills").addEventListener("click",e=>{
+  const b=e.target.closest("[data-svc]"); if(!b)return;
+  S.svc=b.dataset.svc;
+  if(SERVICES[S.svc].stroke && !STROKES[S.course]) S.course="freestyle";
+  buildSvcPills(); buildCoursePills(); render();
+});
+document.getElementById("coursePills").addEventListener("click",e=>{
+  const b=e.target.closest("[data-course]"); if(!b)return;
+  S.course=b.dataset.course; buildCoursePills(); render();
+});
+document.getElementById("modeToggle").addEventListener("click",e=>{
+  const b=e.target.closest("[data-mode]"); if(!b)return;
+  S.mode=b.dataset.mode;
+  [...e.currentTarget.children].forEach(c=>c.classList.toggle("on",c===b));
+  syncSizeVis(); render();
+});
+document.getElementById("sizeSeg").addEventListener("click",e=>{const b=e.target.closest("[data-size]");if(!b)return;S.size=+b.dataset.size;buildSizeSeg();render();});
+function onSchedClick(e){const b=e.target.closest("button[data-min]");if(!b)return;const seg=b.closest(".ps-dur");if(!seg)return;setSched(seg.dataset.t,+seg.dataset.i,"dur",+b.dataset.min);buildSchedules();render();}
+function onSchedChange(e){const sel=e.target.closest("select.ps-sel");if(!sel)return;const v=sel.dataset.f==="day"?+sel.value:sel.value;setSched(sel.dataset.t,+sel.dataset.i,sel.dataset.f,v);buildSchedules();render();}
+document.getElementById("programme").addEventListener("click",onSchedClick);
+document.getElementById("programme").addEventListener("change",onSchedChange);
+document.getElementById("poolSched").addEventListener("click",onSchedClick);
+document.getElementById("poolSched").addEventListener("change",onSchedChange);
+document.getElementById("bulkBar").addEventListener("click",e=>{
+  const sc=e.target.closest("[data-scope]"); if(sc){S.bulkScope=sc.dataset.scope;buildBulk();return;}
+  const ab=e.target.closest(".bulk-apply"),btn=e.target.closest("button[data-v]");
+  if(ab&&btn&&ab.contains(btn))applyBulk(ab.dataset.f,+btn.dataset.v);
+});
+document.getElementById("bulkBar").addEventListener("change",e=>{
+  const ab=e.target.closest("select.bulk-apply"); if(ab&&ab.value!=="")applyBulk(ab.dataset.f,ab.value);
+});
+document.getElementById("sessRows").addEventListener("click",e=>{const b=e.target.closest("[data-n]");if(!b)return;const seg=b.closest("[data-sess]");if(!seg)return;S.sessions[seg.dataset.sess]=+b.dataset.n;buildSessions();buildSchedules();render();});
+document.querySelectorAll(".stepper").forEach(st=>{
+  st.addEventListener("click",e=>{
+    const b=e.target.closest("button[data-d]"); if(!b)return;
+    const key=st.dataset.key;
+    S[key]=Math.max(0,Math.min(8,S[key]+(+b.dataset.d)));
+    document.getElementById(key+"V").textContent=S[key];
+    buildRoster(); buildEditor(); render();
+  });
+});
+/* venue selector */
+document.getElementById("venues").addEventListener("click",e=>{
+  const b=e.target.closest("[data-venue]"); if(!b)return;
+  S.venue=b.dataset.venue; buildVenues(); render();
+});
+/* teacher list — on-shift switch · expand card · toggle a tag chip */
+document.getElementById("roster").addEventListener("click",e=>{
+  const sw=e.target.closest("button.switch");
+  if(sw){const t=teacherById(sw.dataset.tid);if(t){t.on=!t.on;if(!t.on)clearTeacher(t.id);buildRoster();buildEditor();render();}return;}
+  const q=e.target.closest(".tchip[data-qual]");
+  if(q){const t=teacherById(q.dataset.tid);if(t){t.qual=q.dataset.qual;buildRoster();buildEditor();render();}return;}
+  const par=e.target.closest(".tparent[data-pcat]");
+  if(par){const t=teacherById(par.dataset.tid);if(t){const cat=par.dataset.pcat,keys=catKeys(cat),all=keys.every(k=>t.tags[cat].includes(k));t.tags[cat]=all?[]:keys.slice();buildRoster();}return;}
+  const chip=e.target.closest(".tchip[data-cat]");
+  if(chip){const t=teacherById(chip.dataset.tid);if(t){const arr=t.tags[chip.dataset.cat],x=chip.dataset.tag,i=arr.indexOf(x);i>=0?arr.splice(i,1):arr.push(x);buildRoster();}return;}
+  const ex=e.target.closest("[data-expand]");
+  if(ex){S.expanded.has(ex.dataset.expand)?S.expanded.delete(ex.dataset.expand):S.expanded.add(ex.dataset.expand);buildRoster();}
+});
+/* teacher filters */
+document.getElementById("filterToggle").addEventListener("click",()=>{S.showFilters=!S.showFilters;buildFilters();});
+document.getElementById("filterPanel").addEventListener("click",e=>{
+  if(e.target.id==="clearFilters"){TAG_CATS.forEach(([cat])=>S.filters[cat]=[]);buildFilters();buildRoster();return;}
+  const fp=e.target.closest(".tparent[data-fpcat]");
+  if(fp){const cat=fp.dataset.fpcat,keys=catKeys(cat),all=keys.every(k=>S.filters[cat].includes(k));S.filters[cat]=all?[]:keys.slice();buildFilters();buildRoster();return;}
+  const c=e.target.closest(".tchip[data-fcat]"); if(!c)return;
+  const arr=S.filters[c.dataset.fcat],x=c.dataset.ftag,i=arr.indexOf(x);i>=0?arr.splice(i,1):arr.push(x);
+  buildFilters();buildRoster();
+});
+/* add a teacher to the contact list */
+document.getElementById("addBtn").addEventListener("click",addTeacher);
+document.getElementById("addName").addEventListener("keydown",e=>{if(e.key==="Enter")addTeacher();});
+/* week calendar + toggle */
+document.getElementById("cal").addEventListener("click",e=>{
+  const nav=e.target.closest(".calnav");
+  if(nav){const m=S.calM+(+nav.dataset.go);S.calY+=Math.floor(m/12);S.calM=((m%12)+12)%12;buildCalendar();return;}
+  const day=e.target.closest(".cd.clickable[data-day]"); if(!day)return;
+  const key=saturdayOf(day.dataset.day);
+  if(WEEKS.some(w=>w.key===key)) selectWeek(key);
+});
+document.getElementById("weekTrack").addEventListener("click",e=>{
+  const b=e.target.closest("[data-wk]"); if(!b)return;
+  selectWeek(b.dataset.wk);
+});
+/* pool gallery — one class in view, ‹ › to move through the course */
+document.getElementById("poolLayers").addEventListener("click",e=>{const b=e.target.closest("[data-layer]");if(!b)return;S.poolLayers[b.dataset.layer]=!S.poolLayers[b.dataset.layer];render();});
+document.getElementById("poolPrev").addEventListener("click",()=>{S.poolIdx=Math.max(0,(S.poolIdx||0)-1);render();});
+document.getElementById("poolNext").addEventListener("click",()=>{S.poolIdx=Math.min((S.sessions.pool||1)-1,(S.poolIdx||0)+1);render();});
+/* pool — click a START block to reveal client names, click a booked dot for the contact card */
+document.getElementById("pools").addEventListener("click",e=>{
+  const start=e.target.closest(".pool-start[data-lane]");
+  if(start){const i=+start.dataset.lane;S.revealed.has(i)?S.revealed.delete(i):S.revealed.add(i);render();return;}
+  const dot=e.target.closest(".pool-dot.booked[data-lane]");
+  const wasOpen=dot&&dot.classList.contains("on");
+  document.querySelectorAll("#pools .pool-pop").forEach(p=>p.remove());
+  document.querySelectorAll("#pools .pool-dot.on").forEach(d=>d.classList.remove("on"));
+  if(dot&&!wasOpen){
+    dot.classList.add("on");
+    const i=+dot.dataset.lane,s=+dot.dataset.seat,ln=lanesList()[i];if(!ln)return;
+    const cap=S.mode==="group"?S.size:1,cl=pickClients(ln.side,i,laneBookedCount(i,cap))[s];if(!cl)return;
+    const sv=SERVICES[S.svc];
+    const cT=teacherById(assignedId(ln));
+    const coachLine=(cT&&cT.on)?`${esc(cT.name)} · ${QUALS[cT.qual].label}`:"— no teacher —";
+    const ability=laneAbility(ln.side,ln.idx);
+    const offering=`${sv.name}${sv.stroke?" · "+STROKES[S.course].label:""}`;
+    const pop=document.createElement("div");pop.className="pool-pop";
+    pop.innerHTML=`<div class="pool-pop-name" style="color:${clientColor(cl.gender)}">${esc(cl.name)}<span class="pool-pop-gender">${cl.gender}</span></div><dl class="pool-pop-rows"><div><dt>Age</dt><dd>${cl.age}</dd></div><div><dt>Ability</dt><dd>${ability}</dd></div><div><dt>Lane</dt><dd>L${i+1} · ${laneDesc(ln.side,ln.idx)}</dd></div><div><dt>Coach</dt><dd>${coachLine}</dd></div><div><dt>Booked</dt><dd>${esc(offering)}</dd></div><div><dt>Payment</dt><dd><span class="pay-chip">Paid · demo</span></dd></div></dl>`;
+    dot.appendChild(pop);
+  }
+});
+document.addEventListener("click",e=>{if(!e.target.closest("#pools")){document.querySelectorAll("#pools .pool-pop").forEach(p=>p.remove());document.querySelectorAll("#pools .pool-dot.on").forEach(d=>d.classList.remove("on"));}});
+/* tab switch — Lane selector / Teachers */
+document.querySelector(".tabs").addEventListener("click",e=>{
+  const b=e.target.closest("[data-tab]"); if(!b)return;
+  document.querySelectorAll(".tabs .tab").forEach(t=>t.classList.toggle("on",t===b));
+  document.querySelectorAll(".tabpanel").forEach(p=>{p.hidden=p.dataset.panel!==b.dataset.tab;});
+});
+/* publish panel — week chips (block-book), toolbar, publish button */
+document.getElementById("publishPanel").addEventListener("click",e=>{
+  const wk=e.target.closest("[data-pubwk]");
+  if(wk){const k=wk.dataset.pubwk,i=S.pubWeeks.indexOf(k);i>=0?S.pubWeeks.splice(i,1):S.pubWeeks.push(k);buildPublish();return;}
+  if(e.target.closest("[data-puball]")){S.pubWeeks=WEEKS.map(w=>w.key);buildPublish();return;}
+  if(e.target.closest("[data-pubnone]")){S.pubWeeks=[];buildPublish();return;}
+  if(e.target.closest("[data-pubthis]")){S.pubWeeks=[S.week];buildPublish();return;}
+  if(e.target.closest("#updateBtn")){updateLoadedCourse();return;}
+  if(e.target.closest("#publishBtn")){publishCourse();return;}
+});
+document.getElementById("exportCal").addEventListener("click",exportCalendar);
+document.getElementById("importCal").addEventListener("change",e=>{if(e.target.files[0])importCalendar(e.target.files[0]);e.target.value="";});
+/* weekly calendar — load or delete a published course */
+document.getElementById("calendarView").addEventListener("click",e=>{
+  const del=e.target.closest("[data-del]"); if(del){deletePublished(del.dataset.del);return;}
+  const load=e.target.closest("[data-load]"); if(load){loadCourse(load.dataset.load);return;}
+});
+/* assign a teacher to a lane */
+document.getElementById("laneEditor").addEventListener("change",e=>{
+  const sel=e.target.closest("select[data-side]"); if(!sel)return;
+  const tid=sel.value;
+  if(tid){ clearTeacher(tid); const at=teacherById(tid); if(at&&!at.on) at.on=true; } /* assigning brings them on shift */
+  S.assign[sel.dataset.side][+sel.dataset.idx]=tid;
+  buildRoster(); buildEditor(); render();
+});
+
+/* ── INIT ─────────────────────────────────────────────────── */
+loadPublished();
+buildSvcPills(); buildCoursePills(); syncSizeVis(); buildVenues(); buildCalendar(); buildWeekTrack(); buildSizeSeg(); buildSessions(); buildSchedules(); buildFilters(); buildRoster(); buildEditor(); render();
+/* deep-link: re-scroll to a #fragment after dynamic content is built */
+if(location.hash){const el=document.querySelector(location.hash);if(el)setTimeout(()=>el.scrollIntoView({block:"start"}),300);}
+</script>
+</body>
+</html>
