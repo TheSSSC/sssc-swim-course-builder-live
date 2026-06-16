@@ -84,7 +84,9 @@
   .bd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;align-items:start;}
   .bd-box{background:#f7f8fb;border-radius:13px;padding:12px 14px;}
   .bd-box-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
-  .bd-ttl{font-size:12px;font-weight:800;letter-spacing:.03em;color:var(--svc);}
+  .bd-ttl{font-size:12px;font-weight:800;letter-spacing:.03em;color:var(--svc);display:inline-flex;align-items:center;gap:7px;}
+  .bd-secno{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;border-radius:999px;background:var(--svc);color:#fff;font-size:10.5px;font-weight:800;padding:0 4px;}
+  .bd-no{font-size:10px;font-weight:800;color:var(--svc);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.12);border-radius:5px;padding:1px 5px;font-variant-numeric:tabular-nums;}
   .bd-box-n{font-size:11px;font-weight:800;color:var(--svc);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.12);border-radius:999px;padding:2px 9px;}
   .bd-item{padding:7px 0;border-top:1px solid #eaedf2;}
   .bd-item:first-of-type{border-top:0;}
@@ -1424,15 +1426,17 @@ function buildBreakdown(){
   const host=document.getElementById("breakdown"); if(!host) return;
   document.getElementById("bdTotal").textContent=S.plan.length;
   if(!S.plan.length){host.innerHTML=`<p class="lbl2" style="margin:0">No sessions yet — build your course in the Programme schedule and it’ll break down here by type, each in its own box.</p>`;return;}
-  const groups={}; S.plan.forEach(s=>{const c=sessionCategory(s);(groups[c]=groups[c]||[]).push(s);});
+  /* programme-schedule number for each session = its position in the (sorted) timeline */
+  const order=planSorted(), noByIdx={}; order.forEach((s,n)=>noByIdx[s._i]=n+1);
+  const groups={}; S.plan.forEach((s,i)=>{const c=sessionCategory(s);(groups[c]=groups[c]||[]).push(Object.assign({},s,{_no:noByIdx[i]}));});
   const present=CATS.filter(([k])=>groups[k]&&groups[k].length);
-  const box=([k,lab])=>{
+  const box=([k,lab],secNo)=>{
     const items=groups[k].slice().sort((a,b)=>{const au=a.day==null,bu=b.day==null;if(au!==bu)return au?1:-1;return (a.day-b.day)||(""+a.time).localeCompare(""+b.time);})
       .map(s=>{const t=teacherById(s.lead), when=s.day==null?"—":COURSE_DAYS[s.day].slice(0,3)+(s.time?" "+s.time:"");
-        return `<div class="bd-item"><div class="bd-i1"><span class="bd-when">${esc(when)}</span><span class="bd-act">${s.act?esc(ACT_LABEL[s.act]||s.act):"—"}</span></div><div class="bd-i2">${esc(areaLabel(s.area))} · ${s.dur}m${t?" · "+esc(t.name.split(" ")[0]):""}</div></div>`;}).join("");
-    return `<div class="bd-box"><div class="bd-box-h"><span class="bd-ttl">${esc(lab)}</span><span class="bd-box-n">${groups[k].length}</span></div>${items}</div>`;
+        return `<div class="bd-item"><div class="bd-i1"><span class="bd-no" title="Programme schedule #${s._no}">#${s._no}</span><span class="bd-when">${esc(when)}</span><span class="bd-act">${s.act?esc(ACT_LABEL[s.act]||s.act):"—"}</span></div><div class="bd-i2">${esc(areaLabel(s.area))} · ${s.dur}m${t?" · "+esc(t.name.split(" ")[0]):""}</div></div>`;}).join("");
+    return `<div class="bd-box"><div class="bd-box-h"><span class="bd-ttl"><span class="bd-secno">${secNo}</span>${esc(lab)}</span><span class="bd-box-n">${groups[k].length}</span></div>${items}</div>`;
   };
-  host.innerHTML=`<div class="bd-grid">${present.map(box).join("")}</div>`;
+  host.innerHTML=`<div class="bd-grid">${present.map((c,i)=>box(c,i+1)).join("")}</div>`;
 }
 /* SESSIONS PER COURSE — now a live read-only tally of what you've built in the Programme schedule */
 function buildSessions(){
