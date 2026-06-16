@@ -82,6 +82,10 @@
   .tl-day-card{min-width:680px;margin:0 0 14px;border-radius:12px;overflow:hidden;background:#fff;box-shadow:inset 1px 1px 3px rgba(174,178,196,.35),inset -1px -1px 2px #fff,inset 0 0 0 1px rgba(0,0,0,.07);}
   .tl-day-card:last-child{margin-bottom:2px;}
   .tl-addrow td{padding:11px 10px 13px !important;border:0 !important;background:transparent;}
+  .tl-qadds{display:flex;flex-wrap:wrap;align-items:center;gap:3px;}
+  .tl-qadd{border:0;cursor:pointer;background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.1);border-radius:7px;padding:4px 5px;font-size:14px;line-height:1;transition:.15s;}
+  .tl-qadd:hover{background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.24);}
+  .tl-qadd:active{transform:scale(.92);}
   .add-btn-day{border:0;cursor:pointer;font:inherit;font-size:12.5px;font-weight:800;color:#fff;background:var(--svc);border-radius:999px;padding:8px 16px;margin-left:8px;box-shadow:0 1px 4px rgba(var(--pill-r),var(--pill-g),var(--pill-b),.4);transition:.15s;}
   .add-btn-day:hover{filter:brightness(1.06);}
   .tl-addday-row{min-width:680px;padding:6px 2px 4px;}
@@ -160,6 +164,8 @@
   /* publish + weekly calendar */
   .pub-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:9px;flex-wrap:wrap;}
   .mini-btn{border:0;cursor:pointer;font:inherit;font-size:11px;font-weight:700;color:var(--ink-soft);background:#eef1f6;border-radius:999px;padding:5px 11px;transition:.15s;}
+  .mini-btn:disabled{opacity:.4;cursor:default;}
+  #undoBtn:not(:disabled){color:var(--svc);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.12);}
   .mini-btn:hover{color:var(--ink);background:#e2e7ef;}
   .wk-chips{display:flex;flex-wrap:wrap;gap:8px;}
   .wk-chip{border:0;cursor:pointer;font:inherit;background:#fff;border-radius:11px;padding:8px 13px;display:flex;flex-direction:column;gap:1px;text-align:left;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06),0 1px 2px rgba(174,178,196,.3);transition:.15s;}
@@ -494,6 +500,7 @@
       <p class="lbl">Programme schedule — every session · day · time · class · area · duration</p>
       <span style="display:flex;align-items:center;gap:8px;">
         <span class="lbl2" style="color:var(--ink-faint)">auto-saved</span>
+        <button class="mini-btn" id="undoBtn" disabled>↶ Undo</button>
         <button class="mini-btn" id="newCourseBtn">↺ New course</button>
         <span class="count-pill"><b id="progTotal">0</b> sessions</span>
       </span>
@@ -1020,10 +1027,16 @@ function areaGroup(a){if(isPoolArea(a))return "Pool/Water";if(a==="gym")return "
 const PLAN_DURS=[15,30,45,60,90,120,150,180,240];
 /* the + Add buttons — each drops in a session pre-set for that category, then you refine it */
 const ADD_CATS=[
-  ["Info","conference","welcome"],["Classroom","conference","theory"],["Pool","olympic-pool","swim-training"],
-  ["Open water","ocean","ow-swim"],["Gym","gym","strength-conditioning"],["Dryland","outdoor","dryland"],
-  ["Recovery","leisure-pool","stretch-relax"],["Recreation","grass",""],["Social","palapa-bar","drinks"],["Meal","hotel-restaurant","lunch"],
+  ["Info","conference","welcome","ℹ️"],["Classroom","conference","theory","📖"],["Pool","olympic-pool","swim-training","🏊"],
+  ["Open water","ocean","ow-swim","🌊"],["Gym","gym","strength-conditioning","🏋️"],["Dryland","outdoor","dryland","🤸"],
+  ["Recovery","leisure-pool","stretch-relax","🧘"],["Recreation","grass","","⚽"],["Social","palapa-bar","drinks","🍹"],["Meal","hotel-restaurant","lunch","🍽️"],
 ];
+/* ── UNDO ──────────────────────────────────────────────────
+   snapshot the plan BEFORE each change so any action (incl. a whole-day template copy) can be reverted */
+let undoStack=[];
+function pushUndo(){ try{undoStack.push(JSON.stringify(S.plan)); if(undoStack.length>60)undoStack.shift();}catch(e){} updateUndoBtn(); }
+function doUndo(){ if(!undoStack.length)return; try{S.plan=JSON.parse(undoStack.pop());}catch(e){} tlClip=null; render(); updateUndoBtn(); }
+function updateUndoBtn(){ const b=document.getElementById("undoBtn"); if(b) b.disabled=!undoStack.length; }
 /* new sessions start UNSCHEDULED (no day/time) so they sit at the bottom until you place them */
 function addPlan(preset){S.plan.push(Object.assign({day:null,time:"",area:"olympic-pool",act:"",note:"",dur:60,lead:""},preset||{}));}
 function addDay(){ const next=maxPlanDay()+1; if(next>MAX_DAY) return; addPlan({day:next}); } /* start the next day with one blank session to fill in (multi-week capable) */
@@ -1197,8 +1210,8 @@ function buildTimeline(){
       else inner+=`<tr class="tl-emptypart pm-${part}-row"><td colspan="7">No ${PARTS[part].label.toLowerCase()} sessions yet</td></tr>`;
     });
     if(byPart.tbc.length){ inner+=partBand("tbc",byPart.tbc.length); byPart.tbc.forEach(s=>inner+=tlRow(s,s._no,"pm-tbc-row")); }
-    /* footer: + Add a session on every day; + Paste here appears when a session is on the clipboard */
-    inner+=`<tr class="tl-addrow"><td colspan="7"><button class="add-btn tl-add-session" data-day="${day}">+ Add a session</button>${tlClip?`<button class="add-btn tl-paste" data-day="${day}">📋 Paste here</button>`:""}</td></tr>`;
+    /* footer: compact quick-add row (one icon per session type) so the options are right where you're building — no scrolling to the top bar */
+    inner+=`<tr class="tl-addrow"><td colspan="7"><div class="tl-qadds">${ADD_CATS.map(([lab,area,act,icon])=>`<button class="tl-qadd" data-day="${day}" data-area="${area}" data-act="${act}" title="Add ${esc(lab)}">${icon}</button>`).join("")}${tlClip?`<button class="add-btn tl-paste" data-day="${day}">📋 Paste</button>`:""}</div></td></tr>`;
     cards+=dayCard(inner);
   });
   dayless.forEach(s=>{ /* each unscheduled session gets its own "pick a day" card */
@@ -1295,6 +1308,7 @@ function newCourse(){
   S.calY=+WEEKS[0].key.slice(0,4);S.calM=+WEEKS[0].key.slice(5,7)-1;
   S.male=0;S.mixed=0;S.female=0;S.size=0;S.plan=[];S.areaRates={};S.assign={male:[],mixed:[],female:[]};
   S.roster.forEach(t=>t.on=false); S.pubWeeks=[WEEKS[0].key]; S.loadedId=null; S.poolIdx=0; S.tplSrc=null; S.tplTargets=null;
+  tlClip=null; undoStack=[]; updateUndoBtn();
   refreshAll(); showToast("Started a new blank course");
 }
 function sessTotal(s){return Object.values(s).reduce((a,b)=>a+b,0);}
@@ -1500,7 +1514,7 @@ function buildPoolLayers(){
 /* + Add buttons — build the course one session at a time; each preset is editable after */
 function buildAddBar(){
   const host=document.getElementById("addBar"); if(!host) return;
-  host.innerHTML=`<span class="lbl">Add a session</span>`+ADD_CATS.map(([lab,area,act])=>`<button class="add-btn" data-area="${area}" data-act="${act}">+ ${esc(lab)}</button>`).join("");
+  host.innerHTML=`<span class="lbl">Add a session</span>`+ADD_CATS.map(([lab,area,act,icon])=>`<button class="add-btn" data-area="${area}" data-act="${act}">${icon} ${esc(lab)}</button>`).join("");
 }
 /* TEMPLATE — copy one fully-planned day across the other days of the course */
 function copyDayTo(src,targets){
@@ -1830,6 +1844,7 @@ function onPlanChange(e){
   if(note){const i=+note.dataset.i; if(S.plan[i]) S.plan[i].note=note.value; render(); return;} /* on blur: refresh dependent views */
   const ds=e.target.closest(".tl-daysel"); /* the day-section heading is an editable dropdown */
   if(ds){
+    pushUndo();
     const g=ds.dataset.group, nd = ds.value===""?null:+ds.value;
     if(g.indexOf("un-")===0){ const idx=+g.slice(3); if(S.plan[idx]) S.plan[idx].day=nd; } /* one unscheduled session → its day */
     else if(g[0]==="d"){ const od=+g.slice(1); S.plan.forEach(p=>{ if(p.day===od) p.day=nd; }); } /* shift the whole day */
@@ -1837,6 +1852,7 @@ function onPlanChange(e){
   }
   const sel=e.target.closest("select.tl-sel"); if(!sel) return;
   const i=+sel.dataset.i, f=sel.dataset.f; if(!S.plan[i]) return;
+  pushUndo();
   if(f==="day") S.plan[i].day = sel.value===""?null:+sel.value;
   else if(f==="dur") S.plan[i].dur = +sel.value;
   else S.plan[i][f] = sel.value;
@@ -1847,19 +1863,21 @@ document.getElementById("timeline").addEventListener("change",onPlanChange);
 /* live-save the Details text while typing (no re-render so focus stays) */
 document.getElementById("timeline").addEventListener("input",e=>{const inp=e.target.closest(".tl-note");if(!inp)return;const i=+inp.dataset.i;if(S.plan[i]){S.plan[i].note=inp.value;saveDraft();}});
 document.getElementById("timeline").addEventListener("click",e=>{
-  const del=e.target.closest(".tl-del"); if(del){removePlan(+del.dataset.i);render();return;}
+  const del=e.target.closest(".tl-del"); if(del){pushUndo();removePlan(+del.dataset.i);render();return;}
   const cp=e.target.closest(".tl-copy"); if(cp){const s=S.plan[+cp.dataset.i]; if(s){tlClip={time:s.time,area:s.area,act:s.act,note:s.note,dur:s.dur,lead:s.lead};} render(); return;}
-  const ps=e.target.closest(".tl-paste"); if(ps){if(tlClip)addPlan(Object.assign({day:+ps.dataset.day},tlClip)); render(); return;}
+  const ps=e.target.closest(".tl-paste"); if(ps){if(tlClip){pushUndo();addPlan(Object.assign({day:+ps.dataset.day},tlClip));} render(); return;}
   const cc=e.target.closest(".tl-clip-clear"); if(cc){tlClip=null; render(); return;}
-  const addS=e.target.closest(".tl-add-session"); if(addS){addPlan({day:+addS.dataset.day});render();return;}
-  const addD=e.target.closest(".tl-add-day"); if(addD){addDay();render();return;}
+  const qa=e.target.closest(".tl-qadd"); if(qa){pushUndo();addPlan({day:+qa.dataset.day,area:qa.dataset.area,act:qa.dataset.act});render();return;}
+  const addS=e.target.closest(".tl-add-session"); if(addS){pushUndo();addPlan({day:+addS.dataset.day});render();return;}
+  const addD=e.target.closest(".tl-add-day"); if(addD){pushUndo();addDay();render();return;}
 });
-document.getElementById("addBar").addEventListener("click",e=>{const b=e.target.closest("[data-area]");if(!b)return;addPlan({area:b.dataset.area,act:b.dataset.act});render();});
+document.getElementById("addBar").addEventListener("click",e=>{const b=e.target.closest("[data-area]");if(!b)return;pushUndo();addPlan({area:b.dataset.area,act:b.dataset.act});render();});
 document.getElementById("templateBar").addEventListener("click",e=>{
   const c=e.target.closest("[data-tplday]"); if(c){const d=+c.dataset.tplday,i=S.tplTargets.indexOf(d);i>=0?S.tplTargets.splice(i,1):S.tplTargets.push(d);buildTemplateBar();return;}
-  if(e.target.closest("#tplApply")){const day=S.tplSrc,n=copyDayTo(day,S.tplTargets);render();showToast(`Copied ${dayName(day)}’s plan to ${n} day${n!==1?"s":""}`);}
+  if(e.target.closest("#tplApply")){pushUndo();const day=S.tplSrc,n=copyDayTo(day,S.tplTargets);render();showToast(`Copied ${dayName(day)}’s whole-day plan to ${n} day${n!==1?"s":""} — use ↶ Undo to revert`);}
 });
 document.getElementById("templateBar").addEventListener("change",e=>{const s=e.target.closest("#tplSrc");if(s){S.tplSrc=+s.value;S.tplTargets=null;buildTemplateBar();}});
+document.getElementById("undoBtn").addEventListener("click",doUndo);
 document.getElementById("newCourseBtn").addEventListener("click",()=>{if(!S.plan.length||confirm("Start a new blank course? Your current unpublished work will be cleared (published courses stay safe).")) newCourse();});
 document.querySelectorAll(".stepper").forEach(st=>{
   st.addEventListener("click",e=>{
