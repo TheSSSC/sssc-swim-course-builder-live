@@ -101,6 +101,13 @@
   .add-btn-main{color:#fff;background:var(--svc);font-size:13px;padding:9px 18px;box-shadow:0 2px 8px rgba(0,0,0,.1);}
   .add-btn-main:hover{filter:brightness(1.05);background:var(--svc);}
   .tl-num{font-weight:700;color:var(--ink-faint);font-variant-numeric:tabular-nums;}
+  .tl-dayrow td{padding:16px 12px 7px;border:0 !important;background:transparent;}
+  .tl-dayrow:first-child td{padding-top:4px;}
+  .tl-dayname{display:inline-block;font-size:13px;font-weight:800;letter-spacing:.02em;color:var(--svc);text-transform:uppercase;}
+  .tl-daycount{display:inline-block;margin-left:10px;font-size:11px;font-weight:700;color:var(--ink-faint);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.1);border-radius:999px;padding:2px 9px;vertical-align:middle;text-transform:none;letter-spacing:0;}
+  .tl-dayrow td>span{position:relative;}
+  .tl-dayrow td{border-top:1px solid rgba(174,178,196,.28) !important;}
+  .tl-dayrow:first-child td{border-top:0 !important;}
   .tl-date{font-size:12px;font-weight:700;color:var(--ink-soft);white-space:nowrap;}
   .tally{display:flex;flex-wrap:wrap;gap:8px;}
   .tally-chip{font-size:12.5px;font-weight:600;color:var(--ink-soft);background:#eef1f6;border-radius:999px;padding:7px 13px;}
@@ -1120,7 +1127,17 @@ function buildTimeline(){
   ];
   const ctx=`<div class="tl-ctx">${meta.map(([k,v])=>`<div class="tl-meta"><span class="tl-mk">${k}</span><span class="tl-mv">${v}</span></div>`).join("")}</div>`;
   if(!S.plan.length){host.innerHTML=`<div class="ps-group">${ctx}<p class="lbl2" style="margin:0">No sessions yet — use <b>+ Add a session</b> above to build your course one session at a time.</p></div>`; return;}
-  const rows=planSorted().map((s,n)=>tlRow(s,n+1)).join("");
+  const list=planSorted(); list.forEach((s,n)=>s._no=n+1);
+  const dayCounts={}; list.forEach(s=>{const k=s.day==null?"un":s.day; dayCounts[k]=(dayCounts[k]||0)+1;});
+  let rows="", lastKey="__init__";
+  list.forEach(s=>{
+    const dk=s.day==null?"un":s.day;
+    if(dk!==lastKey){ lastKey=dk;
+      const lbl=s.day==null?"⏳ To schedule — no day set yet":`${COURSE_DAYS[s.day]} · ${courseDateShort(s.day)}`;
+      rows+=`<tr class="tl-dayrow"><td colspan="9"><span class="tl-dayname">${esc(lbl)}</span><span class="tl-daycount">${dayCounts[dk]} session${dayCounts[dk]===1?"":"s"}</span></td></tr>`;
+    }
+    rows+=tlRow(s,s._no);
+  });
   host.innerHTML=`<div class="ps-group">${ctx}<div class="tl-scroll"><table class="tl tl-edit"><thead><tr><th>#</th><th>Date</th><th>Day</th><th>Time</th><th>Location</th><th>What we're doing</th><th>Details</th><th>Dur</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
 function schedRow(t,i,areaList){
