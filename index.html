@@ -82,8 +82,8 @@
   .tl-day-card{min-width:680px;margin:0 0 14px;border-radius:12px;overflow:hidden;background:#fff;box-shadow:inset 1px 1px 3px rgba(174,178,196,.35),inset -1px -1px 2px #fff,inset 0 0 0 1px rgba(0,0,0,.07);}
   .tl-day-card:last-child{margin-bottom:2px;}
   .tl-addrow td{padding:11px 10px 13px !important;border:0 !important;background:transparent;}
-  .tl-qadds{display:flex;flex-wrap:wrap;align-items:center;gap:3px;}
-  .tl-qadd{border:0;cursor:pointer;background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.1);border-radius:7px;padding:4px 5px;font-size:14px;line-height:1;transition:.15s;}
+  .tl-qadds{display:flex;flex-wrap:wrap;align-items:center;gap:2px;max-width:360px;}
+  .tl-qadd{border:0;cursor:pointer;background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.1);border-radius:6px;padding:4px 4px;font-size:13px;line-height:1;transition:.15s;}
   .tl-qadd:hover{background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.24);}
   .tl-qadd:active{transform:scale(.92);}
   .add-btn-day{border:0;cursor:pointer;font:inherit;font-size:12.5px;font-weight:800;color:#fff;background:var(--svc);border-radius:999px;padding:8px 16px;margin-left:8px;box-shadow:0 1px 4px rgba(var(--pill-r),var(--pill-g),var(--pill-b),.4);transition:.15s;}
@@ -737,7 +737,7 @@ const COURSE_DAYS=["Saturday","Sunday","Monday","Tuesday","Wednesday","Thursday"
 const CLASS_TIMES=(()=>{const t=[];for(let h=6;h<=23;h++){t.push((h<10?"0"+h:h)+":00");t.push((h<10?"0"+h:h)+":30");}return t;})();
 const WD=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 /* sports facility / area a class runs in */
-const AREAS=[["olympic-pool","Olympic pool"],["leisure-pool","Leisure pool"],["ocean","Ocean (open water)"],["gym","Gym"],["indoor","Indoor training area"],["outdoor","Outdoor training area"],["grass","Grass"],["promenade","Promenade"],["hotel-reception","Hotel reception"],["conference","Conference rooms"],["outside-reception","Outside hotel reception"],["outside-sportsbooking","Outside sportsbooking"],["sports-shop","Sports shop"],["playa-rambla","Playa Rambla"],["teatro","Teatro"],["bodega","Bodega restaurant"],["hotel-restaurant","Hotel restaurant"],["palapa-bar","Palapa bar"],["apart-pool-bar","Pool bar (apart hotel)"],["hotel-leisure-pool","Hotel leisure pool"],["apart-pool","Apart-hotel pool"],["golf-course","Golf course"],["driving-range","Driving range"]];
+const AREAS=[["olympic-pool","Olympic pool"],["leisure-pool","Leisure pool"],["ocean","Ocean (open water)"],["gym","Gym"],["indoor","Indoor training area"],["outdoor","Outdoor training area"],["grass","Grass"],["promenade","Promenade"],["hotel-reception","Hotel reception"],["conference","Conference rooms"],["outside-reception","Outside hotel reception"],["outside-sportsbooking","Outside sportsbooking"],["sports-shop","Sports shop"],["playa-rambla","Playa Rambla"],["teatro","Teatro"],["bodega","Bodega restaurant"],["hotel-restaurant","Hotel restaurant"],["palapa-bar","Palapa bar"],["apart-pool-bar","Pool bar (apart hotel)"],["hotel-leisure-pool","Hotel leisure pool"],["apart-pool","Apart-hotel pool"],["golf-course","Golf course"],["driving-range","Driving range"],["resort-activity","Resort activity"],["free-time","Free time (own choice)"]];
 /* pool-only venues — pool classes can only run in a pool (or the ocean) */
 const POOL_AREAS=[["olympic-pool","Olympic pool"],["apart-pool","Apart pool"],["hotel-pool","Hotel pool"],["open-water","Ocean (open water)"]];
 function areaLabel(k){const a=AREAS.find(x=>x[0]===k)||POOL_AREAS.find(x=>x[0]===k);return a?a[1]:k;}
@@ -996,16 +996,19 @@ const ACTIVITIES=[
   ["Dryland & gym",[["strength-conditioning","Strength & conditioning"],["dryland","Dryland training"],["mobility","Mobility & stretch"]]],
   ["Recovery",[["recovery","Recovery"],["massage","Massage"],["foam-rolling","Foam rolling / self-massage"],["stretch-relax","Stretch & relax"],["relax-unwind","Relax & unwind"],["yoga","Yoga"]]],
   ["Recreation & sport",[["golf","Golf"],["chip-putt","Chip & putt"],["driving-range","Driving range"],["mini-golf","Mini golf"],["volleyball","Volleyball"],["beach-volleyball","Beach volleyball"],["badminton","Badminton"],["tennis","Tennis"],["padel","Padel"],["table-tennis","Table tennis"],["kayaking","Kayaking"],["sup","Stand-up paddle"],["hike","Hike"],["mountain-ramble","Mountain-top ramble"],["trail-run","Trail run"],["road-run","Road run"],["hill-run","Hill run"],["bike-ride","Bike ride"],["dance","Dance class"],["karaoke","Karaoke"],["multisports","Multisports"],["beach-games","Beach games"],["rugby","Rugby"],["cricket","Cricket"],["rounders","Rounders"],["beach-football","Beach football"],["football","Football"],["basketball","Basketball"],["fun-games","Fun & games"]]],
-  ["Social",[["drinks","Drinks"],["night-out","Night out"],["social-gathering","Social gathering"],["free-time","Free time"]]],
+  ["Social",[["drinks","Drinks"],["night-out","Night out"],["social-gathering","Social gathering"]]],
+  ["Free & resort time",[["free-time","Free time"],["resort-class","Resort group class"]]],
   ["Meals",[["breakfast","Breakfast"],["lunch","Lunch"],["dinner","Dinner"],["snack","Snack / refuel"]]],
 ];
 const ACT_LABEL=Object.fromEntries(ACTIVITIES.flatMap(([,items])=>items));
 const ACT_GROUP=Object.fromEntries(ACTIVITIES.flatMap(([g,items])=>items.map(([k])=>[k,g])));
 /* filter categories for the Course-breakdown sections */
-const CATS=[["info","Info sessions"],["classroom","Classroom sessions"],["pool","Pool sessions"],["openwater","Open water sessions"],["gym","Gym sessions"],["dryland","Dryland training sessions"],["recovery","Recovery sessions"],["recreation","Social recreation sessions"],["social","Social gatherings"],["meals","Meal time"],["other","Other"]];
+const CATS=[["info","Info sessions"],["classroom","Classroom sessions"],["pool","Pool sessions"],["openwater","Open water sessions"],["gym","Gym sessions"],["dryland","Dryland training sessions"],["recovery","Recovery sessions"],["recreation","Social recreation sessions"],["resort","Resort group classes"],["social","Social gatherings"],["freetime","Free time"],["meals","Meal time"],["other","Other"]];
 const CAT_LABEL=Object.fromEntries(CATS);
 function sessionCategory(s){
   const a=s.act, g=ACT_GROUP[a];
+  if(a==="free-time") return "freetime";
+  if(a==="resort-class") return "resort";
   if(g==="Info") return "info";
   if(g==="Classroom") return "classroom";
   if(a==="strength-conditioning") return "gym";
@@ -1029,7 +1032,7 @@ const PLAN_DURS=[15,30,45,60,90,120,150,180,240];
 const ADD_CATS=[
   ["Info","conference","welcome","ℹ️"],["Classroom","conference","theory","📖"],["Pool","olympic-pool","swim-training","🏊"],
   ["Open water","ocean","ow-swim","🌊"],["Gym","gym","strength-conditioning","🏋️"],["Dryland","outdoor","dryland","🤸"],
-  ["Recovery","leisure-pool","stretch-relax","🧘"],["Recreation","grass","","⚽"],["Social","palapa-bar","drinks","🍹"],["Meal","hotel-restaurant","lunch","🍽️"],
+  ["Recovery","leisure-pool","stretch-relax","🧘"],["Recreation","grass","","⚽"],["Resort class","resort-activity","resort-class","🎟️"],["Social","palapa-bar","drinks","🍹"],["Free time","free-time","free-time","🆓"],["Meal","hotel-restaurant","lunch","🍽️"],
 ];
 /* ── UNDO ──────────────────────────────────────────────────
    snapshot the plan BEFORE each change so any action (incl. a whole-day template copy) can be reverted */
@@ -1435,7 +1438,8 @@ const AREA_COST={
   "conference":35,"teatro":45,
   "hotel-reception":0,"outside-reception":0,"outside-sportsbooking":0,"sports-shop":0,"playa-rambla":0,
   "bodega":25,"hotel-restaurant":25,"palapa-bar":20,"apart-pool-bar":18,
-  "golf-course":60,"driving-range":20
+  "golf-course":60,"driving-range":20,
+  "resort-activity":0,"free-time":0
 };
 const COACH_DAY=120, BUS_DAY=180, ADMIN_FLAT=250, COURSE_DAYS_N=6;
 function effectiveRate(area){return S.areaRates[area]!=null?S.areaRates[area]:(area in AREA_COST?AREA_COST[area]:12);}
