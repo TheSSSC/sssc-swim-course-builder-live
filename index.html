@@ -70,6 +70,9 @@
   .tl-sel:focus{outline:2px solid rgba(var(--pill-r),var(--pill-g),var(--pill-b),.5);}
   .tl-type{font-weight:700;color:var(--svc);}
   .tl-dur{max-width:72px;}
+  .tl-note{font:inherit;font-size:12px;font-weight:500;color:var(--ink);background:#fff;border:0;border-radius:8px;padding:6px 9px;min-width:150px;width:100%;box-shadow:inset 1px 1px 3px rgba(174,178,196,.35),inset -1px -1px 2px #fff,inset 0 0 0 1px rgba(0,0,0,.05);}
+  .tl-note:focus{outline:2px solid rgba(var(--pill-r),var(--pill-g),var(--pill-b),.5);}
+  .tl-note::placeholder{color:var(--ink-faint);font-weight:400;}
   .tl-del{border:0;cursor:pointer;background:transparent;color:var(--ink-faint);font-size:13px;font-weight:700;padding:4px 7px;border-radius:7px;transition:.15s;}
   .tl-del:hover{color:#e11d48;background:rgba(225,29,72,.1);}
   .add-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 14px;}
@@ -94,6 +97,7 @@
   .bd-when{font-size:11.5px;font-weight:700;color:var(--ink-soft);white-space:nowrap;}
   .bd-act{font-size:12.5px;font-weight:700;color:var(--ink);text-align:right;}
   .bd-i2{font-size:11px;font-weight:600;color:var(--ink-faint);margin-top:2px;}
+  .bd-note{font-size:11px;font-weight:500;color:var(--ink-soft);margin-top:3px;font-style:italic;line-height:1.35;}
   .add-btn-main{color:#fff;background:var(--svc);font-size:13px;padding:9px 18px;box-shadow:0 2px 8px rgba(0,0,0,.1);}
   .add-btn-main:hover{filter:brightness(1.05);background:var(--svc);}
   .tl-num{font-weight:700;color:var(--ink-faint);font-variant-numeric:tabular-nums;}
@@ -978,7 +982,7 @@ const ADD_CATS=[
   ["Recovery","leisure-pool","stretch-relax"],["Recreation","grass",""],["Social","palapa-bar","drinks"],["Meal","hotel-restaurant","lunch"],
 ];
 /* new sessions start UNSCHEDULED (no day/time) so they sit at the bottom until you place them */
-function addPlan(preset){S.plan.push(Object.assign({day:null,time:"",area:"olympic-pool",act:"",dur:60,lead:""},preset||{}));}
+function addPlan(preset){S.plan.push(Object.assign({day:null,time:"",area:"olympic-pool",act:"",note:"",dur:60,lead:""},preset||{}));}
 function removePlan(i){if(i>=0&&i<S.plan.length)S.plan.splice(i,1);}
 /* sessions auto-sort by day then time — each lands in its right place; the session # follows that order */
 function planSorted(){return S.plan.map((s,i)=>({...s,_i:i})).sort((a,b)=>{
@@ -1090,8 +1094,9 @@ function tlRow(s,n){
   const timeSel=sel("time",`<option value=""${!s.time?" selected":""}>— time —</option>`+CLASS_TIMES.map(x=>`<option${x===s.time?" selected":""}>${x}</option>`).join(""));
   const locSel=sel("area",AREAS.map(([k,lab])=>`<option value="${k}"${k===s.area?" selected":""}>${lab}</option>`).join(""));
   const actSel=sel("act",`<option value=""${s.act?"":" selected"}>— what are we doing? —</option>`+ACTIVITIES.map(([g,items])=>`<optgroup label="${esc(g)}">${items.map(([k,lab])=>`<option value="${k}"${k===s.act?" selected":""}>${esc(lab)}</option>`).join("")}</optgroup>`).join(""));
+  const noteCell=`<input type="text" class="tl-note" data-i="${i}" value="${esc(s.note||"")}" placeholder="add details…">`;
   const durSel=`<select class="ps-sel tl-sel tl-dur" data-i="${i}" data-f="dur">${PLAN_DURS.map(m=>`<option value="${m}"${m===s.dur?" selected":""}>${m}m</option>`).join("")}</select>`;
-  return `<tr><td class="tl-num">${n}</td><td>${dateCell}</td><td>${daySel}</td><td>${timeSel}</td><td>${locSel}</td><td class="tl-classcell">${actSel}</td><td>${durSel}</td><td class="tch">${teacherSelectPlan(s)}</td><td><button class="tl-del" data-i="${i}" title="Remove this session">✕</button></td></tr>`;
+  return `<tr><td class="tl-num">${n}</td><td>${dateCell}</td><td>${daySel}</td><td>${timeSel}</td><td>${locSel}</td><td class="tl-classcell">${actSel}</td><td>${noteCell}</td><td>${durSel}</td><td class="tch">${teacherSelectPlan(s)}</td><td><button class="tl-del" data-i="${i}" title="Remove this session">✕</button></td></tr>`;
 }
 /* COURSE TIMELINE — the master builder; build the course one session at a time */
 function buildTimeline(){
@@ -1116,7 +1121,7 @@ function buildTimeline(){
   const ctx=`<div class="tl-ctx">${meta.map(([k,v])=>`<div class="tl-meta"><span class="tl-mk">${k}</span><span class="tl-mv">${v}</span></div>`).join("")}</div>`;
   if(!S.plan.length){host.innerHTML=`<div class="ps-group">${ctx}<p class="lbl2" style="margin:0">No sessions yet — use <b>+ Add a session</b> above to build your course one session at a time.</p></div>`; return;}
   const rows=planSorted().map((s,n)=>tlRow(s,n+1)).join("");
-  host.innerHTML=`<div class="ps-group">${ctx}<div class="tl-scroll"><table class="tl tl-edit"><thead><tr><th>#</th><th>Date</th><th>Day</th><th>Time</th><th>Location</th><th>What we're doing</th><th>Dur</th><th>Teacher</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  host.innerHTML=`<div class="ps-group">${ctx}<div class="tl-scroll"><table class="tl tl-edit"><thead><tr><th>#</th><th>Date</th><th>Day</th><th>Time</th><th>Location</th><th>What we're doing</th><th>Details</th><th>Dur</th><th>Teacher</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
 function schedRow(t,i,areaList){
   const day=sDay(t,i), tm=sTime(t,i), cls=sCls(t,i), area=sArea(t,i), dur=sDur(t,i), short=SHORT_BY_TYPE[t]||"Session";
@@ -1433,7 +1438,7 @@ function buildBreakdown(){
   const box=([k,lab],secNo)=>{
     const items=groups[k].slice().sort((a,b)=>{const au=a.day==null,bu=b.day==null;if(au!==bu)return au?1:-1;return (a.day-b.day)||(""+a.time).localeCompare(""+b.time);})
       .map(s=>{const t=teacherById(s.lead), when=s.day==null?"—":COURSE_DAYS[s.day].slice(0,3)+(s.time?" "+s.time:"");
-        return `<div class="bd-item"><div class="bd-i1"><span class="bd-no" title="Programme schedule #${s._no}">#${s._no}</span><span class="bd-when">${esc(when)}</span><span class="bd-act">${s.act?esc(ACT_LABEL[s.act]||s.act):"—"}</span></div><div class="bd-i2">${esc(areaLabel(s.area))} · ${s.dur}m${t?" · "+esc(t.name.split(" ")[0]):""}</div></div>`;}).join("");
+        return `<div class="bd-item"><div class="bd-i1"><span class="bd-no" title="Programme schedule #${s._no}">#${s._no}</span><span class="bd-when">${esc(when)}</span><span class="bd-act">${s.act?esc(ACT_LABEL[s.act]||s.act):"—"}</span></div><div class="bd-i2">${esc(areaLabel(s.area))} · ${s.dur}m${t?" · "+esc(t.name.split(" ")[0]):""}</div>${s.note?`<div class="bd-note">${esc(s.note)}</div>`:""}</div>`;}).join("");
     return `<div class="bd-box"><div class="bd-box-h"><span class="bd-ttl"><span class="bd-secno">${secNo}</span>${esc(lab)}</span><span class="bd-box-n">${groups[k].length}</span></div>${items}</div>`;
   };
   host.innerHTML=`<div class="bd-grid">${present.map((c,i)=>box(c,i+1)).join("")}</div>`;
@@ -1724,6 +1729,8 @@ document.getElementById("modeToggle").addEventListener("click",e=>{
 document.getElementById("sizeSeg").addEventListener("click",e=>{const b=e.target.closest("[data-size]");if(!b)return;S.size=+b.dataset.size;buildSizeSeg();render();});
 /* the Programme schedule builder edits the flat plan directly */
 function onPlanChange(e){
+  const note=e.target.closest(".tl-note");
+  if(note){const i=+note.dataset.i; if(S.plan[i]) S.plan[i].note=note.value; render(); return;} /* on blur: refresh dependent views */
   const sel=e.target.closest("select.tl-sel"); if(!sel) return;
   const i=+sel.dataset.i, f=sel.dataset.f; if(!S.plan[i]) return;
   if(f==="day") S.plan[i].day = sel.value===""?null:+sel.value;
@@ -1733,6 +1740,8 @@ function onPlanChange(e){
   render();
 }
 document.getElementById("timeline").addEventListener("change",onPlanChange);
+/* live-save the Details text while typing (no re-render so focus stays) */
+document.getElementById("timeline").addEventListener("input",e=>{const inp=e.target.closest(".tl-note");if(!inp)return;const i=+inp.dataset.i;if(S.plan[i]){S.plan[i].note=inp.value;saveDraft();}});
 document.getElementById("timeline").addEventListener("click",e=>{const d=e.target.closest(".tl-del");if(!d)return;removePlan(+d.dataset.i);render();});
 document.getElementById("addBar").addEventListener("click",e=>{const b=e.target.closest("[data-area]");if(!b)return;addPlan({area:b.dataset.area,act:b.dataset.act});render();});
 document.getElementById("templateBar").addEventListener("click",e=>{
