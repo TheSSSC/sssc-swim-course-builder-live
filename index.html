@@ -1534,7 +1534,8 @@ function buildTemplateBar(){
   if(!days.length){ host.innerHTML=""; return; }
   if(S.tplSrc==null||!days.includes(S.tplSrc)) S.tplSrc=days[0];
   const lastIdx=Math.max(6,days[days.length-1]); const allIdx=Array.from({length:lastIdx+1},(_,i)=>i); /* week 1 always offered + any existing later days */
-  if(!S.tplTargets) S.tplTargets=allIdx.filter(i=>i!==S.tplSrc);
+  /* default targets = every day EXCEPT the source and EXCEPT Saturdays (i%7===0) — Saturdays are arrival/transfer days, not normal schedule days. So Sunday→Mon-Fri = 5 days. Saturdays stay as toggleable chips if ever needed. */
+  if(!S.tplTargets) S.tplTargets=allIdx.filter(i=>i!==S.tplSrc && i%7!==0);
   const srcOpts=days.map(i=>`<option value="${i}"${i===S.tplSrc?" selected":""}>${dayName(i)}</option>`).join("");
   const chips=allIdx.map(i=>i===S.tplSrc?"":`<button class="tpl-chip${S.tplTargets.includes(i)?" on":""}" data-tplday="${i}">${dayShort(i)}</button>`).join("");
   const n=S.tplTargets.filter(i=>i!==S.tplSrc).length;
