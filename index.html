@@ -86,6 +86,8 @@
   .add-btn-day:hover{filter:brightness(1.06);}
   .tl-addday-row{min-width:680px;padding:6px 2px 4px;}
   .tl-weekfull{font-size:11.5px;font-weight:600;font-style:italic;color:var(--ink-faint);padding-left:4px;}
+  .tl-weekend{padding:10px 4px 4px;}
+  .tl-newweek{display:flex;flex-direction:column;align-items:flex-start;gap:9px;margin-top:6px;font-size:12.5px;font-weight:600;color:var(--ink-soft);}
   .tl-sel{font:inherit;font-size:12px;font-weight:600;color:var(--ink);background-color:#fff;border:0;border-radius:8px;padding:6px 24px 6px 10px;cursor:pointer;width:100%;max-width:100%;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%238a8f9e' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");background-repeat:no-repeat;background-position:right 9px center;box-shadow:inset 1px 1px 3px rgba(174,178,196,.35),inset -1px -1px 2px #fff,inset 0 0 0 1px rgba(0,0,0,.05);}
   .tl-sel:focus{outline:2px solid rgba(var(--pill-r),var(--pill-g),var(--pill-b),.5);}
   .tl-type{font-weight:700;color:var(--svc);}
@@ -1204,10 +1206,14 @@ function buildTimeline(){
     inner+=tlRow(s,s._no,"");
     cards+=dayCard(inner," tl-day-card-un");
   });
-  /* + Add a new day lives in the white space AFTER the last card (multi-week capable) */
+  /* white space after the last card: mid-week → + Add a new day; end of a week (Friday) → keep the "Full week" note + ask to start a new week */
   const maxDay = dayKeys.length ? dayKeys[dayKeys.length-1] : -1;
-  if(maxDay < MAX_DAY){
-    cards+=`<div class="tl-addday-row"><button class="add-btn-day tl-add-day">+ Add ${maxDay<0?"the first":"a new"} day</button></div>`;
+  if(maxDay < 0){
+    cards+=`<div class="tl-addday-row"><button class="add-btn-day tl-add-day">+ Add the first day</button></div>`;
+  } else if(maxDay % 7 === 6){
+    cards+=`<div class="tl-addday-row tl-weekend"><div class="tl-weekfull">Full week — Saturday to Friday.</div>${maxDay<MAX_DAY?`<div class="tl-newweek">Would you like to start a new week? <button class="add-btn-day tl-add-day">+ Start a new week</button></div>`:""}</div>`;
+  } else if(maxDay < MAX_DAY){
+    cards+=`<div class="tl-addday-row"><button class="add-btn-day tl-add-day">+ Add a new day</button></div>`;
   }
   const clipBanner=tlClip?`<div class="tl-clip">📋 Copied <b>${esc(ACT_LABEL[tlClip.act]||tlClip.act||"session")}</b>${tlClip.area?` · ${esc(areaLabel(tlClip.area))}`:""}${tlClip.time?` · ${esc(tlClip.time)}`:""} — tap <b>Paste here</b> on any day. <button class="tl-clip-clear">Clear</button></div>`:"";
   host.innerHTML=`<div class="ps-group">${ctx}${clipBanner}<div class="tl-scroll"><div class="tl-colhead"><table class="tl tl-edit">${COLGROUP}<thead><tr><th>#</th><th>Time</th><th>Location</th><th>What we're doing</th><th>Details</th><th>Dur</th><th></th></tr></thead></table></div>${cards}</div></div>`;
