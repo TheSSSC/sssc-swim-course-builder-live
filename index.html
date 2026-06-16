@@ -103,9 +103,13 @@
   .tl-num{font-weight:700;color:var(--ink-faint);font-variant-numeric:tabular-nums;}
   .tl-dayrow td{padding:16px 12px 7px;border:0 !important;background:transparent;}
   .tl-dayrow:first-child td{padding-top:4px;}
-  .tl-dayname{display:inline-block;font-size:13px;font-weight:800;letter-spacing:.02em;color:var(--svc);text-transform:uppercase;}
-  .tl-daycount{display:inline-block;margin-left:10px;font-size:11px;font-weight:700;color:var(--ink-faint);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.1);border-radius:999px;padding:2px 9px;vertical-align:middle;text-transform:none;letter-spacing:0;}
-  .tl-dayrow td>span{position:relative;}
+  .tl-daysel{font-family:inherit;font-size:13px;font-weight:800;letter-spacing:.02em;color:var(--svc);text-transform:uppercase;background-color:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.08);border:1px solid rgba(var(--pill-r),var(--pill-g),var(--pill-b),.22);border-radius:9px;padding:6px 28px 6px 12px;cursor:pointer;vertical-align:middle;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%238a8f9e' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");background-repeat:no-repeat;background-position:right 10px center;}
+  .tl-daysel:hover{background-color:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.15);}
+  .tl-daysel:focus{outline:2px solid rgba(var(--pill-r),var(--pill-g),var(--pill-b),.5);}
+  .tl-daysel-un{color:var(--ink-faint);text-transform:none;font-weight:700;background-color:#eef1f6;border-color:rgba(174,178,196,.4);}
+  .tl-daydate{display:inline-block;margin-left:10px;font-size:12.5px;font-weight:700;color:var(--ink-soft);vertical-align:middle;}
+  .tl-daycount{display:inline-block;margin-left:10px;font-size:11px;font-weight:700;color:var(--ink-faint);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.1);border-radius:999px;padding:3px 9px;vertical-align:middle;text-transform:none;letter-spacing:0;}
+  .tl-daycount-un{background:#fff3d6;color:#9a7b1f;}
   .tl-dayrow td{border-top:1px solid rgba(174,178,196,.28) !important;}
   .tl-dayrow:first-child td{border-top:0 !important;}
   .tl-date{font-size:12px;font-weight:700;color:var(--ink-soft);white-space:nowrap;}
@@ -993,10 +997,10 @@ function addPlan(preset){S.plan.push(Object.assign({day:null,time:"",area:"olymp
 function removePlan(i){if(i>=0&&i<S.plan.length)S.plan.splice(i,1);}
 /* sessions auto-sort by day then time — each lands in its right place; the session # follows that order */
 function planSorted(){return S.plan.map((s,i)=>({...s,_i:i})).sort((a,b)=>{
-  const au=(a.day==null||!a.time), bu=(b.day==null||!b.time);   /* unscheduled = no day or no time */
-  if(au!==bu) return au?1:-1;                                    /* unscheduled sink to the bottom */
-  if(au&&bu) return a._i-b._i;                                   /* both unscheduled: keep add order */
-  return a.day-b.day||a.time.localeCompare(b.time);             /* scheduled: chronological */
+  const au=(a.day==null), bu=(b.day==null);                     /* unscheduled = no day set (a day with no time yet still belongs to that day) */
+  if(au!==bu) return au?1:-1;                                    /* dayless sessions sink to the bottom */
+  if(au&&bu) return a._i-b._i;                                   /* both dayless: keep add order */
+  return a.day-b.day||(a.time||"99:99").localeCompare(b.time||"99:99"); /* by day, then time (a day's no-time sessions sit last in that day) */
 });}
 function poolPlan(){return planSorted().filter(s=>isPoolArea(s.area));}
 function clientColor(g){return g==="male"?"#3b82f6":"#ec4899";}
@@ -1096,14 +1100,12 @@ function teacherSelectPlan(s){
 function tlRow(s,n){
   const i=s._i;
   const sel=(f,opts)=>`<select class="ps-sel tl-sel" data-i="${i}" data-f="${f}">${opts}</select>`;
-  const daySel=sel("day",`<option value=""${s.day==null?" selected":""}>— day —</option>`+COURSE_DAYS.map((d,di)=>`<option value="${di}"${di===s.day?" selected":""}>${d}</option>`).join(""));
-  const dateCell=`<span class="tl-date">${esc(courseDateShort(s.day))}</span>`;
   const timeSel=sel("time",`<option value=""${!s.time?" selected":""}>— time —</option>`+CLASS_TIMES.map(x=>`<option${x===s.time?" selected":""}>${x}</option>`).join(""));
   const locSel=sel("area",AREAS.map(([k,lab])=>`<option value="${k}"${k===s.area?" selected":""}>${lab}</option>`).join(""));
   const actSel=sel("act",`<option value=""${s.act?"":" selected"}>— what are we doing? —</option>`+ACTIVITIES.map(([g,items])=>`<optgroup label="${esc(g)}">${items.map(([k,lab])=>`<option value="${k}"${k===s.act?" selected":""}>${esc(lab)}</option>`).join("")}</optgroup>`).join(""));
   const noteCell=`<input type="text" class="tl-note" data-i="${i}" value="${esc(s.note||"")}" placeholder="add details…">`;
   const durSel=`<select class="ps-sel tl-sel tl-dur" data-i="${i}" data-f="dur">${PLAN_DURS.map(m=>`<option value="${m}"${m===s.dur?" selected":""}>${m}m</option>`).join("")}</select>`;
-  return `<tr><td class="tl-num">${n}</td><td>${dateCell}</td><td>${daySel}</td><td>${timeSel}</td><td>${locSel}</td><td class="tl-classcell">${actSel}</td><td>${noteCell}</td><td>${durSel}</td><td><button class="tl-del" data-i="${i}" title="Remove this session">✕</button></td></tr>`;
+  return `<tr><td class="tl-num">${n}</td><td>${timeSel}</td><td>${locSel}</td><td class="tl-classcell">${actSel}</td><td>${noteCell}</td><td>${durSel}</td><td><button class="tl-del" data-i="${i}" title="Remove this session">✕</button></td></tr>`;
 }
 /* COURSE TIMELINE — the master builder; build the course one session at a time */
 function buildTimeline(){
@@ -1128,17 +1130,23 @@ function buildTimeline(){
   const ctx=`<div class="tl-ctx">${meta.map(([k,v])=>`<div class="tl-meta"><span class="tl-mk">${k}</span><span class="tl-mv">${v}</span></div>`).join("")}</div>`;
   if(!S.plan.length){host.innerHTML=`<div class="ps-group">${ctx}<p class="lbl2" style="margin:0">No sessions yet — use <b>+ Add a session</b> above to build your course one session at a time.</p></div>`; return;}
   const list=planSorted(); list.forEach((s,n)=>s._no=n+1);
-  const dayCounts={}; list.forEach(s=>{const k=s.day==null?"un":s.day; dayCounts[k]=(dayCounts[k]||0)+1;});
+  const dayCounts={}; list.forEach(s=>{ if(s.day!=null){const k="d"+s.day; dayCounts[k]=(dayCounts[k]||0)+1;} });
+  const dayOpts=sd=>COURSE_DAYS.map((d,di)=>`<option value="${di}"${di===sd?" selected":""}>${d}</option>`).join("");
   let rows="", lastKey="__init__";
   list.forEach(s=>{
-    const dk=s.day==null?"un":s.day;
-    if(dk!==lastKey){ lastKey=dk;
-      const lbl=s.day==null?"⏳ To schedule — no day set yet":`${COURSE_DAYS[s.day]} · ${courseDateShort(s.day)}`;
-      rows+=`<tr class="tl-dayrow"><td colspan="9"><span class="tl-dayname">${esc(lbl)}</span><span class="tl-daycount">${dayCounts[dk]} session${dayCounts[dk]===1?"":"s"}</span></td></tr>`;
+    const isUn=s.day==null;
+    const groupKey=isUn?("un-"+s._i):("d"+s.day);
+    if(groupKey!==lastKey){ lastKey=groupKey;
+      if(isUn){
+        rows+=`<tr class="tl-dayrow tl-dayrow-un"><td colspan="7"><select class="tl-daysel tl-daysel-un" data-group="${groupKey}"><option value="" selected>⏳ Pick a day…</option>${dayOpts(-1)}</select><span class="tl-daycount tl-daycount-un">needs a day</span></td></tr>`;
+      } else {
+        const cnt=dayCounts[groupKey]||0;
+        rows+=`<tr class="tl-dayrow"><td colspan="7"><select class="tl-daysel" data-group="${groupKey}">${dayOpts(s.day)}</select><span class="tl-daydate">· ${esc(courseDateShort(s.day))}</span><span class="tl-daycount">${cnt} session${cnt===1?"":"s"}</span></td></tr>`;
+      }
     }
     rows+=tlRow(s,s._no);
   });
-  host.innerHTML=`<div class="ps-group">${ctx}<div class="tl-scroll"><table class="tl tl-edit"><thead><tr><th>#</th><th>Date</th><th>Day</th><th>Time</th><th>Location</th><th>What we're doing</th><th>Details</th><th>Dur</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  host.innerHTML=`<div class="ps-group">${ctx}<div class="tl-scroll"><table class="tl tl-edit"><thead><tr><th>#</th><th>Time</th><th>Location</th><th>What we're doing</th><th>Details</th><th>Dur</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
 function schedRow(t,i,areaList){
   const day=sDay(t,i), tm=sTime(t,i), cls=sCls(t,i), area=sArea(t,i), dur=sDur(t,i), short=SHORT_BY_TYPE[t]||"Session";
@@ -1748,6 +1756,13 @@ document.getElementById("sizeSeg").addEventListener("click",e=>{const b=e.target
 function onPlanChange(e){
   const note=e.target.closest(".tl-note");
   if(note){const i=+note.dataset.i; if(S.plan[i]) S.plan[i].note=note.value; render(); return;} /* on blur: refresh dependent views */
+  const ds=e.target.closest(".tl-daysel"); /* the day-section heading is an editable dropdown */
+  if(ds){
+    const g=ds.dataset.group, nd = ds.value===""?null:+ds.value;
+    if(g.indexOf("un-")===0){ const idx=+g.slice(3); if(S.plan[idx]) S.plan[idx].day=nd; } /* one unscheduled session → its day */
+    else if(g[0]==="d"){ const od=+g.slice(1); S.plan.forEach(p=>{ if(p.day===od) p.day=nd; }); } /* shift the whole day */
+    render(); return;
+  }
   const sel=e.target.closest("select.tl-sel"); if(!sel) return;
   const i=+sel.dataset.i, f=sel.dataset.f; if(!S.plan[i]) return;
   if(f==="day") S.plan[i].day = sel.value===""?null:+sel.value;
