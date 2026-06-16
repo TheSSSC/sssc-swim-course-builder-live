@@ -66,7 +66,7 @@
   .tl td.cp{text-align:right;font-weight:700;color:var(--ink-soft);font-variant-numeric:tabular-nums;white-space:nowrap;}
   .tl-scroll{overflow-x:auto;}
   .tl-edit td{padding:5px 7px;vertical-align:middle;white-space:nowrap;}
-  .tl-sel{font:inherit;font-size:12px;font-weight:600;color:var(--ink);background:#fff;border:0;border-radius:8px;padding:6px 8px;cursor:pointer;max-width:230px;box-shadow:inset 1px 1px 3px rgba(174,178,196,.35),inset -1px -1px 2px #fff,inset 0 0 0 1px rgba(0,0,0,.05);}
+  .tl-sel{font:inherit;font-size:12px;font-weight:600;color:var(--ink);background-color:#fff;border:0;border-radius:8px;padding:6px 26px 6px 10px;cursor:pointer;max-width:230px;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%238a8f9e' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");background-repeat:no-repeat;background-position:right 9px center;box-shadow:inset 1px 1px 3px rgba(174,178,196,.35),inset -1px -1px 2px #fff,inset 0 0 0 1px rgba(0,0,0,.05);}
   .tl-sel:focus{outline:2px solid rgba(var(--pill-r),var(--pill-g),var(--pill-b),.5);}
   .tl-type{font-weight:700;color:var(--svc);}
   .tl-dur{max-width:72px;}
@@ -116,10 +116,11 @@
   .tl-partrow td{padding:6px 12px 5px 16px;border:0 !important;}
   .tl-partname{font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;}
   .tl-partcount{display:inline-block;margin-left:8px;font-size:10px;font-weight:800;opacity:.6;vertical-align:middle;}
-  /* one uniform colour per section — title band + its rows share the same tint */
-  .pm-morning td,.pm-morning-row td{background:rgba(245,170,40,.11);} .pm-morning .tl-partname,.pm-morning .tl-partcount{color:#a9740b;}
-  .pm-afternoon td,.pm-afternoon-row td{background:rgba(45,140,225,.10);} .pm-afternoon .tl-partname,.pm-afternoon .tl-partcount{color:#2467a6;}
-  .pm-evening td,.pm-evening-row td{background:rgba(120,88,200,.11);} .pm-evening .tl-partname,.pm-evening .tl-partcount{color:#5b41a6;}
+  /* service-colour rule: morning + evening tinted in the service colour, white afternoon between them for contrast (blue · white · blue for Swim School) */
+  .pm-morning td,.pm-morning-row td,.pm-evening td,.pm-evening-row td{background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.10);}
+  .pm-morning .tl-partname,.pm-morning .tl-partcount,.pm-evening .tl-partname,.pm-evening .tl-partcount{color:var(--svc);}
+  .pm-afternoon td,.pm-afternoon-row td{background:#fff;}
+  .pm-afternoon .tl-partname,.pm-afternoon .tl-partcount{color:var(--ink-soft);}
   .pm-tbc td,.pm-tbc-row td{background:rgba(150,155,170,.10);} .pm-tbc .tl-partname,.pm-tbc .tl-partcount{color:#6c7180;}
   .tl-emptypart td{padding:5px 12px 7px 18px;font-size:11.5px;font-style:italic;color:var(--ink-faint);border:0 !important;}
   .tl-date{font-size:12px;font-weight:700;color:var(--ink-soft);white-space:nowrap;}
