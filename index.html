@@ -737,7 +737,7 @@ const COURSE_DAYS=["Saturday","Sunday","Monday","Tuesday","Wednesday","Thursday"
 const CLASS_TIMES=(()=>{const t=[];for(let h=6;h<=23;h++){t.push((h<10?"0"+h:h)+":00");t.push((h<10?"0"+h:h)+":30");}return t;})();
 const WD=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 /* sports facility / area a class runs in */
-const AREAS=[["olympic-pool","Olympic pool"],["leisure-pool","Leisure pool"],["ocean","Ocean (open water)"],["gym","Gym"],["indoor","Indoor training area"],["outdoor","Outdoor training area"],["grass","Grass"],["promenade","Promenade"],["hotel-reception","Hotel reception"],["conference","Conference rooms"],["outside-reception","Outside hotel reception"],["outside-sportsbooking","Outside sportsbooking"],["sports-shop","Sports shop"],["playa-rambla","Playa Rambla"],["teatro","Teatro"],["bodega","Bodega restaurant"],["hotel-restaurant","Hotel restaurant"],["palapa-bar","Palapa bar"],["apart-pool-bar","Pool bar (apart hotel)"],["hotel-leisure-pool","Hotel leisure pool"],["apart-pool","Apart-hotel pool"],["golf-course","Golf course"],["driving-range","Driving range"],["resort-activity","Resort activity"],["free-time","Free time (own choice)"]];
+const AREAS=[["olympic-pool","Olympic pool"],["leisure-pool","Leisure pool"],["ocean","Ocean (open water)"],["gym","Gym"],["indoor","Indoor training area"],["outdoor","Outdoor training area"],["grass","Grass"],["beach-volleyball-court","Beach volleyball court"],["promenade","Promenade"],["hotel-reception","Hotel reception"],["conference","Conference rooms"],["outside-reception","Outside hotel reception"],["outside-sportsbooking","Outside sportsbooking"],["sports-shop","Sports shop"],["playa-rambla","Playa Rambla"],["teatro","Teatro"],["bodega","Bodega restaurant"],["hotel-restaurant","Hotel restaurant"],["palapa-bar","Palapa bar"],["apart-pool-bar","Pool bar (apart hotel)"],["hotel-leisure-pool","Hotel leisure pool"],["apart-pool","Apart-hotel pool"],["golf-course","Golf course"],["driving-range","Driving range"],["resort-activity","Resort activity"],["free-time","Free time (own choice)"]];
 /* pool-only venues — pool classes can only run in a pool (or the ocean) */
 const POOL_AREAS=[["olympic-pool","Olympic pool"],["apart-pool","Apart pool"],["hotel-pool","Hotel pool"],["open-water","Ocean (open water)"]];
 function areaLabel(k){const a=AREAS.find(x=>x[0]===k)||POOL_AREAS.find(x=>x[0]===k);return a?a[1]:k;}
@@ -1026,7 +1026,7 @@ function sessionCategory(s){
 }
 const POOL_AREA_SET=new Set(["olympic-pool","leisure-pool","ocean","hotel-leisure-pool","apart-pool"]);
 function isPoolArea(a){return POOL_AREA_SET.has(a);}
-function areaGroup(a){if(isPoolArea(a))return "Pool/Water";if(a==="gym")return "Gym";if(a==="outdoor"||a==="grass")return "Outdoor";if(a==="indoor")return "Indoor";if(a==="conference")return "Classroom";if(a==="golf-course"||a==="driving-range")return "Golf";if(a==="bodega"||a==="hotel-restaurant"||a==="palapa-bar"||a==="apart-pool-bar")return "Food & bar";return "Other";}
+function areaGroup(a){if(isPoolArea(a))return "Pool/Water";if(a==="gym")return "Gym";if(a==="outdoor"||a==="grass"||a==="beach-volleyball-court")return "Outdoor";if(a==="indoor")return "Indoor";if(a==="conference")return "Classroom";if(a==="golf-course"||a==="driving-range")return "Golf";if(a==="bodega"||a==="hotel-restaurant"||a==="palapa-bar"||a==="apart-pool-bar")return "Food & bar";return "Other";}
 const PLAN_DURS=[15,30,45,60,90,120,150,180,240];
 /* the + Add buttons — each drops in a session pre-set for that category, then you refine it */
 const ADD_CATS=[
@@ -1438,7 +1438,7 @@ const AREA_COST={
   "conference":35,"teatro":45,
   "hotel-reception":0,"outside-reception":0,"outside-sportsbooking":0,"sports-shop":0,"playa-rambla":0,
   "bodega":25,"hotel-restaurant":25,"palapa-bar":20,"apart-pool-bar":18,
-  "golf-course":60,"driving-range":20,
+  "golf-course":60,"driving-range":20,"beach-volleyball-court":15,
   "resort-activity":0,"free-time":0
 };
 const COACH_DAY=120, BUS_DAY=180, ADMIN_FLAT=250, COURSE_DAYS_N=6;
