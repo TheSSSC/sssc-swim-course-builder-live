@@ -112,6 +112,18 @@
   .tl-daycount-un{background:#fff3d6;color:#9a7b1f;}
   .tl-dayrow td{border-top:1px solid rgba(174,178,196,.28) !important;}
   .tl-dayrow:first-child td{border-top:0 !important;}
+  /* Morning / Afternoon / Evening sub-bands within a day */
+  .tl-partrow td{padding:6px 12px 5px 16px;border:0 !important;}
+  .tl-partname{font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;}
+  .tl-partcount{display:inline-block;margin-left:8px;font-size:10px;font-weight:800;opacity:.6;vertical-align:middle;}
+  .pm-morning td{background:rgba(245,170,40,.16);} .pm-morning .tl-partname,.pm-morning .tl-partcount{color:#a9740b;}
+  .pm-afternoon td{background:rgba(45,140,225,.15);} .pm-afternoon .tl-partname,.pm-afternoon .tl-partcount{color:#2467a6;}
+  .pm-evening td{background:rgba(120,88,200,.16);} .pm-evening .tl-partname,.pm-evening .tl-partcount{color:#5b41a6;}
+  .pm-tbc td{background:rgba(150,155,170,.16);} .pm-tbc .tl-partname,.pm-tbc .tl-partcount{color:#6c7180;}
+  .pm-morning-row td{background:rgba(245,170,40,.06);}
+  .pm-afternoon-row td{background:rgba(45,140,225,.055);}
+  .pm-evening-row td{background:rgba(120,88,200,.06);}
+  .pm-tbc-row td{background:rgba(150,155,170,.05);}
   .tl-date{font-size:12px;font-weight:700;color:var(--ink-soft);white-space:nowrap;}
   .tally{display:flex;flex-wrap:wrap;gap:8px;}
   .tally-chip{font-size:12.5px;font-weight:600;color:var(--ink-soft);background:#eef1f6;border-radius:999px;padding:7px 13px;}
@@ -1097,7 +1109,14 @@ function teacherSelectPlan(s){
   Object.keys(bySvc).forEach(k=>{bySvc[k].sort(byQual);o+=`<optgroup label="${esc(SVC_SHORT[k]||k)} coaches (${bySvc[k].length})">${bySvc[k].map(opt).join("")}</optgroup>`;});
   return `<select class="ps-sel tl-sel" data-i="${s._i}" data-f="lead">${o}</select>`;
 }
-function tlRow(s,n){
+const PARTS={
+  morning:{label:"Morning",icon:"☀️"},
+  afternoon:{label:"Afternoon",icon:"⛅"},
+  evening:{label:"Evening",icon:"🌙"},
+  tbc:{label:"Time to be set",icon:"⏳"}
+};
+function partOfDay(s){ if(!s.time) return "tbc"; if(s.time<"12:00") return "morning"; if(s.time<"17:00") return "afternoon"; return "evening"; }
+function tlRow(s,n,rowCls){
   const i=s._i;
   const sel=(f,opts)=>`<select class="ps-sel tl-sel" data-i="${i}" data-f="${f}">${opts}</select>`;
   const timeSel=sel("time",`<option value=""${!s.time?" selected":""}>— time —</option>`+CLASS_TIMES.map(x=>`<option${x===s.time?" selected":""}>${x}</option>`).join(""));
@@ -1105,7 +1124,7 @@ function tlRow(s,n){
   const actSel=sel("act",`<option value=""${s.act?"":" selected"}>— what are we doing? —</option>`+ACTIVITIES.map(([g,items])=>`<optgroup label="${esc(g)}">${items.map(([k,lab])=>`<option value="${k}"${k===s.act?" selected":""}>${esc(lab)}</option>`).join("")}</optgroup>`).join(""));
   const noteCell=`<input type="text" class="tl-note" data-i="${i}" value="${esc(s.note||"")}" placeholder="add details…">`;
   const durSel=`<select class="ps-sel tl-sel tl-dur" data-i="${i}" data-f="dur">${PLAN_DURS.map(m=>`<option value="${m}"${m===s.dur?" selected":""}>${m}m</option>`).join("")}</select>`;
-  return `<tr><td class="tl-num">${n}</td><td>${timeSel}</td><td>${locSel}</td><td class="tl-classcell">${actSel}</td><td>${noteCell}</td><td>${durSel}</td><td><button class="tl-del" data-i="${i}" title="Remove this session">✕</button></td></tr>`;
+  return `<tr class="${rowCls||""}"><td class="tl-num">${n}</td><td>${timeSel}</td><td>${locSel}</td><td class="tl-classcell">${actSel}</td><td>${noteCell}</td><td>${durSel}</td><td><button class="tl-del" data-i="${i}" title="Remove this session">✕</button></td></tr>`;
 }
 /* COURSE TIMELINE — the master builder; build the course one session at a time */
 function buildTimeline(){
@@ -1130,13 +1149,14 @@ function buildTimeline(){
   const ctx=`<div class="tl-ctx">${meta.map(([k,v])=>`<div class="tl-meta"><span class="tl-mk">${k}</span><span class="tl-mv">${v}</span></div>`).join("")}</div>`;
   if(!S.plan.length){host.innerHTML=`<div class="ps-group">${ctx}<p class="lbl2" style="margin:0">No sessions yet — use <b>+ Add a session</b> above to build your course one session at a time.</p></div>`; return;}
   const list=planSorted(); list.forEach((s,n)=>s._no=n+1);
-  const dayCounts={}; list.forEach(s=>{ if(s.day!=null){const k="d"+s.day; dayCounts[k]=(dayCounts[k]||0)+1;} });
+  const dayCounts={}, partCounts={};
+  list.forEach(s=>{ if(s.day!=null){ const k="d"+s.day; dayCounts[k]=(dayCounts[k]||0)+1; const pk=s.day+"-"+partOfDay(s); partCounts[pk]=(partCounts[pk]||0)+1; } });
   const dayOpts=sd=>COURSE_DAYS.map((d,di)=>`<option value="${di}"${di===sd?" selected":""}>${d}</option>`).join("");
-  let rows="", lastKey="__init__";
+  let rows="", lastKey="__init__", lastPart=null;
   list.forEach(s=>{
     const isUn=s.day==null;
     const groupKey=isUn?("un-"+s._i):("d"+s.day);
-    if(groupKey!==lastKey){ lastKey=groupKey;
+    if(groupKey!==lastKey){ lastKey=groupKey; lastPart=null; /* new day → restart the part-of-day grouping */
       if(isUn){
         rows+=`<tr class="tl-dayrow tl-dayrow-un"><td colspan="7"><select class="tl-daysel tl-daysel-un" data-group="${groupKey}"><option value="" selected>⏳ Pick a day…</option>${dayOpts(-1)}</select><span class="tl-daycount tl-daycount-un">needs a day</span></td></tr>`;
       } else {
@@ -1144,7 +1164,14 @@ function buildTimeline(){
         rows+=`<tr class="tl-dayrow"><td colspan="7"><select class="tl-daysel" data-group="${groupKey}">${dayOpts(s.day)}</select><span class="tl-daydate">· ${esc(courseDateShort(s.day))}</span><span class="tl-daycount">${cnt} session${cnt===1?"":"s"}</span></td></tr>`;
       }
     }
-    rows+=tlRow(s,s._no);
+    let rowCls="";
+    if(!isUn){ /* break the day into Morning / Afternoon / Evening colour-coded blocks */
+      const part=partOfDay(s); rowCls="pm-"+part+"-row";
+      if(part!==lastPart){ lastPart=part; const P=PARTS[part], pc=partCounts[s.day+"-"+part]||0;
+        rows+=`<tr class="tl-partrow pm-${part}"><td colspan="7"><span class="tl-partname">${P.icon} ${esc(P.label)}</span><span class="tl-partcount">${pc}</span></td></tr>`;
+      }
+    }
+    rows+=tlRow(s,s._no,rowCls);
   });
   host.innerHTML=`<div class="ps-group">${ctx}<div class="tl-scroll"><table class="tl tl-edit"><thead><tr><th>#</th><th>Time</th><th>Location</th><th>What we're doing</th><th>Details</th><th>Dur</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
