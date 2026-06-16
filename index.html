@@ -67,7 +67,15 @@
   .tl-scroll{overflow-x:auto;}
   .tl-edit{table-layout:fixed;}
   .tl-edit td{padding:5px 7px;vertical-align:middle;white-space:nowrap;}
-  .tl-edit .c-num{width:40px;} .tl-edit .c-time{width:96px;} .tl-edit .c-dur{width:108px;} .tl-edit .c-del{width:38px;}
+  .tl-edit .c-num{width:40px;} .tl-edit .c-time{width:96px;} .tl-edit .c-dur{width:108px;} .tl-edit .c-del{width:62px;}
+  .tl-actions{white-space:nowrap;text-align:right;}
+  .tl-copy{border:0;cursor:pointer;background:transparent;color:var(--ink-faint);font-size:14px;padding:3px 5px;border-radius:6px;transition:.15s;}
+  .tl-copy:hover{color:var(--svc);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.12);}
+  .tl-paste{color:var(--svc);}
+  .tl-clip{min-width:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;font-weight:600;color:var(--ink-soft);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.1);border:1px solid rgba(var(--pill-r),var(--pill-g),var(--pill-b),.25);border-radius:10px;padding:8px 12px;margin:0 0 12px;}
+  .tl-clip b{color:var(--svc);}
+  .tl-clip-clear{margin-left:auto;border:0;cursor:pointer;font:inherit;font-size:11.5px;font-weight:700;color:var(--ink-soft);background:#eef1f6;border-radius:999px;padding:4px 11px;}
+  .tl-clip-clear:hover{background:#e3e7ee;}
   /* each day is a carved cut-out card (same inset styling as the data boxes) */
   .tl-colhead{min-width:680px;}
   .tl-colhead th{padding:0 7px 8px;}
@@ -1016,7 +1024,8 @@ const ADD_CATS=[
 ];
 /* new sessions start UNSCHEDULED (no day/time) so they sit at the bottom until you place them */
 function addPlan(preset){S.plan.push(Object.assign({day:null,time:"",area:"olympic-pool",act:"",note:"",dur:60,lead:""},preset||{}));}
-function addDay(){ const days=S.plan.filter(s=>s.day!=null).map(s=>s.day); const next=days.length?Math.max(...days)+1:0; if(next>6) return; addPlan({day:next}); } /* start the next day with one blank session to fill in */
+function addDay(){ const next=maxPlanDay()+1; if(next>MAX_DAY) return; addPlan({day:next}); } /* start the next day with one blank session to fill in (multi-week capable) */
+let tlClip=null; /* a copied session held on the clipboard, pasteable into any day */
 function removePlan(i){if(i>=0&&i<S.plan.length)S.plan.splice(i,1);}
 /* sessions auto-sort by day then time — each lands in its right place; the session # follows that order */
 function planSorted(){return S.plan.map((s,i)=>({...s,_i:i})).sort((a,b)=>{
@@ -1098,6 +1107,10 @@ function buildSizeSeg(){
 /* dayIdx 0 = Saturday (arrival = the week key); 1 = Sunday … 6 = Friday */
 function courseDateLabel(dayIdx){const s=new Date(+S.week.slice(0,4),+S.week.slice(5,7)-1,+S.week.slice(8,10));s.setDate(s.getDate()+dayIdx);return `${WD[s.getDay()]} ${s.getDate()} ${MON[s.getMonth()]}`;}
 function courseDateShort(dayIdx){if(dayIdx==null)return "—";const s=new Date(+S.week.slice(0,4),+S.week.slice(5,7)-1,+S.week.slice(8,10));s.setDate(s.getDate()+dayIdx);return `${s.getDate()} ${MON[s.getMonth()]}`;}
+function dayName(idx){if(idx==null)return "—";const wk=Math.floor(idx/7);return COURSE_DAYS[idx%7]+(wk>0?` · wk ${wk+1}`:"");}      /* multi-week: "Saturday", "Saturday · wk 2"… */
+function dayShort(idx){if(idx==null)return "—";const wk=Math.floor(idx/7);return COURSE_DAYS[idx%7].slice(0,3)+(wk>0?` w${wk+1}`:"");}
+function maxPlanDay(){return S.plan.reduce((m,s)=>s.day!=null&&s.day>m?s.day:m,-1);}
+const MAX_DAY=41; /* up to 6 weeks of days */
 /* the coaching team for this course = on-shift teachers assigned to the lanes,
    senior-most first; the lead coach heads the course (feeds the timeline) */
 function courseTeam(){
@@ -1135,7 +1148,7 @@ function tlRow(s,n,rowCls){
   const actSel=sel("act",`<option value=""${s.act?"":" selected"}>— what are we doing? —</option>`+ACTIVITIES.map(([g,items])=>`<optgroup label="${esc(g)}">${items.map(([k,lab])=>`<option value="${k}"${k===s.act?" selected":""}>${esc(lab)}</option>`).join("")}</optgroup>`).join(""));
   const noteCell=`<input type="text" class="tl-note" data-i="${i}" value="${esc(s.note||"")}" placeholder="add details…">`;
   const durSel=`<select class="ps-sel tl-sel tl-dur" data-i="${i}" data-f="dur">${PLAN_DURS.map(m=>`<option value="${m}"${m===s.dur?" selected":""}>${durLabel(m)}</option>`).join("")}</select>`;
-  return `<tr class="${rowCls||""}"><td class="tl-num">${n}</td><td>${timeSel}</td><td>${locSel}</td><td class="tl-classcell">${actSel}</td><td>${noteCell}</td><td>${durSel}</td><td><button class="tl-del" data-i="${i}" title="Remove this session">✕</button></td></tr>`;
+  return `<tr class="${rowCls||""}"><td class="tl-num">${n}</td><td>${timeSel}</td><td>${locSel}</td><td class="tl-classcell">${actSel}</td><td>${noteCell}</td><td>${durSel}</td><td class="tl-actions"><button class="tl-copy" data-i="${i}" title="Copy this session">⧉</button><button class="tl-del" data-i="${i}" title="Remove this session">✕</button></td></tr>`;
 }
 /* COURSE TIMELINE — the master builder; build the course one session at a time */
 function buildTimeline(){
@@ -1160,7 +1173,8 @@ function buildTimeline(){
   const ctx=`<div class="tl-ctx">${meta.map(([k,v])=>`<div class="tl-meta"><span class="tl-mk">${k}</span><span class="tl-mv">${v}</span></div>`).join("")}</div>`;
   if(!S.plan.length){host.innerHTML=`<div class="ps-group">${ctx}<p class="lbl2" style="margin:0 0 12px">No sessions yet — start by adding your first day.</p><div class="tl-addday-row"><button class="add-btn-day tl-add-day">+ Add the first day</button></div></div>`; return;}
   const list=planSorted(); list.forEach((s,n)=>s._no=n+1);
-  const dayOpts=sd=>COURSE_DAYS.map((d,di)=>`<option value="${di}"${di===sd?" selected":""}>${d}</option>`).join("");
+  const dayOptCount=Math.min(MAX_DAY+1,Math.max(7,maxPlanDay()+8)); /* offer existing days + a week of headroom */
+  const dayOpts=sd=>Array.from({length:dayOptCount},(_,di)=>`<option value="${di}"${di===sd?" selected":""}>${dayName(di)}</option>`).join("");
   const FIXED_PARTS=["morning","afternoon","evening"]; /* every day always shows these three bands, as a rule */
   const partBand=(part,cnt)=>{const P=PARTS[part];return `<tr class="tl-partrow pm-${part}"><td colspan="7"><span class="tl-partname">${P.icon} ${esc(P.label)}</span><span class="tl-partcount">${cnt}</span></td></tr>`;};
   /* gather scheduled sessions by day (chronological via planSorted), dayless kept aside */
@@ -1181,8 +1195,8 @@ function buildTimeline(){
       else inner+=`<tr class="tl-emptypart pm-${part}-row"><td colspan="7">No ${PARTS[part].label.toLowerCase()} sessions yet</td></tr>`;
     });
     if(byPart.tbc.length){ inner+=partBand("tbc",byPart.tbc.length); byPart.tbc.forEach(s=>inner+=tlRow(s,s._no,"pm-tbc-row")); }
-    /* footer: + Add a session on every day (the + Add a new day button lives in the white space after the last card) */
-    inner+=`<tr class="tl-addrow"><td colspan="7"><button class="add-btn tl-add-session" data-day="${day}">+ Add a session</button></td></tr>`;
+    /* footer: + Add a session on every day; + Paste here appears when a session is on the clipboard */
+    inner+=`<tr class="tl-addrow"><td colspan="7"><button class="add-btn tl-add-session" data-day="${day}">+ Add a session</button>${tlClip?`<button class="add-btn tl-paste" data-day="${day}">📋 Paste here</button>`:""}</td></tr>`;
     cards+=dayCard(inner);
   });
   dayless.forEach(s=>{ /* each unscheduled session gets its own "pick a day" card */
@@ -1190,14 +1204,13 @@ function buildTimeline(){
     inner+=tlRow(s,s._no,"");
     cards+=dayCard(inner," tl-day-card-un");
   });
-  /* + Add a new day lives in the white space AFTER the last card; hidden once the week is full (Sat–Fri) */
+  /* + Add a new day lives in the white space AFTER the last card (multi-week capable) */
   const maxDay = dayKeys.length ? dayKeys[dayKeys.length-1] : -1;
-  if(maxDay < 6){
+  if(maxDay < MAX_DAY){
     cards+=`<div class="tl-addday-row"><button class="add-btn-day tl-add-day">+ Add ${maxDay<0?"the first":"a new"} day</button></div>`;
-  } else {
-    cards+=`<div class="tl-addday-row tl-weekfull">Full week — Saturday to Friday.</div>`;
   }
-  host.innerHTML=`<div class="ps-group">${ctx}<div class="tl-scroll"><div class="tl-colhead"><table class="tl tl-edit">${COLGROUP}<thead><tr><th>#</th><th>Time</th><th>Location</th><th>What we're doing</th><th>Details</th><th>Dur</th><th></th></tr></thead></table></div>${cards}</div></div>`;
+  const clipBanner=tlClip?`<div class="tl-clip">📋 Copied <b>${esc(ACT_LABEL[tlClip.act]||tlClip.act||"session")}</b>${tlClip.area?` · ${esc(areaLabel(tlClip.area))}`:""}${tlClip.time?` · ${esc(tlClip.time)}`:""} — tap <b>Paste here</b> on any day. <button class="tl-clip-clear">Clear</button></div>`:"";
+  host.innerHTML=`<div class="ps-group">${ctx}${clipBanner}<div class="tl-scroll"><div class="tl-colhead"><table class="tl tl-edit">${COLGROUP}<thead><tr><th>#</th><th>Time</th><th>Location</th><th>What we're doing</th><th>Details</th><th>Dur</th><th></th></tr></thead></table></div>${cards}</div></div>`;
 }
 function schedRow(t,i,areaList){
   const day=sDay(t,i), tm=sTime(t,i), cls=sCls(t,i), area=sArea(t,i), dur=sDur(t,i), short=SHORT_BY_TYPE[t]||"Session";
@@ -1496,9 +1509,10 @@ function buildTemplateBar(){
   const days=[...new Set(S.plan.filter(s=>s.day!=null).map(s=>s.day))].sort((a,b)=>a-b);
   if(!days.length){ host.innerHTML=""; return; }
   if(S.tplSrc==null||!days.includes(S.tplSrc)) S.tplSrc=days[0];
-  if(!S.tplTargets) S.tplTargets=COURSE_DAYS.map((_,i)=>i).filter(i=>i!==S.tplSrc);
-  const srcOpts=COURSE_DAYS.map((d,i)=>days.includes(i)?`<option value="${i}"${i===S.tplSrc?" selected":""}>${d}</option>`:"").join("");
-  const chips=COURSE_DAYS.map((d,i)=>i===S.tplSrc?"":`<button class="tpl-chip${S.tplTargets.includes(i)?" on":""}" data-tplday="${i}">${d.slice(0,3)}</button>`).join("");
+  const lastIdx=Math.max(6,days[days.length-1]); const allIdx=Array.from({length:lastIdx+1},(_,i)=>i); /* week 1 always offered + any existing later days */
+  if(!S.tplTargets) S.tplTargets=allIdx.filter(i=>i!==S.tplSrc);
+  const srcOpts=days.map(i=>`<option value="${i}"${i===S.tplSrc?" selected":""}>${dayName(i)}</option>`).join("");
+  const chips=allIdx.map(i=>i===S.tplSrc?"":`<button class="tpl-chip${S.tplTargets.includes(i)?" on":""}" data-tplday="${i}">${dayShort(i)}</button>`).join("");
   const n=S.tplTargets.filter(i=>i!==S.tplSrc).length;
   host.innerHTML=`<span class="lbl">Use as template</span><select class="ps-sel" id="tplSrc" style="width:108px">${srcOpts}</select><span class="lbl2" style="color:var(--ink-faint)">copy to →</span><div class="tpl-days">${chips}</div><button class="add-btn add-btn-main" id="tplApply"${n?"":" disabled"}>Copy to ${n} day${n!==1?"s":""}</button>`;
 }
@@ -1513,7 +1527,7 @@ function buildBreakdown(){
   const present=CATS.filter(([k])=>groups[k]&&groups[k].length);
   const box=([k,lab],secNo)=>{
     const items=groups[k].slice().sort((a,b)=>{const au=a.day==null,bu=b.day==null;if(au!==bu)return au?1:-1;return (a.day-b.day)||(""+a.time).localeCompare(""+b.time);})
-      .map(s=>{const t=teacherById(s.lead), when=s.day==null?"—":COURSE_DAYS[s.day].slice(0,3)+(s.time?" "+s.time:"");
+      .map(s=>{const t=teacherById(s.lead), when=s.day==null?"—":dayShort(s.day)+(s.time?" "+s.time:"");
         return `<div class="bd-item"><div class="bd-i1"><span class="bd-no" title="Programme schedule #${s._no}">#${s._no}</span><span class="bd-when">${esc(when)}</span><span class="bd-act">${s.act?esc(ACT_LABEL[s.act]||s.act):"—"}</span></div><div class="bd-i2">${esc(areaLabel(s.area))} · ${durLabel(s.dur)}${t?" · "+esc(t.name.split(" ")[0]):""}</div>${s.note?`<div class="bd-note">${esc(s.note)}</div>`:""}</div>`;}).join("");
     return `<div class="bd-box"><div class="bd-box-h"><span class="bd-ttl"><span class="bd-secno">${secNo}</span>${esc(lab)}</span><span class="bd-box-n">${groups[k].length}</span></div>${items}</div>`;
   };
@@ -1640,7 +1654,8 @@ function render(){
   const satIn=new Date(+S.week.slice(0,4),+S.week.slice(5,7)-1,+S.week.slice(8,10));
   const addD=(n)=>{const d=new Date(satIn);d.setDate(d.getDate()+n);return d;};
   const fday=(d)=>`${WD[d.getDay()]} ${d.getDate()} ${MON[d.getMonth()]}`;
-  document.getElementById("courseFrame").innerHTML=`<b>Whole course:</b> fly in ${fday(satIn)} afternoon · starts ${fday(addD(1))} · finishes ${fday(addD(6))} afternoon · fly out ${fday(addD(7))} morning`;
+  const lastDay=Math.max(1,maxPlanDay()); /* last day with a session (≥1) */
+  document.getElementById("courseFrame").innerHTML=`<b>Whole course:</b> fly in ${fday(satIn)} afternoon · starts ${fday(addD(1))} · finishes ${fday(addD(lastDay))} afternoon · fly out ${fday(addD(lastDay+1))} morning`;
   const classList=poolPlan().map((s,c)=>({c,day:s.day,time:s.time,act:s.act,dur:s.dur,area:s.area}));
   const poolN=classList.length;
   const courseTime=classList.reduce((s,x)=>s+x.dur,0);
@@ -1747,7 +1762,7 @@ function render(){
   const wkList=[];
   poolPlan().forEach(s=>{ if(!s.act||s.day==null||!s.time) return; wkList.push({title:ACT_LABEL[s.act]||s.act,day:s.day,time:s.time}); });
   document.getElementById("week").innerHTML = wkList.length
-    ? wkList.map((c,i)=>`<tr><td><span class="cn">${i+1}</span><span class="nm">${esc(c.title)}</span></td><td class="day">${COURSE_DAYS[c.day]||""}</td><td class="tm">${c.time}</td><td class="cp">${placeText}</td></tr>`).join("")
+    ? wkList.map((c,i)=>`<tr><td><span class="cn">${i+1}</span><span class="nm">${esc(c.title)}</span></td><td class="day">${dayName(c.day)}</td><td class="tm">${c.time}</td><td class="cp">${placeText}</td></tr>`).join("")
     : `<tr><td colspan="4" style="color:var(--ink-faint);padding:14px 2px;">No pool sessions yet — add a session in the Programme schedule with a pool location and an activity. They’ll auto-fill here.</td></tr>`;
   document.getElementById("weekLbl").textContent=`The week — ${sv.name}${sv.stroke?" · "+STROKES[S.course].label:""}`;
 
@@ -1827,15 +1842,18 @@ document.getElementById("timeline").addEventListener("change",onPlanChange);
 document.getElementById("timeline").addEventListener("input",e=>{const inp=e.target.closest(".tl-note");if(!inp)return;const i=+inp.dataset.i;if(S.plan[i]){S.plan[i].note=inp.value;saveDraft();}});
 document.getElementById("timeline").addEventListener("click",e=>{
   const del=e.target.closest(".tl-del"); if(del){removePlan(+del.dataset.i);render();return;}
+  const cp=e.target.closest(".tl-copy"); if(cp){const s=S.plan[+cp.dataset.i]; if(s){tlClip={time:s.time,area:s.area,act:s.act,note:s.note,dur:s.dur,lead:s.lead};} render(); return;}
+  const ps=e.target.closest(".tl-paste"); if(ps){if(tlClip)addPlan(Object.assign({day:+ps.dataset.day},tlClip)); render(); return;}
+  const cc=e.target.closest(".tl-clip-clear"); if(cc){tlClip=null; render(); return;}
   const addS=e.target.closest(".tl-add-session"); if(addS){addPlan({day:+addS.dataset.day});render();return;}
   const addD=e.target.closest(".tl-add-day"); if(addD){addDay();render();return;}
 });
 document.getElementById("addBar").addEventListener("click",e=>{const b=e.target.closest("[data-area]");if(!b)return;addPlan({area:b.dataset.area,act:b.dataset.act});render();});
 document.getElementById("templateBar").addEventListener("click",e=>{
   const c=e.target.closest("[data-tplday]"); if(c){const d=+c.dataset.tplday,i=S.tplTargets.indexOf(d);i>=0?S.tplTargets.splice(i,1):S.tplTargets.push(d);buildTemplateBar();return;}
-  if(e.target.closest("#tplApply")){const day=S.tplSrc,n=copyDayTo(day,S.tplTargets);render();showToast(`Copied ${COURSE_DAYS[day]}’s plan to ${n} day${n!==1?"s":""}`);}
+  if(e.target.closest("#tplApply")){const day=S.tplSrc,n=copyDayTo(day,S.tplTargets);render();showToast(`Copied ${dayName(day)}’s plan to ${n} day${n!==1?"s":""}`);}
 });
-document.getElementById("templateBar").addEventListener("change",e=>{const s=e.target.closest("#tplSrc");if(s){S.tplSrc=+s.value;S.tplTargets=COURSE_DAYS.map((_,i)=>i).filter(i=>i!==S.tplSrc);buildTemplateBar();}});
+document.getElementById("templateBar").addEventListener("change",e=>{const s=e.target.closest("#tplSrc");if(s){S.tplSrc=+s.value;S.tplTargets=null;buildTemplateBar();}});
 document.getElementById("newCourseBtn").addEventListener("click",()=>{if(!S.plan.length||confirm("Start a new blank course? Your current unpublished work will be cleared (published courses stay safe).")) newCourse();});
 document.querySelectorAll(".stepper").forEach(st=>{
   st.addEventListener("click",e=>{
