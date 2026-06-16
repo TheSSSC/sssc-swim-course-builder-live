@@ -933,32 +933,33 @@ function setSched(t,i,f,v){
 }
 /* ── FLAT SESSION PLAN — the course is built one session at a time ── */
 const ACTIVITIES=[
-  ["Course",[["intro","First introduction"],["group-meetup","Group meet-up"],["meeting","Meeting"],["welcome","Welcome session"]]],
-  ["Swim",[["swim-technique","Swim technique"],["swim-training","Swim training"],["swim-drills","Swim drills"],["stroke-correction","Stroke correction"],["swim-analysis","Swim analysis"],["ramp-test","Ramp test"],["tempo-trainer","Tempo-trainer set"]]],
+  ["Info",[["welcome","Welcome meeting"],["intro","Course introduction"],["course-updates","Course updates"],["schedule-change","Changes to schedule"],["group-meetup","Group meet-up"],["meeting","Meeting"],["final-goodbye","Final goodbye"]]],
+  ["Swim",[["swim-technique","Swim technique"],["swim-training","Swim training"],["swim-drills","Swim drills"],["stroke-correction","Stroke correction (pool)"],["swim-analysis","Swim analysis"],["ramp-test","Ramp test"],["tempo-trainer","Tempo-trainer set"]]],
   ["Open water",[["ow-swim","Open-water swim"],["ow-training","Open-water training"],["ow-skills","Sighting & navigation"]]],
-  ["Analysis & theory",[["theory","Theory"],["video-capture","Video capture"],["video-analysis","Video analysis"],["feedback","Feedback"]]],
+  ["Classroom",[["theory","Theory class"],["video-analysis","Video analysis"],["video-capture","Video capture"],["stroke-correction-class","Stroke correction (classroom)"],["feedback","Feedback"]]],
   ["Dryland & gym",[["strength-conditioning","Strength & conditioning"],["dryland","Dryland training"],["mobility","Mobility & stretch"]]],
   ["Recovery",[["recovery","Recovery"],["massage","Massage"],["foam-rolling","Foam rolling / self-massage"],["stretch-relax","Stretch & relax"],["relax-unwind","Relax & unwind"],["yoga","Yoga"]]],
   ["Recreation & sport",[["golf","Golf"],["chip-putt","Chip & putt"],["driving-range","Driving range"],["mini-golf","Mini golf"],["volleyball","Volleyball"],["beach-volleyball","Beach volleyball"],["badminton","Badminton"],["tennis","Tennis"],["padel","Padel"],["table-tennis","Table tennis"],["kayaking","Kayaking"],["sup","Stand-up paddle"],["hike","Hike"],["mountain-ramble","Mountain-top ramble"],["trail-run","Trail run"],["road-run","Road run"],["hill-run","Hill run"],["bike-ride","Bike ride"],["dance","Dance class"],["karaoke","Karaoke"],["multisports","Multisports"],["beach-games","Beach games"],["rugby","Rugby"],["cricket","Cricket"],["rounders","Rounders"],["beach-football","Beach football"],["football","Football"],["basketball","Basketball"],["fun-games","Fun & games"]]],
-  ["Meals & social",[["breakfast","Breakfast"],["lunch","Lunch"],["dinner","Dinner"],["drinks","Drinks"],["night-out","Night out"],["free-time","Free time"]]],
+  ["Social",[["drinks","Drinks"],["night-out","Night out"],["social-gathering","Social gathering"],["free-time","Free time"]]],
+  ["Meals",[["breakfast","Breakfast"],["lunch","Lunch"],["dinner","Dinner"],["snack","Snack / refuel"]]],
 ];
 const ACT_LABEL=Object.fromEntries(ACTIVITIES.flatMap(([,items])=>items));
 const ACT_GROUP=Object.fromEntries(ACTIVITIES.flatMap(([g,items])=>items.map(([k])=>[k,g])));
 /* filter categories for the Course-breakdown sections */
-const CATS=[["pool","Pool sessions"],["openwater","Open-water sessions"],["gym","Gym / S&C sessions"],["dryland","Dryland training"],["recovery","Recovery sessions"],["theory","Classroom — theory"],["video","Classroom — video analysis"],["recreation","Group recreation"],["meals","Meals & social"],["meetings","Meetings & meet-ups"],["other","Other"]];
+const CATS=[["info","Info sessions"],["classroom","Classroom sessions"],["pool","Pool sessions"],["openwater","Open water sessions"],["gym","Gym sessions"],["dryland","Dryland training sessions"],["recovery","Recovery sessions"],["recreation","Social recreation sessions"],["social","Social gatherings"],["meals","Meal time"],["other","Other"]];
 const CAT_LABEL=Object.fromEntries(CATS);
 function sessionCategory(s){
   const a=s.act, g=ACT_GROUP[a];
-  if(a==="theory"||a==="briefing") return "theory";
-  if(a==="video-capture"||a==="video-analysis"||a==="feedback") return "video";
+  if(g==="Info") return "info";
+  if(g==="Classroom") return "classroom";
   if(a==="strength-conditioning") return "gym";
   if(g==="Swim") return "pool";
   if(g==="Open water") return "openwater";
   if(g==="Dryland & gym") return "dryland";
   if(g==="Recovery") return "recovery";
   if(g==="Recreation & sport") return "recreation";
-  if(g==="Meals & social") return "meals";
-  if(g==="Course") return "meetings";
+  if(g==="Social") return "social";
+  if(g==="Meals") return "meals";
   if(s.area==="ocean") return "openwater";
   if(isPoolArea(s.area)) return "pool";
   if(s.area==="gym") return "gym";
@@ -970,9 +971,9 @@ function areaGroup(a){if(isPoolArea(a))return "Pool/Water";if(a==="gym")return "
 const PLAN_DURS=[15,30,45,60,90,120,150,180,240];
 /* the + Add buttons — each drops in a session pre-set for that category, then you refine it */
 const ADD_CATS=[
-  ["Pool","olympic-pool","swim-training"],["Open water","ocean","ow-swim"],["Gym / S&C","gym","strength-conditioning"],
-  ["Dryland","outdoor","dryland"],["Recovery","leisure-pool","stretch-relax"],["Theory","conference","theory"],
-  ["Analysis","conference","video-analysis"],["Recreation","grass",""],["Meeting","conference","group-meetup"],["Meal","hotel-restaurant","lunch"],
+  ["Info","conference","welcome"],["Classroom","conference","theory"],["Pool","olympic-pool","swim-training"],
+  ["Open water","ocean","ow-swim"],["Gym","gym","strength-conditioning"],["Dryland","outdoor","dryland"],
+  ["Recovery","leisure-pool","stretch-relax"],["Recreation","grass",""],["Social","palapa-bar","drinks"],["Meal","hotel-restaurant","lunch"],
 ];
 /* new sessions start UNSCHEDULED (no day/time) so they sit at the bottom until you place them */
 function addPlan(preset){S.plan.push(Object.assign({day:null,time:"",area:"olympic-pool",act:"",dur:60,lead:""},preset||{}));}
