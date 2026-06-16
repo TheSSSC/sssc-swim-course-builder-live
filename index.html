@@ -65,8 +65,15 @@
   .tl td.nm{font-weight:600;}
   .tl td.cp{text-align:right;font-weight:700;color:var(--ink-soft);font-variant-numeric:tabular-nums;white-space:nowrap;}
   .tl-scroll{overflow-x:auto;}
+  .tl-edit{table-layout:fixed;}
   .tl-edit td{padding:5px 7px;vertical-align:middle;white-space:nowrap;}
-  .tl-sel{font:inherit;font-size:12px;font-weight:600;color:var(--ink);background-color:#fff;border:0;border-radius:8px;padding:6px 26px 6px 10px;cursor:pointer;max-width:230px;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%238a8f9e' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");background-repeat:no-repeat;background-position:right 9px center;box-shadow:inset 1px 1px 3px rgba(174,178,196,.35),inset -1px -1px 2px #fff,inset 0 0 0 1px rgba(0,0,0,.05);}
+  .tl-edit .c-num{width:40px;} .tl-edit .c-time{width:96px;} .tl-edit .c-dur{width:70px;} .tl-edit .c-del{width:38px;}
+  /* each day is a carved cut-out card (same inset styling as the data boxes) */
+  .tl-colhead{min-width:680px;}
+  .tl-colhead th{padding:0 7px 8px;}
+  .tl-day-card{min-width:680px;margin:0 0 14px;border-radius:12px;overflow:hidden;background:#fff;box-shadow:inset 1px 1px 3px rgba(174,178,196,.35),inset -1px -1px 2px #fff,inset 0 0 0 1px rgba(0,0,0,.07);}
+  .tl-day-card:last-child{margin-bottom:2px;}
+  .tl-sel{font:inherit;font-size:12px;font-weight:600;color:var(--ink);background-color:#fff;border:0;border-radius:8px;padding:6px 24px 6px 10px;cursor:pointer;width:100%;max-width:100%;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%238a8f9e' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");background-repeat:no-repeat;background-position:right 9px center;box-shadow:inset 1px 1px 3px rgba(174,178,196,.35),inset -1px -1px 2px #fff,inset 0 0 0 1px rgba(0,0,0,.05);}
   .tl-sel:focus{outline:2px solid rgba(var(--pill-r),var(--pill-g),var(--pill-b),.5);}
   .tl-type{font-weight:700;color:var(--svc);}
   .tl-dur{max-width:72px;}
@@ -116,11 +123,9 @@
   .tl-partrow td{padding:6px 12px 5px 16px;border:0 !important;}
   .tl-partname{font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;}
   .tl-partcount{display:inline-block;margin-left:8px;font-size:10px;font-weight:800;opacity:.6;vertical-align:middle;}
-  /* service-colour rule: morning + evening tinted in the service colour, white afternoon between them for contrast (blue · white · blue for Swim School) */
-  .pm-morning td,.pm-morning-row td,.pm-evening td,.pm-evening-row td{background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.10);}
-  .pm-morning .tl-partname,.pm-morning .tl-partcount,.pm-evening .tl-partname,.pm-evening .tl-partcount{color:var(--svc);}
-  .pm-afternoon td,.pm-afternoon-row td{background:#fff;}
-  .pm-afternoon .tl-partname,.pm-afternoon .tl-partcount{color:var(--ink-soft);}
+  /* service-colour rule: all three time-of-day sections share the service colour (Sean: same blue for all 3) */
+  .pm-morning td,.pm-morning-row td,.pm-afternoon td,.pm-afternoon-row td,.pm-evening td,.pm-evening-row td{background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.09);}
+  .pm-morning .tl-partname,.pm-morning .tl-partcount,.pm-afternoon .tl-partname,.pm-afternoon .tl-partcount,.pm-evening .tl-partname,.pm-evening .tl-partcount{color:var(--svc);}
   .pm-tbc td,.pm-tbc-row td{background:rgba(150,155,170,.10);} .pm-tbc .tl-partname,.pm-tbc .tl-partcount{color:#6c7180;}
   .tl-emptypart td{padding:5px 12px 7px 18px;font-size:11.5px;font-style:italic;color:var(--ink-faint);border:0 !important;}
   .tl-date{font-size:12px;font-weight:700;color:var(--ink-soft);white-space:nowrap;}
@@ -1154,24 +1159,28 @@ function buildTimeline(){
   /* gather scheduled sessions by day (chronological via planSorted), dayless kept aside */
   const byDay=new Map(), dayless=[];
   list.forEach(s=>{ if(s.day==null){dayless.push(s);} else {(byDay.get(s.day)||byDay.set(s.day,[]).get(s.day)).push(s);} });
-  let rows="";
+  const COLGROUP=`<colgroup><col class="c-num"><col class="c-time"><col class="c-loc"><col class="c-act"><col class="c-note"><col class="c-dur"><col class="c-del"></colgroup>`;
+  const dayCard=(inner,extra)=>`<div class="tl-day-card${extra||""}"><table class="tl tl-edit">${COLGROUP}<tbody>${inner}</tbody></table></div>`; /* each day is its own carved cut-out card */
+  let cards="";
   byDay.forEach((items,day)=>{
-    rows+=`<tr class="tl-dayrow"><td colspan="7"><select class="tl-daysel" data-group="d${day}">${dayOpts(day)}</select><span class="tl-daydate">· ${esc(courseDateShort(day))}</span><span class="tl-daycount">${items.length} session${items.length===1?"":"s"}</span></td></tr>`;
+    let inner=`<tr class="tl-dayrow"><td colspan="7"><select class="tl-daysel" data-group="d${day}">${dayOpts(day)}</select><span class="tl-daydate">· ${esc(courseDateShort(day))}</span><span class="tl-daycount">${items.length} session${items.length===1?"":"s"}</span></td></tr>`;
     const byPart={morning:[],afternoon:[],evening:[],tbc:[]};
     items.forEach(s=>byPart[partOfDay(s)].push(s));
     FIXED_PARTS.forEach(part=>{ /* always render Morning, Afternoon, Evening — even when empty */
       const arr=byPart[part];
-      rows+=partBand(part,arr.length);
-      if(arr.length) arr.forEach(s=>rows+=tlRow(s,s._no,"pm-"+part+"-row"));
-      else rows+=`<tr class="tl-emptypart pm-${part}-row"><td colspan="7">No ${PARTS[part].label.toLowerCase()} sessions yet</td></tr>`;
+      inner+=partBand(part,arr.length);
+      if(arr.length) arr.forEach(s=>inner+=tlRow(s,s._no,"pm-"+part+"-row"));
+      else inner+=`<tr class="tl-emptypart pm-${part}-row"><td colspan="7">No ${PARTS[part].label.toLowerCase()} sessions yet</td></tr>`;
     });
-    if(byPart.tbc.length){ rows+=partBand("tbc",byPart.tbc.length); byPart.tbc.forEach(s=>rows+=tlRow(s,s._no,"pm-tbc-row")); }
+    if(byPart.tbc.length){ inner+=partBand("tbc",byPart.tbc.length); byPart.tbc.forEach(s=>inner+=tlRow(s,s._no,"pm-tbc-row")); }
+    cards+=dayCard(inner);
   });
-  dayless.forEach(s=>{ /* each unscheduled session gets its own "pick a day" heading */
-    rows+=`<tr class="tl-dayrow tl-dayrow-un"><td colspan="7"><select class="tl-daysel tl-daysel-un" data-group="un-${s._i}"><option value="" selected>⏳ Pick a day…</option>${dayOpts(-1)}</select><span class="tl-daycount tl-daycount-un">needs a day</span></td></tr>`;
-    rows+=tlRow(s,s._no,"");
+  dayless.forEach(s=>{ /* each unscheduled session gets its own "pick a day" card */
+    let inner=`<tr class="tl-dayrow tl-dayrow-un"><td colspan="7"><select class="tl-daysel tl-daysel-un" data-group="un-${s._i}"><option value="" selected>⏳ Pick a day…</option>${dayOpts(-1)}</select><span class="tl-daycount tl-daycount-un">needs a day</span></td></tr>`;
+    inner+=tlRow(s,s._no,"");
+    cards+=dayCard(inner," tl-day-card-un");
   });
-  host.innerHTML=`<div class="ps-group">${ctx}<div class="tl-scroll"><table class="tl tl-edit"><thead><tr><th>#</th><th>Time</th><th>Location</th><th>What we're doing</th><th>Details</th><th>Dur</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  host.innerHTML=`<div class="ps-group">${ctx}<div class="tl-scroll"><div class="tl-colhead"><table class="tl tl-edit">${COLGROUP}<thead><tr><th>#</th><th>Time</th><th>Location</th><th>What we're doing</th><th>Details</th><th>Dur</th><th></th></tr></thead></table></div>${cards}</div></div>`;
 }
 function schedRow(t,i,areaList){
   const day=sDay(t,i), tm=sTime(t,i), cls=sCls(t,i), area=sArea(t,i), dur=sDur(t,i), short=SHORT_BY_TYPE[t]||"Session";
