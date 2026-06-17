@@ -94,7 +94,11 @@
   .tl-addday-row{min-width:680px;padding:6px 2px 4px;}
   .tl-weekfull{font-size:11.5px;font-weight:600;font-style:italic;color:var(--ink-faint);padding-left:4px;}
   .tl-weekend{padding:10px 4px 4px;}
-  .tl-newweek{display:flex;flex-direction:column;align-items:flex-start;gap:9px;margin-top:6px;font-size:12.5px;font-weight:600;color:var(--ink-soft);}
+  .tl-newweek{display:flex;flex-direction:column;align-items:flex-start;gap:9px;margin-top:14px;font-size:12.5px;font-weight:600;color:var(--ink-soft);}
+  .tl-transferadd{display:flex;flex-direction:column;align-items:flex-start;gap:9px;margin-top:9px;}
+  .tl-transferadd-desc{max-width:300px;font-size:12px;font-weight:500;color:var(--ink-soft);line-height:1.45;}
+  .tl-transferadd-desc b{color:#9a6a12;font-weight:800;}
+  .tl-add-transfer{background:#d68f1f !important;box-shadow:0 1px 4px rgba(214,143,31,.45) !important;}
   .tl-sel{font:inherit;font-size:12px;font-weight:600;color:var(--ink);background-color:#fff;border:0;border-radius:8px;padding:6px 24px 6px 10px;cursor:pointer;width:100%;max-width:100%;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%238a8f9e' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");background-repeat:no-repeat;background-position:right 9px center;box-shadow:inset 1px 1px 3px rgba(174,178,196,.35),inset -1px -1px 2px #fff,inset 0 0 0 1px rgba(0,0,0,.05);}
   .tl-sel:focus{outline:2px solid rgba(var(--pill-r),var(--pill-g),var(--pill-b),.5);}
   .tl-type{font-weight:700;color:var(--svc);}
@@ -1046,6 +1050,7 @@ function updateUndoBtn(){ const b=document.getElementById("undoBtn"); if(b) b.di
 /* new sessions start UNSCHEDULED (no day/time) so they sit at the bottom until you place them */
 function addPlan(preset){S.plan.push(Object.assign({day:null,time:"",area:"olympic-pool",act:"",note:"",dur:60,lead:""},preset||{}));}
 function addDay(){ const next=maxPlanDay()+1; if(next>MAX_DAY) return; addPlan({day:next}); } /* start the next day with one blank session to fill in (multi-week capable) */
+function addTransferDay(){ const next=maxPlanDay()+1; if(next>MAX_DAY||next%7!==0) return; addPlan({day:next,time:"09:00",area:"olympic-pool",act:"farewell-swim"}); } /* departure Saturday — pre-filled with a morning farewell swim */
 let tlClip=null; /* a copied session held on the clipboard, pasteable into any day */
 function removePlan(i){if(i>=0&&i<S.plan.length)S.plan.splice(i,1);}
 /* sessions auto-sort by day then time — each lands in its right place; the session # follows that order */
@@ -1234,7 +1239,7 @@ function buildTimeline(){
   if(maxDay < 0){
     cards+=`<div class="tl-addday-row"><button class="add-btn-day tl-add-day">+ Add the first day</button></div>`;
   } else if(maxDay % 7 === 6){
-    cards+=`<div class="tl-addday-row tl-weekend"><div class="tl-weekfull">Full week — Saturday to Friday.</div>${maxDay<MAX_DAY?`<div class="tl-newweek">Would you like to start a new week? <button class="add-btn-day tl-add-day">+ Start a new week</button></div>`:""}</div>`;
+    cards+=`<div class="tl-addday-row tl-weekend"><div class="tl-weekfull">Full week — Saturday to Friday.</div>${maxDay<MAX_DAY?`<div class="tl-transferadd"><div class="tl-transferadd-desc">✈️ <b>Saturday is a transfer day.</b> The course says goodbye Friday night — but you can add optional last sessions (e.g. a farewell swim) for guests with time before they travel home.</div><button class="add-btn-day tl-add-transfer">+ Add transfer-day sessions</button></div><div class="tl-newweek">Or start the next group's week:<button class="add-btn-day tl-add-day">+ Start a new week</button></div>`:""}</div>`;
   } else if(maxDay < MAX_DAY){
     cards+=`<div class="tl-addday-row"><button class="add-btn-day tl-add-day">+ Add a new day</button></div>`;
   }
@@ -1881,6 +1886,7 @@ document.getElementById("timeline").addEventListener("click",e=>{
   const cc=e.target.closest(".tl-clip-clear"); if(cc){tlClip=null; render(); return;}
   const qa=e.target.closest(".tl-qadd"); if(qa){pushUndo();addPlan({day:+qa.dataset.day,area:qa.dataset.area,act:qa.dataset.act});render();return;}
   const addS=e.target.closest(".tl-add-session"); if(addS){pushUndo();addPlan({day:+addS.dataset.day});render();return;}
+  const addT=e.target.closest(".tl-add-transfer"); if(addT){pushUndo();addTransferDay();render();return;}
   const addD=e.target.closest(".tl-add-day"); if(addD){pushUndo();addDay();render();return;}
 });
 document.getElementById("addBar").addEventListener("click",e=>{const b=e.target.closest("[data-area]");if(!b)return;pushUndo();addPlan({area:b.dataset.area,act:b.dataset.act});render();});
