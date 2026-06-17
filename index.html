@@ -2225,6 +2225,19 @@ loadTemplates();
 loadDraft();
 buildTemplatesList();
 buildSvcPills(); buildCoursePills(); syncSizeVis(); buildVenues(); buildCalendar(); buildWeekTrack(); buildSizeSeg(); buildAddBar(); buildSessions(); buildSchedules(); buildFilters(); buildRoster(); buildEditor(); render();
+/* OFFLINE-FILE NOTICE — Safari can't reload a file:// page after the file changes (NSURLErrorDomain -3001) and won't reliably persist work; steer to the live hosted version */
+if(location.protocol==='file:'){
+  var _fb=document.createElement('div');
+  _fb.style.cssText='position:sticky;top:0;z-index:99999;background:#2563eb;color:#fff;padding:10px 16px;display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:center;font-size:13px;font-weight:600;';
+  var _msg=document.createElement('span'); _msg.textContent='You’re on the offline file — latest changes won’t show here and your work may not save. Open the live version:';
+  var _a=document.createElement('a'); _a.href='https://thesssc.github.io/sssc-swim-course-builder-live/'; _a.textContent='Open live version ↗';
+  _a.style.cssText='background:#fff;color:#2563eb;text-decoration:none;padding:5px 12px;border-radius:999px;font-weight:700;white-space:nowrap;';
+  var _x=document.createElement('button'); _x.textContent='×'; _x.setAttribute('aria-label','Dismiss');
+  _x.style.cssText='background:transparent;border:0;color:#fff;font-size:18px;line-height:1;cursor:pointer;padding:0 4px;';
+  _x.onclick=function(){_fb.remove();};
+  _fb.appendChild(_msg); _fb.appendChild(_a); _fb.appendChild(_x);
+  document.body.insertBefore(_fb,document.body.firstChild);
+}
 /* deep-link: re-scroll to a #fragment after dynamic content is built */
 if(location.hash){const el=document.querySelector(location.hash);if(el)setTimeout(()=>el.scrollIntoView({block:"start"}),300);}
 </script>
