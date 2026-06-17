@@ -142,6 +142,7 @@
   .bd-pooltable td{padding:5px 7px;border-top:1px solid #eaedf2;vertical-align:middle;}
   .bd-pooltable tbody tr:first-child td{border-top:0;}
   .bd-pno{white-space:nowrap;} .bd-pno .bd-typeno{margin-right:4px;}
+  .bd-focus-na{font-size:11.5px;color:var(--ink-faint);}
   .add-btn-main{color:#fff;background:var(--svc);font-size:13px;padding:9px 18px;box-shadow:0 2px 8px rgba(0,0,0,.1);}
   .add-btn-main:hover{filter:brightness(1.05);background:var(--svc);}
   .tl-num{font-weight:700;color:var(--ink-faint);font-variant-numeric:tabular-nums;}
@@ -1038,20 +1039,101 @@ const ACTIVITIES=[
 ];
 const ACT_LABEL=Object.fromEntries(ACTIVITIES.flatMap(([,items])=>items));
 const ACT_GROUP=Object.fromEntries(ACTIVITIES.flatMap(([g,items])=>items.map(([k])=>[k,g])));
-/* ── SWIM FOCUS — what we actually work on in the water, session by session (freestyle course) ── */
-const SWIM_FOCUS=[
-  ["posture-line-balance","Posture, line & balance"],
-  ["breathing","Breathing"],
-  ["legs-feet","Legs & feet — propulsion & balance"],
-  ["arm-recovery","Arm recovery"],
-  ["catch","Catch"],
-  ["timing-coordination","Timing & coordination (rhythm & timing)"],
-  ["swimming-styles","Swimming styles — hip · shoulder · hybrid"],
-  ["rate-vs-length","Stroke rate vs stroke length (ramp test)"],
-  ["biomechanics","Swim to your biomechanics (the gears)"],
-  ["starts-turns","Starts & turns"],
-];
-const FOCUS_LABEL=Object.fromEntries(SWIM_FOCUS);
+/* ── SWIM FOCUS — what we work on in the water, per swim ACTIVITY (freestyle course).
+   Grounded in src/data schedule.ts / stroke-timetables.ts + research, then adversarially verified. ── */
+const SWIM_FOCUS_BY_ACT={
+  "swim-technique":[
+    ["posture-line-balance","Posture, line & balance"],
+    ["breathing","Breathing"],
+    ["legs-feet","Legs & feet — propulsion & balance"],
+    ["arm-recovery","Arm recovery"],
+    ["catch","Catch"],
+    ["timing-coordination","Timing & coordination (rhythm & timing)"],
+    ["swimming-styles","Swimming styles — hip · shoulder · hybrid"],
+    ["rate-vs-length","Stroke rate vs stroke length (ramp test)"],
+    ["biomechanics","Swim to your biomechanics (the gears)"],
+    ["starts-turns","Starts & turns"],
+  ],
+  "swim-training":[
+    ["recovery-easy","Recovery / easy"],
+    ["aerobic-base","Aerobic base"],
+    ["aerobic-threshold","Aerobic threshold (sub-CSS)"],
+    ["css-threshold","CSS / threshold"],
+    ["vo2max","VO2max / critical speed"],
+    ["anaerobic-lactate","Anaerobic / lactate tolerance"],
+    ["speed-sprint","Speed / sprint"],
+    ["race-pace","Race-pace / goal-pace"],
+    ["descending-set","Descending set"],
+    ["negative-split","Negative split"],
+    ["broken-race-sim","Broken set / race simulation"],
+    ["hold-form-fatigued","Hold form under fatigue"],
+    ["endurance-recovery","Endurance & recovery"],
+  ],
+  "swim-drills":[
+    ["body-rotation-6kick","6-kick body rotation"],
+    ["drag-appreciation","Drag appreciation"],
+    ["catch-sculling","Catch sculling progressions"],
+    ["one-arm-pull","One-arm pull"],
+    ["single-arm-breathing","Single-arm breathing"],
+    ["kick-balance","Kick & balance drills"],
+    ["front-quadrant","Front-quadrant timing drills"],
+    ["drill-integration","Integration — drills to full stroke"],
+  ],
+  "stroke-correction":[
+    ["dropped-elbow","Dropped elbow (catch)"],
+    ["crossover-entry","Crossover entry"],
+    ["early-exit","Early exit / short finish"],
+    ["thumb-first-entry","Thumb-first entry (shoulder risk)"],
+    ["low-hips","Low hips / sinking legs"],
+    ["head-position","Head position / wobble"],
+    ["knee-driven-kick","Knee-driven kick"],
+    ["breath-timing","Breath timing & rotation"],
+    ["over-gliding","Over-gliding / dead spot"],
+  ],
+  "swim-analysis":[
+    ["video-capture-baseline","Video capture & baseline"],
+    ["body-position","Body position analysis"],
+    ["kick-analysis","Kick analysis"],
+    ["catch-pull-analysis","Catch & pull analysis"],
+    ["stroke-rate-timing","Stroke rate & timing"],
+    ["breathing-mechanics","Breathing mechanics"],
+    ["starts-turns-analysis","Starts & turns analysis"],
+    ["report-correction-plan","Report & correction plan"],
+  ],
+  "ramp-test":[
+    ["css-400-200","CSS test (400 + 200 TT)"],
+    ["step-test-7x200","7×200 step test"],
+    ["incremental-ramp","Incremental threshold ramp"],
+    ["find-threshold","Find threshold pace"],
+    ["set-zones","Set training zones"],
+    ["retest-progress","Re-test & track progress"],
+  ],
+  "tempo-trainer":[
+    ["stroke-rate-build","Stroke-rate build (raise SPM)"],
+    ["stroke-length-dps","Stroke length / DPS (lower count)"],
+    ["fixed-tempo-pace","Fixed-tempo pace hold (CSS)"],
+    ["tempo-sweep","Tempo sweep — find sweet spot"],
+  ],
+  "welcome-swim":[
+    ["assessment-swim","Assessment swim"],
+    ["easy-social-swim","Easy social swim"],
+    ["lane-grouping","Lane grouping check"],
+  ],
+  "farewell-swim":[
+    ["easy-social-swim","Easy social swim"],
+    ["favourite-set","Choose-your-own set"],
+    ["progress-recap","Progress recap swim"],
+  ],
+  "final-goodbye-swim":[
+    ["easy-social-swim","Easy social swim"],
+    ["group-photo-swim","Group photo / send-off"],
+    ["what-next-chat","What-next chat in water"],
+  ],
+};
+/* the right Focus options for a session's activity (empty = no focus list for that activity yet) */
+function focusOptionsFor(act){return SWIM_FOCUS_BY_ACT[act]||[];}
+/* flat key→label lookup across every activity (same key always maps to the same label) */
+const FOCUS_LABEL=Object.fromEntries(Object.values(SWIM_FOCUS_BY_ACT).flat());
 /* filter categories for the Course-breakdown sections */
 const CATS=[["info","Info sessions"],["classroom","Classroom sessions"],["pool","Pool sessions"],["openwater","Open water sessions"],["gym","Gym sessions"],["dryland","Dryland training sessions"],["recovery","Recovery sessions"],["recreation","Social recreation sessions"],["resort","Resort group classes"],["social","Social gatherings"],["freetime","Free time"],["meals","Meal time"],["other","Other"]];
 const CAT_LABEL=Object.fromEntries(CATS);
@@ -1216,8 +1298,9 @@ function tlRow(s,n,rowCls){
   const locSel=sel("area",AREAS.map(([k,lab])=>`<option value="${k}"${k===s.area?" selected":""}>${lab}</option>`).join(""));
   const actSel=sel("act",`<option value=""${s.act?"":" selected"}>— what are we doing? —</option>`+ACTIVITIES.map(([g,items])=>`<optgroup label="${esc(g)}">${items.map(([k,lab])=>`<option value="${k}"${k===s.act?" selected":""}>${esc(lab)}</option>`).join("")}</optgroup>`).join(""));
   const noteCell=`<input type="text" class="tl-note" data-i="${i}" value="${esc(s.note||"")}" placeholder="add details…">`;
-  /* swim sessions get a Focus dropdown — what we're actually working on in the water */
-  const focusSel=sessionCategory(s)==="pool"?`<select class="ps-sel tl-sel tl-focus" data-i="${i}" data-f="focus"><option value=""${s.focus?"":" selected"}>＋ focus · what in the water?</option>${SWIM_FOCUS.map(([k,lab])=>`<option value="${k}"${k===s.focus?" selected":""}>${esc(lab)}</option>`).join("")}</select>`:"";
+  /* swim sessions get a Focus dropdown — options depend on WHAT we're doing (technique vs training vs drills…) */
+  const _fo=focusOptionsFor(s.act);
+  const focusSel=(sessionCategory(s)==="pool"&&_fo.length)?`<select class="ps-sel tl-sel tl-focus" data-i="${i}" data-f="focus"><option value=""${s.focus?"":" selected"}>＋ focus · what in the water?</option>${_fo.map(([k,lab])=>`<option value="${k}"${k===s.focus?" selected":""}>${esc(lab)}</option>`).join("")}</select>`:"";
   const durSel=`<select class="ps-sel tl-sel tl-dur" data-i="${i}" data-f="dur">${PLAN_DURS.map(m=>`<option value="${m}"${m===s.dur?" selected":""}>${durLabel(m)}</option>`).join("")}</select>`;
   return `<tr class="${rowCls||""}"><td class="tl-num">${n}</td><td>${timeSel}</td><td>${locSel}</td><td class="tl-classcell">${actSel}${focusSel}</td><td>${noteCell}</td><td>${durSel}</td><td class="tl-actions"><button class="tl-copy" data-i="${i}" title="Copy this session">⧉</button><button class="tl-del" data-i="${i}" title="Remove this session">✕</button></td></tr>`;
 }
@@ -1673,7 +1756,8 @@ function buildBreakdown(){
       const daySel=sel(i,"day",`<option value=""${s.day==null?" selected":""}>— day —</option>`+Array.from({length:dayOptCount},(_,di)=>`<option value="${di}"${di===s.day?" selected":""}>${dayShort(di)}</option>`).join(""));
       const timeSel=sel(i,"time",`<option value=""${!s.time?" selected":""}>— time —</option>`+CLASS_TIMES.map(x=>`<option${x===s.time?" selected":""}>${x}</option>`).join(""));
       const actSel=sel(i,"act",`<option value=""${s.act?"":" selected"}>—</option>`+ACTIVITIES.map(([g,its])=>`<optgroup label="${esc(g)}">${its.map(([kk,ll])=>`<option value="${kk}"${kk===s.act?" selected":""}>${esc(ll)}</option>`).join("")}</optgroup>`).join(""));
-      const focusSel=sel(i,"focus",`<option value=""${s.focus?"":" selected"}>— focus —</option>`+SWIM_FOCUS.map(([kk,ll])=>`<option value="${kk}"${kk===s.focus?" selected":""}>${esc(ll)}</option>`).join(""));
+      const fo=focusOptionsFor(s.act);
+      const focusSel=fo.length?sel(i,"focus",`<option value=""${s.focus?"":" selected"}>— focus —</option>`+fo.map(([kk,ll])=>`<option value="${kk}"${kk===s.focus?" selected":""}>${esc(ll)}</option>`).join("")):`<span class="bd-focus-na">— pick activity —</span>`;
       const noteCell=`<input type="text" class="tl-note" data-i="${i}" value="${esc(s.note||"")}" placeholder="add details…">`;
       const durSel=sel(i,"dur",PLAN_DURS.map(m=>`<option value="${m}"${m===s.dur?" selected":""}>${durLabel(m)}</option>`).join("")," tl-dur");
       return `<tr><td class="bd-pno"><span class="bd-typeno">${bi+1}</span><span class="bd-no">#${s._no}</span></td><td>${daySel}</td><td>${timeSel}</td><td>${actSel}</td><td>${focusSel}</td><td>${noteCell}</td><td>${durSel}</td></tr>`;
@@ -1990,6 +2074,7 @@ function onPlanChange(e){
   if(f==="day") S.plan[i].day = sel.value===""?null:+sel.value;
   else if(f==="dur") S.plan[i].dur = +sel.value;
   else S.plan[i][f] = sel.value;
+  if(f==="act"){const ok=focusOptionsFor(sel.value).some(([k])=>k===S.plan[i].focus); if(!ok) S.plan[i].focus="";} /* changing the activity clears a focus that no longer applies */
   if(f==="lead"&&sel.value){const t=teacherById(sel.value); if(t&&!t.on){t.on=true; buildRoster(); buildEditor();}} /* assigning a lead brings them on shift */
   render();
 }
