@@ -1153,14 +1153,11 @@ function focusGroupsFor(s){
   order.forEach(act=>{const list=(SWIM_FOCUS_BY_ACT[act]||[]).filter(([k])=>!seen.has(k));list.forEach(([k])=>seen.add(k));if(list.length)groups.push([ACT_LABEL[act]||act,list]);});
   return groups;
 }
-/* a focus cell = the chosen focuses as removable chips + an "add" dropdown of ALL options (own activity first, picked ones hidden) */
-function focusChip(i,k){return `<span class="foc-chip"><span>${esc(FOCUS_LABEL[k]||k)}</span><button class="foc-rm tl-focus-rm" data-i="${i}" data-key="${esc(k)}" title="Remove" aria-label="Remove focus">×</button></span>`;}
+/* a single IN-BOX Focus dropdown — ALL options, grouped under activity headings (this session's activity first) so a Swim training / stroke-correction session can also pick a technique focus like "Posture, line & balance". One focus per session, no external tags. */
 function focusCell(i,s){
-  const keys=focusKeys(s), have=new Set(keys);
-  const chips=keys.map(k=>focusChip(i,k)).join("");
-  const groups=focusGroupsFor(s).map(([lab,list])=>{const opts=list.filter(([k])=>!have.has(k)).map(([k,l])=>`<option value="${k}">${esc(l)}</option>`).join("");return opts?`<optgroup label="${esc(lab)}">${opts}</optgroup>`:"";}).join("");
-  const add=`<select class="ps-sel tl-focus-add" data-i="${i}"><option value="">${keys.length?"+ add another focus":"＋ focus · what in the water?"}</option>${groups}</select>`;
-  return `<div class="foc-wrap">${chips}${add}</div>`;
+  const cur=focusKeys(s)[0]||"";
+  const groups=focusGroupsFor(s).map(([lab,list])=>`<optgroup label="${esc(lab)}">${list.map(([k,l])=>`<option value="${k}"${k===cur?" selected":""}>${esc(l)}</option>`).join("")}</optgroup>`).join("");
+  return `<select class="ps-sel tl-sel" data-i="${i}" data-f="focus"><option value=""${cur?"":" selected"}>＋ focus · what in the water?</option>${groups}</select>`;
 }
 /* filter categories for the Course-breakdown sections */
 const CATS=[["info","Info sessions"],["classroom","Classroom sessions"],["pool","Pool sessions"],["openwater","Open water sessions"],["gym","Gym sessions"],["dryland","Dryland training sessions"],["recovery","Recovery sessions"],["recreation","Social recreation sessions"],["resort","Resort group classes"],["social","Social gatherings"],["freetime","Free time"],["meals","Meal time"],["other","Other"]];
@@ -2118,8 +2115,6 @@ function onPlanChange(e){
     else if(g[0]==="d"){ const od=+g.slice(1); S.plan.forEach(p=>{ if(p.day===od) p.day=nd; }); } /* shift the whole day */
     render(); return;
   }
-  const fadd=e.target.closest(".tl-focus-add"); /* multi-select focus: add the chosen option to the session's focus list */
-  if(fadd){const i=+fadd.dataset.i, v=fadd.value; if(v&&S.plan[i]){pushUndo();const ks=focusKeys(S.plan[i]); if(!ks.includes(v))ks.push(v); S.plan[i].focus=ks;} render(); return;}
   const sel=e.target.closest("select.tl-sel"); if(!sel) return;
   const i=+sel.dataset.i, f=sel.dataset.f; if(!S.plan[i]) return;
   pushUndo();
@@ -2135,9 +2130,7 @@ document.getElementById("timeline").addEventListener("input",e=>{const inp=e.tar
 /* the full-width Pool schedule (in the breakdown) edits the same plan with the same handler */
 document.getElementById("breakdown").addEventListener("change",onPlanChange);
 document.getElementById("breakdown").addEventListener("input",e=>{const inp=e.target.closest(".tl-note");if(!inp)return;const i=+inp.dataset.i;if(S.plan[i]){S.plan[i].note=inp.value;saveDraft();}});
-document.getElementById("breakdown").addEventListener("click",e=>{const frm=e.target.closest(".tl-focus-rm"); if(frm){const i=+frm.dataset.i,k=frm.dataset.key; if(S.plan[i]){pushUndo();S.plan[i].focus=focusKeys(S.plan[i]).filter(x=>x!==k);} render();}});
 document.getElementById("timeline").addEventListener("click",e=>{
-  const frm=e.target.closest(".tl-focus-rm"); if(frm){const i=+frm.dataset.i,k=frm.dataset.key; if(S.plan[i]){pushUndo();S.plan[i].focus=focusKeys(S.plan[i]).filter(x=>x!==k);} render(); return;}
   const del=e.target.closest(".tl-del"); if(del){pushUndo();removePlan(+del.dataset.i);render();return;}
   const cp=e.target.closest(".tl-copy"); if(cp){const s=S.plan[+cp.dataset.i]; if(s){tlClip={time:s.time,area:s.area,act:s.act,note:s.note,dur:s.dur,lead:s.lead,focus:s.focus};} render(); return;}
   const ps=e.target.closest(".tl-paste"); if(ps){if(tlClip){pushUndo();addPlan(Object.assign({day:+ps.dataset.day},tlClip));} render(); return;}
