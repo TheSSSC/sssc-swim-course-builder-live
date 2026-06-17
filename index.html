@@ -1637,7 +1637,7 @@ function buildBreakdown(){
     const items=groups[k].slice().sort((a,b)=>{const au=a.day==null,bu=b.day==null;if(au!==bu)return au?1:-1;return (a.day-b.day)||(""+a.time).localeCompare(""+b.time);})
       .map((s,bi)=>{const t=teacherById(s.lead), when=s.day==null?"—":dayShort(s.day)+(s.time?" "+s.time:"");
         return `<div class="bd-item"><div class="bd-i1"><span class="bd-typeno" title="${esc(lab)} — number ${bi+1} of ${groups[k].length}">${bi+1}</span><span class="bd-no" title="Programme schedule #${s._no}">#${s._no}</span><span class="bd-when">${esc(when)}</span><span class="bd-act">${s.act?esc(ACT_LABEL[s.act]||s.act):"—"}</span></div><div class="bd-i2">${esc(areaLabel(s.area))} · ${durLabel(s.dur)}${t?" · "+esc(t.name.split(" ")[0]):""}</div>${s.note?`<div class="bd-note">${esc(s.note)}</div>`:""}</div>`;}).join("");
-    return `<div class="bd-box"><div class="bd-box-h"><span class="bd-ttl"><span class="bd-secno">${secNo}</span>${esc(lab)}</span><span class="bd-box-n">${groups[k].length}</span></div>${items}</div>`;
+    return `<div class="bd-box"><div class="bd-box-h"><span class="bd-ttl">${esc(lab)}</span><span class="bd-box-n">${groups[k].length}</span></div>${items}</div>`;
   };
   host.innerHTML=`<div class="bd-grid">${present.map((c,i)=>box(c,i+1)).join("")}</div>`;
 }
