@@ -1775,6 +1775,8 @@ function render(){
   const idle=Math.max(0,teachersOn-distinctUsed);
   const unassigned=total-lanesAssigned;
   document.getElementById("totalLanes").textContent=total;
+  /* keep the per-side lane steppers in sync with the loaded/edited state (fixes 0/0/0 shown after reload while total said 8) */
+  ["male","mixed","female"].forEach(k=>{const el=document.getElementById(k+"V");if(el)el.textContent=S[k];});
 
   /* POOL — one frame per pool class; optional overlays (Business € / Occupancy / Names) */
   buildPoolLayers();
