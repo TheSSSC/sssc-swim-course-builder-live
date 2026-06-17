@@ -543,7 +543,12 @@
   <div class="card" id="templatesCard">
     <div class="card-head" style="margin-bottom:11px;">
       <p class="lbl">Swim-week templates — save a finished week, reuse it for future weeks</p>
-      <button class="add-btn add-btn-main" id="saveTplBtn">💾 Save this week as a template</button>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+        <button class="mini-btn" id="exportTplBtn" title="Download your templates + courses as one file — to move your work to the live site or another device">⤓ Export my work</button>
+        <label class="mini-btn" for="importTplInput" style="cursor:pointer;" title="Load a file you exported from another copy (merges in, nothing is wiped)">⤒ Import</label>
+        <input type="file" id="importTplInput" accept="application/json" hidden>
+        <button class="add-btn add-btn-main" id="saveTplBtn">💾 Save this week as a template</button>
+      </div>
     </div>
     <div id="templatesList"></div>
   </div>
@@ -1504,6 +1509,30 @@ function importCalendar(file){
   }catch(e){showToast("Couldn't read that file — not a valid calendar export");}};
   r.readAsText(file);
 }
+/* MOVE YOUR WORK between the offline file and the live site (browser storage is per-site, so it can't carry across on its own).
+   Bundles your saved templates + published courses into one file; import MERGES by id so nothing already there is wiped. */
+function exportMyWork(){
+  const tpls=S.templates||[], crs=S.published||[];
+  const data=JSON.stringify({app:"sssc-course-builder",kind:"my-work",version:1,exportedAt:new Date().toISOString(),templates:tpls,courses:crs},null,2);
+  const blob=new Blob([data],{type:"application/json"}), url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download="sssc-my-work.json"; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  showToast(`Exported ${tpls.length} template${tpls.length!==1?"s":""} + ${crs.length} course${crs.length!==1?"s":""} → sssc-my-work.json`);
+}
+function importMyWork(file){
+  const r=new FileReader();
+  r.onload=()=>{try{
+    const d=JSON.parse(r.result);
+    const tpls=Array.isArray(d.templates)?d.templates:[];
+    const crs=Array.isArray(d.courses)?d.courses:(Array.isArray(d)?d:[]);
+    if(!tpls.length && !crs.length) throw 0;
+    const mergeById=(existing,incoming)=>{const m={};(existing||[]).forEach(x=>{if(x&&x.id)m[x.id]=x;});incoming.forEach(x=>{if(x&&x.id)m[x.id]=x;});return Object.values(m);};
+    if(tpls.length){ S.templates=mergeById(S.templates,tpls); saveTemplates(); buildTemplatesList(); }
+    if(crs.length){ S.published=mergeById(S.published,crs); savePublished(); buildPublish(); buildResortCal(); }
+    showToast(`Imported ${tpls.length} template${tpls.length!==1?"s":""} + ${crs.length} course${crs.length!==1?"s":""} — find them below`);
+  }catch(e){showToast("Couldn't read that file — not a valid SSSC export");}};
+  r.readAsText(file);
+}
 function deletePublished(id){S.published=S.published.filter(c=>c.id!==id);savePublished();buildPublish();buildResortCal();}
 function loadCourse(id){
   const c=S.published.find(x=>x.id===id); if(!c)return;
@@ -2103,6 +2132,8 @@ document.getElementById("templateBar").addEventListener("change",e=>{const s=e.t
 document.getElementById("undoBtn").addEventListener("click",doUndo);
 document.getElementById("newCourseBtn").addEventListener("click",()=>{if(!S.plan.length||confirm("Start a new blank course? Your current unpublished work will be cleared (published courses stay safe).")) newCourse();});
 document.getElementById("saveTplBtn").addEventListener("click",saveCurrentAsTemplate);
+document.getElementById("exportTplBtn").addEventListener("click",exportMyWork);
+document.getElementById("importTplInput").addEventListener("change",e=>{if(e.target.files[0])importMyWork(e.target.files[0]);e.target.value="";});
 document.getElementById("templatesList").addEventListener("click",e=>{
   const u=e.target.closest("[data-tpluse]"); if(u){useTemplate(u.dataset.tpluse);return;}
   const d=e.target.closest("[data-tpldel]"); if(d){deleteTemplate(d.dataset.tpldel);return;}
