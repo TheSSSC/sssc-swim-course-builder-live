@@ -201,6 +201,15 @@
   .pub-course-a{margin-top:1px;}
   .pub-load{border:0;cursor:pointer;font:inherit;font-size:11px;font-weight:700;color:var(--svc);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.1);border-radius:999px;padding:5px 12px;transition:.15s;}
   .pub-load:hover{background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.18);}
+  .tpl-card{background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:10px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06),0 1px 3px rgba(174,178,196,.25);}
+  .tpl-card:last-child{margin-bottom:0;}
+  .tpl-card-h{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .tpl-card-t{font-size:13.5px;font-weight:800;color:var(--svc);}
+  .tpl-card-s{font-size:12px;font-weight:500;color:var(--ink-soft);line-height:1.4;margin:5px 0 10px;}
+  .tpl-del2{border:0;cursor:pointer;background:transparent;color:var(--ink-faint);font-size:13px;line-height:1;padding:3px 7px;border-radius:6px;flex:none;}
+  .tpl-del2:hover{color:#e11d48;background:rgba(225,29,72,.1);}
+  .tpl-use{border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:700;color:#fff;background:var(--svc);border-radius:999px;padding:8px 15px;transition:.15s;}
+  .tpl-use:hover{filter:brightness(1.06);}
   .biz-mtx{grid-template-columns:repeat(auto-fit,minmax(168px,1fr));}
   .m .ksub{font-size:10.5px;font-weight:600;color:var(--ink-soft);margin-top:3px;line-height:1.3;}
   .biz-table{margin-top:2px;}
@@ -516,6 +525,15 @@
     <div id="addBar" class="add-bar"></div>
     <div id="templateBar" class="add-bar"></div>
     <div id="timeline"></div>
+  </div>
+
+  <!-- SWIM-WEEK TEMPLATES -->
+  <div class="card" id="templatesCard">
+    <div class="card-head" style="margin-bottom:11px;">
+      <p class="lbl">Swim-week templates — save a finished week, reuse it for future weeks</p>
+      <button class="add-btn add-btn-main" id="saveTplBtn">💾 Save this week as a template</button>
+    </div>
+    <div id="templatesList"></div>
   </div>
 
   <!-- COURSE BREAKDOWN BY TYPE (filtered views) -->
@@ -1392,6 +1410,58 @@ function loadCourse(id){
   showToast(`Loaded “${c.title}” — Wk ${c.wk} at ${c.resortName}`);
   document.getElementById("publishPanel").scrollIntoView({block:"center"});
 }
+/* ── SWIM-WEEK TEMPLATES — save a finished week and reuse it ── */
+const TPL_KEY="sssc-course-templates-v1";
+const CAT_SHORT={info:"info",classroom:"classroom",pool:"pool",openwater:"open-water",gym:"gym",dryland:"dryland",recovery:"recovery",recreation:"recreation",resort:"resort class",social:"social",freetime:"free time",meals:"meals",other:"other"};
+function loadTemplates(){try{const raw=localStorage.getItem(TPL_KEY);S.templates=raw?JSON.parse(raw):[];}catch(e){S.templates=[];}}
+function saveTemplates(){try{localStorage.setItem(TPL_KEY,JSON.stringify(S.templates));}catch(e){}}
+function courseDayCount(){return new Set(S.plan.filter(s=>s.day!=null).map(s=>s.day)).size;}
+function summarizeCourse(){
+  const sv=SERVICES[S.svc], stroke=sv.stroke&&STROKES[S.course]?" · "+STROKES[S.course].label:"";
+  const days=courseDayCount(), total=S.plan.length;
+  const counts={}; S.plan.forEach(s=>{const c=sessionCategory(s); counts[c]=(counts[c]||0)+1;});
+  const parts=CATS.filter(([k])=>counts[k]).map(([k])=>`${counts[k]} ${CAT_SHORT[k]||k}`);
+  return `${sv.name}${stroke} · ${days} day${days!==1?"s":""}, ${total} session${total!==1?"s":""}${parts.length?" — "+parts.join(" · "):""}`;
+}
+function saveCurrentAsTemplate(){
+  if(!S.plan.length){ showToast("Build a swim week first, then save it as a template"); return; }
+  const sv=SERVICES[S.svc], stroke=sv.stroke&&STROKES[S.course]?" · "+STROKES[S.course].label:"";
+  const suggested=`${sv.name}${stroke} · ${courseDayCount()}-day week`;
+  const input=prompt("Give this swim-week template a descriptive title:",suggested);
+  if(input===null) return;            /* cancelled */
+  const title=input.trim()||suggested;
+  const tpl={ id:"t"+Date.now().toString(36)+Math.floor(Math.random()*46656).toString(36), ts:Date.now(),
+    title, summary:summarizeCourse(), days:courseDayCount(), sessions:S.plan.length,
+    design:{ svc:S.svc, course:S.course, mode:S.mode, male:S.male, mixed:S.mixed, female:S.female, size:S.size,
+      plan:JSON.parse(JSON.stringify(S.plan)), areaRates:JSON.parse(JSON.stringify(S.areaRates)),
+      onShift:S.roster.filter(t=>t.on).map(t=>t.id) } };
+  S.templates.unshift(tpl); saveTemplates(); buildTemplatesList();
+  showToast(`Saved template “${title}”`);
+}
+function useTemplate(id){
+  const t=S.templates.find(x=>x.id===id); if(!t)return;
+  if(S.plan.length && !confirm(`Start a new course from “${t.title}”? Your current unpublished work will be replaced (published courses stay safe).`)) return;
+  const d=t.design||{};
+  if(SERVICES[d.svc])S.svc=d.svc; if(STROKES[d.course])S.course=d.course; if(d.mode)S.mode=d.mode;
+  S.male=d.male||0;S.mixed=d.mixed||0;S.female=d.female||0;S.size=d.size||0;
+  S.plan=d.plan?JSON.parse(JSON.stringify(d.plan)):[];
+  S.areaRates=d.areaRates?JSON.parse(JSON.stringify(d.areaRates)):{};
+  S.roster.forEach(tt=>tt.on=(d.onShift||[]).includes(tt.id));
+  S.loadedId=null; S.tplSrc=null; S.tplTargets=null; tlClip=null; undoStack=[]; updateUndoBtn();
+  refreshAll();
+  showToast(`Loaded template “${t.title}” — set the week & resort, then publish`);
+  document.getElementById("timeline").scrollIntoView({block:"start"});
+}
+function deleteTemplate(id){
+  const t=S.templates.find(x=>x.id===id); if(!t)return;
+  if(!confirm(`Delete the template “${t.title}”? This can't be undone.`)) return;
+  S.templates=S.templates.filter(x=>x.id!==id); saveTemplates(); buildTemplatesList();
+}
+function buildTemplatesList(){
+  const host=document.getElementById("templatesList"); if(!host)return;
+  if(!S.templates||!S.templates.length){ host.innerHTML=`<p class="lbl2" style="margin:0;color:var(--ink-faint)">No saved templates yet — build a swim week above, then tap <b>Save this week as a template</b> to reuse it for future weeks.</p>`; return; }
+  host.innerHTML=S.templates.map(t=>`<div class="tpl-card"><div class="tpl-card-h"><span class="tpl-card-t">${esc(t.title)}</span><button class="tpl-del2" data-tpldel="${t.id}" title="Delete template">✕</button></div><div class="tpl-card-s">${esc(t.summary||"")}</div><div class="tpl-card-a"><button class="tpl-use" data-tpluse="${t.id}">Use this template</button></div></div>`).join("");
+}
 function buildPublish(){
   const sv=SERVICES[S.svc], venue=VENUES.find(v=>v.key===S.venue)||VENUES[0];
   if(!S.pubWeeks||!S.pubWeeks.length) S.pubWeeks=[S.week];
@@ -1897,6 +1967,11 @@ document.getElementById("templateBar").addEventListener("click",e=>{
 document.getElementById("templateBar").addEventListener("change",e=>{const s=e.target.closest("#tplSrc");if(s){S.tplSrc=+s.value;S.tplTargets=null;buildTemplateBar();}});
 document.getElementById("undoBtn").addEventListener("click",doUndo);
 document.getElementById("newCourseBtn").addEventListener("click",()=>{if(!S.plan.length||confirm("Start a new blank course? Your current unpublished work will be cleared (published courses stay safe).")) newCourse();});
+document.getElementById("saveTplBtn").addEventListener("click",saveCurrentAsTemplate);
+document.getElementById("templatesList").addEventListener("click",e=>{
+  const u=e.target.closest("[data-tpluse]"); if(u){useTemplate(u.dataset.tpluse);return;}
+  const d=e.target.closest("[data-tpldel]"); if(d){deleteTemplate(d.dataset.tpldel);return;}
+});
 document.querySelectorAll(".stepper").forEach(st=>{
   st.addEventListener("click",e=>{
     const b=e.target.closest("button[data-d]"); if(!b)return;
@@ -2011,7 +2086,9 @@ document.getElementById("laneEditor").addEventListener("change",e=>{
 
 /* ── INIT ─────────────────────────────────────────────────── */
 loadPublished();
+loadTemplates();
 loadDraft();
+buildTemplatesList();
 buildSvcPills(); buildCoursePills(); syncSizeVis(); buildVenues(); buildCalendar(); buildWeekTrack(); buildSizeSeg(); buildAddBar(); buildSessions(); buildSchedules(); buildFilters(); buildRoster(); buildEditor(); render();
 /* deep-link: re-scroll to a #fragment after dynamic content is built */
 if(location.hash){const el=document.querySelector(location.hash);if(el)setTimeout(()=>el.scrollIntoView({block:"start"}),300);}
