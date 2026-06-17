@@ -103,6 +103,7 @@
   .tl-sel:focus{outline:2px solid rgba(var(--pill-r),var(--pill-g),var(--pill-b),.5);}
   .tl-type{font-weight:700;color:var(--svc);}
   .tl-dur{max-width:100%;padding-left:9px;padding-right:20px;}
+  .tl-focus{margin-top:6px;font-size:11.5px;font-weight:500;color:var(--ink-soft);}
   .tl-note{font:inherit;font-size:12px;font-weight:500;color:var(--ink);background:#fff;border:0;border-radius:8px;padding:6px 9px;min-width:150px;width:100%;box-shadow:inset 1px 1px 3px rgba(174,178,196,.35),inset -1px -1px 2px #fff,inset 0 0 0 1px rgba(0,0,0,.05);}
   .tl-note:focus{outline:2px solid rgba(var(--pill-r),var(--pill-g),var(--pill-b),.5);}
   .tl-note::placeholder{color:var(--ink-faint);font-weight:400;}
@@ -132,6 +133,7 @@
   .bd-act{font-size:12.5px;font-weight:700;color:var(--ink);text-align:right;}
   .bd-i2{font-size:11px;font-weight:600;color:var(--ink-faint);margin-top:2px;}
   .bd-note{font-size:11px;font-weight:500;color:var(--ink-soft);margin-top:3px;font-style:italic;line-height:1.35;}
+  .bd-focus{display:inline-block;margin-top:5px;font-size:11.5px;font-weight:700;color:var(--ink);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.12);border-radius:7px;padding:3px 9px;line-height:1.3;}
   .add-btn-main{color:#fff;background:var(--svc);font-size:13px;padding:9px 18px;box-shadow:0 2px 8px rgba(0,0,0,.1);}
   .add-btn-main:hover{filter:brightness(1.05);background:var(--svc);}
   .tl-num{font-weight:700;color:var(--ink-faint);font-variant-numeric:tabular-nums;}
@@ -1028,6 +1030,20 @@ const ACTIVITIES=[
 ];
 const ACT_LABEL=Object.fromEntries(ACTIVITIES.flatMap(([,items])=>items));
 const ACT_GROUP=Object.fromEntries(ACTIVITIES.flatMap(([g,items])=>items.map(([k])=>[k,g])));
+/* ── SWIM FOCUS — what we actually work on in the water, session by session (freestyle course) ── */
+const SWIM_FOCUS=[
+  ["posture-line-balance","Posture, line & balance"],
+  ["breathing","Breathing"],
+  ["legs-feet","Legs & feet — propulsion & balance"],
+  ["arm-recovery","Arm recovery"],
+  ["catch","Catch"],
+  ["timing-coordination","Timing & coordination (rhythm & timing)"],
+  ["swimming-styles","Swimming styles — hip · shoulder · hybrid"],
+  ["rate-vs-length","Stroke rate vs stroke length (ramp test)"],
+  ["biomechanics","Swim to your biomechanics (the gears)"],
+  ["starts-turns","Starts & turns"],
+];
+const FOCUS_LABEL=Object.fromEntries(SWIM_FOCUS);
 /* filter categories for the Course-breakdown sections */
 const CATS=[["info","Info sessions"],["classroom","Classroom sessions"],["pool","Pool sessions"],["openwater","Open water sessions"],["gym","Gym sessions"],["dryland","Dryland training sessions"],["recovery","Recovery sessions"],["recreation","Social recreation sessions"],["resort","Resort group classes"],["social","Social gatherings"],["freetime","Free time"],["meals","Meal time"],["other","Other"]];
 const CAT_LABEL=Object.fromEntries(CATS);
@@ -1192,8 +1208,10 @@ function tlRow(s,n,rowCls){
   const locSel=sel("area",AREAS.map(([k,lab])=>`<option value="${k}"${k===s.area?" selected":""}>${lab}</option>`).join(""));
   const actSel=sel("act",`<option value=""${s.act?"":" selected"}>— what are we doing? —</option>`+ACTIVITIES.map(([g,items])=>`<optgroup label="${esc(g)}">${items.map(([k,lab])=>`<option value="${k}"${k===s.act?" selected":""}>${esc(lab)}</option>`).join("")}</optgroup>`).join(""));
   const noteCell=`<input type="text" class="tl-note" data-i="${i}" value="${esc(s.note||"")}" placeholder="add details…">`;
+  /* swim sessions get a Focus dropdown — what we're actually working on in the water */
+  const focusSel=sessionCategory(s)==="pool"?`<select class="ps-sel tl-sel tl-focus" data-i="${i}" data-f="focus"><option value=""${s.focus?"":" selected"}>＋ focus · what in the water?</option>${SWIM_FOCUS.map(([k,lab])=>`<option value="${k}"${k===s.focus?" selected":""}>${esc(lab)}</option>`).join("")}</select>`:"";
   const durSel=`<select class="ps-sel tl-sel tl-dur" data-i="${i}" data-f="dur">${PLAN_DURS.map(m=>`<option value="${m}"${m===s.dur?" selected":""}>${durLabel(m)}</option>`).join("")}</select>`;
-  return `<tr class="${rowCls||""}"><td class="tl-num">${n}</td><td>${timeSel}</td><td>${locSel}</td><td class="tl-classcell">${actSel}</td><td>${noteCell}</td><td>${durSel}</td><td class="tl-actions"><button class="tl-copy" data-i="${i}" title="Copy this session">⧉</button><button class="tl-del" data-i="${i}" title="Remove this session">✕</button></td></tr>`;
+  return `<tr class="${rowCls||""}"><td class="tl-num">${n}</td><td>${timeSel}</td><td>${locSel}</td><td class="tl-classcell">${actSel}${focusSel}</td><td>${noteCell}</td><td>${durSel}</td><td class="tl-actions"><button class="tl-copy" data-i="${i}" title="Copy this session">⧉</button><button class="tl-del" data-i="${i}" title="Remove this session">✕</button></td></tr>`;
 }
 /* COURSE TIMELINE — the master builder; build the course one session at a time */
 function buildTimeline(){
@@ -1636,7 +1654,7 @@ function buildBreakdown(){
   const box=([k,lab],secNo)=>{
     const items=groups[k].slice().sort((a,b)=>{const au=a.day==null,bu=b.day==null;if(au!==bu)return au?1:-1;return (a.day-b.day)||(""+a.time).localeCompare(""+b.time);})
       .map((s,bi)=>{const t=teacherById(s.lead), when=s.day==null?"—":dayShort(s.day)+(s.time?" "+s.time:"");
-        return `<div class="bd-item"><div class="bd-i1"><span class="bd-typeno" title="${esc(lab)} — number ${bi+1} of ${groups[k].length}">${bi+1}</span><span class="bd-no" title="Programme schedule #${s._no}">#${s._no}</span><span class="bd-when">${esc(when)}</span><span class="bd-act">${s.act?esc(ACT_LABEL[s.act]||s.act):"—"}</span></div><div class="bd-i2">${esc(areaLabel(s.area))} · ${durLabel(s.dur)}${t?" · "+esc(t.name.split(" ")[0]):""}</div>${s.note?`<div class="bd-note">${esc(s.note)}</div>`:""}</div>`;}).join("");
+        return `<div class="bd-item"><div class="bd-i1"><span class="bd-typeno" title="${esc(lab)} — number ${bi+1} of ${groups[k].length}">${bi+1}</span><span class="bd-no" title="Programme schedule #${s._no}">#${s._no}</span><span class="bd-when">${esc(when)}</span><span class="bd-act">${s.act?esc(ACT_LABEL[s.act]||s.act):"—"}</span></div>${s.focus?`<div class="bd-focus">${esc(FOCUS_LABEL[s.focus]||s.focus)}</div>`:""}<div class="bd-i2">${esc(areaLabel(s.area))} · ${durLabel(s.dur)}${t?" · "+esc(t.name.split(" ")[0]):""}</div>${s.note?`<div class="bd-note">${esc(s.note)}</div>`:""}</div>`;}).join("");
     return `<div class="bd-box"><div class="bd-box-h"><span class="bd-ttl">${esc(lab)}</span><span class="bd-box-n">${groups[k].length}</span></div>${items}</div>`;
   };
   host.innerHTML=`<div class="bd-grid">${present.map((c,i)=>box(c,i+1)).join("")}</div>`;
@@ -1954,7 +1972,7 @@ document.getElementById("timeline").addEventListener("change",onPlanChange);
 document.getElementById("timeline").addEventListener("input",e=>{const inp=e.target.closest(".tl-note");if(!inp)return;const i=+inp.dataset.i;if(S.plan[i]){S.plan[i].note=inp.value;saveDraft();}});
 document.getElementById("timeline").addEventListener("click",e=>{
   const del=e.target.closest(".tl-del"); if(del){pushUndo();removePlan(+del.dataset.i);render();return;}
-  const cp=e.target.closest(".tl-copy"); if(cp){const s=S.plan[+cp.dataset.i]; if(s){tlClip={time:s.time,area:s.area,act:s.act,note:s.note,dur:s.dur,lead:s.lead};} render(); return;}
+  const cp=e.target.closest(".tl-copy"); if(cp){const s=S.plan[+cp.dataset.i]; if(s){tlClip={time:s.time,area:s.area,act:s.act,note:s.note,dur:s.dur,lead:s.lead,focus:s.focus};} render(); return;}
   const ps=e.target.closest(".tl-paste"); if(ps){if(tlClip){pushUndo();addPlan(Object.assign({day:+ps.dataset.day},tlClip));} render(); return;}
   const cc=e.target.closest(".tl-clip-clear"); if(cc){tlClip=null; render(); return;}
   const qa=e.target.closest(".tl-qadd"); if(qa){pushUndo();addPlan({day:+qa.dataset.day,area:qa.dataset.area,act:qa.dataset.act});render();return;}
