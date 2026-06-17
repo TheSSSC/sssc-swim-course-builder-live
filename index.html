@@ -99,8 +99,13 @@
   .tl-transferadd-desc{max-width:300px;font-size:12px;font-weight:500;color:var(--ink-soft);line-height:1.45;}
   .tl-transferadd-desc b{color:#9a6a12;font-weight:800;}
   .tl-add-transfer{background:#d68f1f !important;box-shadow:0 1px 4px rgba(214,143,31,.45) !important;}
-  .tl-sel{font:inherit;font-size:12px;font-weight:600;color:var(--ink);background-color:#fff;border:0;border-radius:8px;padding:6px 24px 6px 10px;cursor:pointer;width:100%;max-width:100%;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%238a8f9e' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");background-repeat:no-repeat;background-position:right 9px center;box-shadow:inset 1px 1px 3px rgba(174,178,196,.35),inset -1px -1px 2px #fff,inset 0 0 0 1px rgba(0,0,0,.05);}
-  .tl-sel:focus{outline:2px solid rgba(var(--pill-r),var(--pill-g),var(--pill-b),.5);}
+  .tl-sel,.tl-focus-add{font:inherit;font-size:12px;font-weight:600;color:var(--ink);background-color:#fff;border:0;border-radius:8px;padding:6px 24px 6px 10px;cursor:pointer;width:100%;max-width:100%;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%238a8f9e' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");background-repeat:no-repeat;background-position:right 9px center;box-shadow:inset 1px 1px 3px rgba(174,178,196,.35),inset -1px -1px 2px #fff,inset 0 0 0 1px rgba(0,0,0,.05);}
+  .tl-sel:focus,.tl-focus-add:focus{outline:2px solid rgba(var(--pill-r),var(--pill-g),var(--pill-b),.5);}
+  .foc-wrap{display:flex;flex-wrap:wrap;align-items:center;gap:5px;}
+  .foc-chip{display:inline-flex;align-items:center;gap:3px;background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.13);color:var(--svc);font-size:11px;font-weight:700;border-radius:999px;padding:2px 4px 2px 9px;line-height:1.4;}
+  .foc-rm{background:transparent;border:0;color:var(--svc);font-size:13px;line-height:1;cursor:pointer;padding:0 3px;border-radius:50%;}
+  .foc-rm:hover{background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.25);}
+  .tl-focus-add{flex:1 1 120px;min-width:108px;width:auto;}
   .tl-type{font-weight:700;color:var(--svc);}
   .tl-dur{max-width:100%;padding-left:9px;padding-right:20px;}
   .tl-focus{margin-top:6px;font-size:11.5px;font-weight:500;color:var(--ink-soft);}
@@ -1139,6 +1144,24 @@ const SWIM_FOCUS_BY_ACT={
 function focusOptionsFor(act){return SWIM_FOCUS_BY_ACT[act]||[];}
 /* flat key→label lookup across every activity (same key always maps to the same label) */
 const FOCUS_LABEL=Object.fromEntries(Object.values(SWIM_FOCUS_BY_ACT).flat());
+/* focus is a LIST now (multi-select) — a session can carry BOTH technique + training etc.; back-compat with the old single string */
+function focusKeys(s){const f=s&&s.focus;return Array.isArray(f)?f.slice():(f?[f]:[]);}
+/* EVERY focus option, grouped by activity, with THIS session's activity first; de-duped so each option appears once */
+function focusGroupsFor(s){
+  const own=s&&s.act, order=[own,...Object.keys(SWIM_FOCUS_BY_ACT).filter(a=>a!==own)];
+  const seen=new Set(), groups=[];
+  order.forEach(act=>{const list=(SWIM_FOCUS_BY_ACT[act]||[]).filter(([k])=>!seen.has(k));list.forEach(([k])=>seen.add(k));if(list.length)groups.push([ACT_LABEL[act]||act,list]);});
+  return groups;
+}
+/* a focus cell = the chosen focuses as removable chips + an "add" dropdown of ALL options (own activity first, picked ones hidden) */
+function focusChip(i,k){return `<span class="foc-chip"><span>${esc(FOCUS_LABEL[k]||k)}</span><button class="foc-rm tl-focus-rm" data-i="${i}" data-key="${esc(k)}" title="Remove" aria-label="Remove focus">×</button></span>`;}
+function focusCell(i,s){
+  const keys=focusKeys(s), have=new Set(keys);
+  const chips=keys.map(k=>focusChip(i,k)).join("");
+  const groups=focusGroupsFor(s).map(([lab,list])=>{const opts=list.filter(([k])=>!have.has(k)).map(([k,l])=>`<option value="${k}">${esc(l)}</option>`).join("");return opts?`<optgroup label="${esc(lab)}">${opts}</optgroup>`:"";}).join("");
+  const add=`<select class="ps-sel tl-focus-add" data-i="${i}"><option value="">${keys.length?"+ add another focus":"＋ focus · what in the water?"}</option>${groups}</select>`;
+  return `<div class="foc-wrap">${chips}${add}</div>`;
+}
 /* filter categories for the Course-breakdown sections */
 const CATS=[["info","Info sessions"],["classroom","Classroom sessions"],["pool","Pool sessions"],["openwater","Open water sessions"],["gym","Gym sessions"],["dryland","Dryland training sessions"],["recovery","Recovery sessions"],["recreation","Social recreation sessions"],["resort","Resort group classes"],["social","Social gatherings"],["freetime","Free time"],["meals","Meal time"],["other","Other"]];
 const CAT_LABEL=Object.fromEntries(CATS);
@@ -1303,9 +1326,8 @@ function tlRow(s,n,rowCls){
   const locSel=sel("area",AREAS.map(([k,lab])=>`<option value="${k}"${k===s.area?" selected":""}>${lab}</option>`).join(""));
   const actSel=sel("act",`<option value=""${s.act?"":" selected"}>— what are we doing? —</option>`+ACTIVITIES.map(([g,items])=>`<optgroup label="${esc(g)}">${items.map(([k,lab])=>`<option value="${k}"${k===s.act?" selected":""}>${esc(lab)}</option>`).join("")}</optgroup>`).join(""));
   const noteCell=`<input type="text" class="tl-note" data-i="${i}" value="${esc(s.note||"")}" placeholder="add details…">`;
-  /* swim sessions get a Focus dropdown — options depend on WHAT we're doing (technique vs training vs drills…) */
-  const _fo=focusOptionsFor(s.act);
-  const focusSel=(sessionCategory(s)==="pool"&&_fo.length)?`<select class="ps-sel tl-sel tl-focus" data-i="${i}" data-f="focus"><option value=""${s.focus?"":" selected"}>＋ focus · what in the water?</option>${_fo.map(([k,lab])=>`<option value="${k}"${k===s.focus?" selected":""}>${esc(lab)}</option>`).join("")}</select>`:"";
+  /* swim sessions get a multi-select Focus — pick from ALL options (own activity first), stack as many as you need */
+  const focusSel=sessionCategory(s)==="pool"?`<div style="margin-top:6px">${focusCell(i,s)}</div>`:"";
   const durSel=`<select class="ps-sel tl-sel tl-dur" data-i="${i}" data-f="dur">${PLAN_DURS.map(m=>`<option value="${m}"${m===s.dur?" selected":""}>${durLabel(m)}</option>`).join("")}</select>`;
   return `<tr class="${rowCls||""}"><td class="tl-num">${n}</td><td>${timeSel}</td><td>${locSel}</td><td class="tl-classcell">${actSel}${focusSel}</td><td>${noteCell}</td><td>${durSel}</td><td class="tl-actions"><button class="tl-copy" data-i="${i}" title="Copy this session">⧉</button><button class="tl-del" data-i="${i}" title="Remove this session">✕</button></td></tr>`;
 }
@@ -1774,7 +1796,7 @@ function buildBreakdown(){
   const sortItems=arr=>arr.slice().sort((a,b)=>{const au=a.day==null,bu=b.day==null;if(au!==bu)return au?1:-1;return (a.day-b.day)||(""+a.time).localeCompare(""+b.time);});
   const box=([k,lab])=>{
     const items=sortItems(groups[k]).map((s,bi)=>{const t=teacherById(s.lead), when=s.day==null?"—":dayShort(s.day)+(s.time?" "+s.time:"");
-        return `<div class="bd-item"><div class="bd-i1"><span class="bd-typeno" title="${esc(lab)} — number ${bi+1} of ${groups[k].length}">${bi+1}</span><span class="bd-no" title="Programme schedule #${s._no}">#${s._no}</span><span class="bd-when">${esc(when)}</span><span class="bd-act">${s.act?esc(ACT_LABEL[s.act]||s.act):"—"}</span></div>${s.focus?`<div class="bd-focus">${esc(FOCUS_LABEL[s.focus]||s.focus)}</div>`:""}<div class="bd-i2">${esc(areaLabel(s.area))} · ${durLabel(s.dur)}${t?" · "+esc(t.name.split(" ")[0]):""}</div>${s.note?`<div class="bd-note">${esc(s.note)}</div>`:""}</div>`;}).join("");
+        return `<div class="bd-item"><div class="bd-i1"><span class="bd-typeno" title="${esc(lab)} — number ${bi+1} of ${groups[k].length}">${bi+1}</span><span class="bd-no" title="Programme schedule #${s._no}">#${s._no}</span><span class="bd-when">${esc(when)}</span><span class="bd-act">${s.act?esc(ACT_LABEL[s.act]||s.act):"—"}</span></div>${focusKeys(s).length?`<div class="bd-focus">${focusKeys(s).map(k=>esc(FOCUS_LABEL[k]||k)).join(" · ")}</div>`:""}<div class="bd-i2">${esc(areaLabel(s.area))} · ${durLabel(s.dur)}${t?" · "+esc(t.name.split(" ")[0]):""}</div>${s.note?`<div class="bd-note">${esc(s.note)}</div>`:""}</div>`;}).join("");
     return `<div class="bd-box"><div class="bd-box-h"><span class="bd-ttl">${esc(lab)}</span><span class="bd-box-n">${groups[k].length}</span></div>${items}</div>`;
   };
   /* the full-width Pool schedule — write what we're doing in the water, session by session (same data + handler as the Programme schedule) */
@@ -1785,8 +1807,7 @@ function buildBreakdown(){
       const daySel=sel(i,"day",`<option value=""${s.day==null?" selected":""}>— day —</option>`+Array.from({length:dayOptCount},(_,di)=>`<option value="${di}"${di===s.day?" selected":""}>${dayShort(di)}</option>`).join(""));
       const timeSel=sel(i,"time",`<option value=""${!s.time?" selected":""}>— time —</option>`+CLASS_TIMES.map(x=>`<option${x===s.time?" selected":""}>${x}</option>`).join(""));
       const actSel=sel(i,"act",`<option value=""${s.act?"":" selected"}>—</option>`+ACTIVITIES.map(([g,its])=>`<optgroup label="${esc(g)}">${its.map(([kk,ll])=>`<option value="${kk}"${kk===s.act?" selected":""}>${esc(ll)}</option>`).join("")}</optgroup>`).join(""));
-      const fo=focusOptionsFor(s.act);
-      const focusSel=fo.length?sel(i,"focus",`<option value=""${s.focus?"":" selected"}>— focus —</option>`+fo.map(([kk,ll])=>`<option value="${kk}"${kk===s.focus?" selected":""}>${esc(ll)}</option>`).join("")):`<span class="bd-focus-na">— pick activity —</span>`;
+      const focusSel=focusCell(i,s);
       const noteCell=`<input type="text" class="tl-note" data-i="${i}" value="${esc(s.note||"")}" placeholder="add details…">`;
       const durSel=sel(i,"dur",PLAN_DURS.map(m=>`<option value="${m}"${m===s.dur?" selected":""}>${durLabel(m)}</option>`).join("")," tl-dur");
       return `<tr><td class="bd-pno"><span class="bd-typeno">${bi+1}</span><span class="bd-no">#${s._no}</span></td><td>${daySel}</td><td>${timeSel}</td><td>${actSel}</td><td>${focusSel}</td><td>${noteCell}</td><td>${durSel}</td></tr>`;
@@ -2097,13 +2118,14 @@ function onPlanChange(e){
     else if(g[0]==="d"){ const od=+g.slice(1); S.plan.forEach(p=>{ if(p.day===od) p.day=nd; }); } /* shift the whole day */
     render(); return;
   }
+  const fadd=e.target.closest(".tl-focus-add"); /* multi-select focus: add the chosen option to the session's focus list */
+  if(fadd){const i=+fadd.dataset.i, v=fadd.value; if(v&&S.plan[i]){pushUndo();const ks=focusKeys(S.plan[i]); if(!ks.includes(v))ks.push(v); S.plan[i].focus=ks;} render(); return;}
   const sel=e.target.closest("select.tl-sel"); if(!sel) return;
   const i=+sel.dataset.i, f=sel.dataset.f; if(!S.plan[i]) return;
   pushUndo();
   if(f==="day") S.plan[i].day = sel.value===""?null:+sel.value;
   else if(f==="dur") S.plan[i].dur = +sel.value;
   else S.plan[i][f] = sel.value;
-  if(f==="act"){const ok=focusOptionsFor(sel.value).some(([k])=>k===S.plan[i].focus); if(!ok) S.plan[i].focus="";} /* changing the activity clears a focus that no longer applies */
   if(f==="lead"&&sel.value){const t=teacherById(sel.value); if(t&&!t.on){t.on=true; buildRoster(); buildEditor();}} /* assigning a lead brings them on shift */
   render();
 }
@@ -2113,7 +2135,9 @@ document.getElementById("timeline").addEventListener("input",e=>{const inp=e.tar
 /* the full-width Pool schedule (in the breakdown) edits the same plan with the same handler */
 document.getElementById("breakdown").addEventListener("change",onPlanChange);
 document.getElementById("breakdown").addEventListener("input",e=>{const inp=e.target.closest(".tl-note");if(!inp)return;const i=+inp.dataset.i;if(S.plan[i]){S.plan[i].note=inp.value;saveDraft();}});
+document.getElementById("breakdown").addEventListener("click",e=>{const frm=e.target.closest(".tl-focus-rm"); if(frm){const i=+frm.dataset.i,k=frm.dataset.key; if(S.plan[i]){pushUndo();S.plan[i].focus=focusKeys(S.plan[i]).filter(x=>x!==k);} render();}});
 document.getElementById("timeline").addEventListener("click",e=>{
+  const frm=e.target.closest(".tl-focus-rm"); if(frm){const i=+frm.dataset.i,k=frm.dataset.key; if(S.plan[i]){pushUndo();S.plan[i].focus=focusKeys(S.plan[i]).filter(x=>x!==k);} render(); return;}
   const del=e.target.closest(".tl-del"); if(del){pushUndo();removePlan(+del.dataset.i);render();return;}
   const cp=e.target.closest(".tl-copy"); if(cp){const s=S.plan[+cp.dataset.i]; if(s){tlClip={time:s.time,area:s.area,act:s.act,note:s.note,dur:s.dur,lead:s.lead,focus:s.focus};} render(); return;}
   const ps=e.target.closest(".tl-paste"); if(ps){if(tlClip){pushUndo();addPlan(Object.assign({day:+ps.dataset.day},tlClip));} render(); return;}
