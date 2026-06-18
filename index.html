@@ -1771,7 +1771,22 @@ function buildBusiness(){
     .concat(b.busCost?[[`Mini-bus / transport — €${BUS_DAY}/day × ${COURSE_DAYS_N} days`,b.busCost]]:[])
     .concat([[`Admin, insurance & safeguarding`,b.admin]])
     .map(([l,c])=>`<tr><td class="nm" colspan="3">${esc(l)}</td><td class="cp">€${num(c)}</td></tr>`).join("");
-  document.getElementById("bizBreakdown").innerHTML=`<table class="tl biz-table"><thead><tr><th>Cost line</th><th>Use</th><th>Hours</th><th>Cost</th></tr></thead><tbody>${rows}${extra}<tr class="biz-total"><td class="nm" colspan="3">Total course cost</td><td class="cp">€${num(b.cost)}</td></tr></tbody></table>`;
+  const costTable=`<table class="tl biz-table"><thead><tr><th>Cost line</th><th>Use</th><th>Hours</th><th>Cost</th></tr></thead><tbody>${rows}${extra}<tr class="biz-total"><td class="nm" colspan="3">Total course cost</td><td class="cp">€${num(b.cost)}</td></tr></tbody></table>`;
+  /* PER-LANE breakdown — each lane's full-house revenue vs its direct costs (pool hire + coach); course admin/transport/room hire sit on top */
+  const full=b.sv.full, perLane=b.perLane, coachDay=COACH_DAY*COURSE_DAYS_N;
+  const poolHirePerLane=b.facilities.filter(f=>f.pool).reduce((a,f)=>a+f.rate*f.hours,0);
+  const lanes=lanesList(); let laneTable="";
+  if(lanes.length && perLane>0){
+    let tRev=0,tHire=0,tCoach=0;
+    const lrows=lanes.map((ln,i)=>{const eg=laneGender(ln.side,ln.idx);
+      const bk=laneBookedCount(i,perLane), rev=perLane*full, coachC=coachOf(ln)?coachDay:0, prof=rev-poolHirePerLane-coachC;
+      tRev+=rev; tHire+=poolHirePerLane; tCoach+=coachC;
+      return `<tr><td class="nm"><span class="fac-lane-badge" style="background:${GENDER[eg]}">L${i+1} · ${SIDE[eg]} · ${abilLetter(laneAbility(ln.side,ln.idx))}</span><span class="fac-lane-desc">${coachOf(ln)?esc(coachOf(ln).split(" ")[0]):"no coach"} · ${bk}/${perLane} booked</span></td><td class="cp">${money(rev)}</td><td class="cp">${money(poolHirePerLane)}</td><td class="cp">${money(coachC)}</td><td class="cp" style="color:${prof>=0?green:red}">${money(prof)}</td></tr>`;
+    }).join("");
+    const tProf=tRev-tHire-tCoach;
+    laneTable=`<p class="lbl" style="margin:18px 0 8px;">Per-lane breakdown <span style="font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink-faint)">— full-house revenue vs each lane's pool hire + coach (course admin${b.busCost?" + transport":""} + room hire sit on top, in the cost breakdown above)</span></p><table class="tl biz-table"><thead><tr><th>Lane</th><th>Revenue</th><th>Hire</th><th>Coach</th><th>Contribution</th></tr></thead><tbody>${lrows}<tr class="biz-total"><td class="nm">All ${lanes.length} lanes</td><td class="cp">${money(tRev)}</td><td class="cp">${money(tHire)}</td><td class="cp">${money(tCoach)}</td><td class="cp">${money(tProf)}</td></tr></tbody></table>`;
+  }
+  document.getElementById("bizBreakdown").innerHTML=costTable+laneTable;
   document.getElementById("bizTag").textContent=(b.profit>=0?"+":"−")+"€"+num(Math.abs(b.profit))+" projected";
 }
 function buildFacilities(){
