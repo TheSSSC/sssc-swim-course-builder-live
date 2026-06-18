@@ -1245,7 +1245,7 @@ function laneAbility(side,idx){return laneOvOf(side,idx).abil||laneAbilityAuto(s
 function laneGender(side,idx){return laneOvOf(side,idx).gender||side;}
 function laneName(side,idx){return laneOvOf(side,idx).name||"";}
 function abilAbbr(a){return a==="Beginner"?"Beg":a==="Intermediate"?"Int":a==="Advanced"?"Adv":"Mix";}
-function abilLetter(a){return a==="Beginner"?"B":a==="Intermediate"?"I":a==="Advanced"?"A":"Mx";}
+function abilLetter(a){return a==="Beginner"?"B":a==="Intermediate"?"I":a==="Advanced"?"A":"MIX";}
 function abilPlural(a){return a==="Beginner"?"Beginners":a==="Intermediate"?"Intermediates":a==="Advanced"?"Advanced":"";}
 function laneDesc(side,idx){const g=laneGender(side,idx),ab=laneAbility(side,idx);return g==="mixed"?"Mixed ability":`${g==="male"?"Male":"Female"} ${abilPlural(ab)}`.trim();}
 /* is this teacher suited to this lane's class, gender & level? */
