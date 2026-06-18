@@ -2272,6 +2272,9 @@ loadTemplates();
 loadDraft();
 buildTemplatesList();
 buildSvcPills(); buildCoursePills(); syncSizeVis(); buildVenues(); buildCalendar(); buildWeekTrack(); buildSizeSeg(); buildAddBar(); buildSessions(); buildSchedules(); buildFilters(); buildRoster(); buildEditor(); render();
+/* SAFETY: dropping a file/image onto the page would make the browser navigate to it and wipe the builder — block any file drag-drop anywhere on the window */
+["dragenter","dragover"].forEach(function(ev){window.addEventListener(ev,function(e){if(e.dataTransfer&&Array.prototype.indexOf.call(e.dataTransfer.types,"Files")>-1){e.preventDefault();e.dataTransfer.dropEffect="none";}},false);});
+window.addEventListener("drop",function(e){if(e.dataTransfer&&Array.prototype.indexOf.call(e.dataTransfer.types,"Files")>-1){e.preventDefault(); if(typeof showToast==="function")showToast("Files can’t be dropped here — your course is safe");}},false);
 /* OFFLINE-FILE NOTICE — Safari can't reload a file:// page after the file changes (NSURLErrorDomain -3001) and won't reliably persist work; steer to the live hosted version */
 if(location.protocol==='file:'){
   var _fb=document.createElement('div');
