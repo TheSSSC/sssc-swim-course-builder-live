@@ -1326,8 +1326,8 @@ function partOfDay(s){ if(!s.time) return "tbc"; if(s.time<"12:00") return "morn
 /* POOL-SESSION time bands (finer than the programme-schedule parts) — Sean 18 Jun 2026 */
 const POOL_BANDS=[["early-morning","Early morning","🌅","06:00","09:00"],["late-morning","Late morning","☀️","09:00","12:00"],["early-afternoon","Early afternoon","⛅","12:00","15:00"],["late-afternoon","Late afternoon","🌇","15:00","19:00"]];
 function poolBandOf(t){ if(!t) return "tbc"; for(const b of POOL_BANDS){ if(t>=b[3]&&t<b[4]) return b[0]; } return "other"; }
-/* each DAY gets its own soft contrasting tint so days are easy to pick out (cycles; consecutive days differ) */
-const DAY_TINTS=["#e9f1fb","#eaf6ec","#fbf2e3","#f2ecfb","#fbecf2","#e6f4f3","#fdeede"];
+/* days alternate the SAME two colours as the programme schedule — soft service-blue and white — so consecutive days contrast */
+const DAY_TINTS=["rgba(var(--pill-r),var(--pill-g),var(--pill-b),.09)","#ffffff"];
 function tlRow(s,n,rowCls){
   const i=s._i;
   const sel=(f,opts)=>`<select class="ps-sel tl-sel" data-i="${i}" data-f="${f}">${opts}</select>`;
