@@ -717,15 +717,6 @@
     <p class="foot" style="margin:12px 0 0;">Resort-area rates, coach day-rate and transport are educated estimates for Fuerteventura — edit the <code>AREA_COST</code> / rate constants in the file to match real quotes.</p>
   </div>
 
-  <!-- SCHEDULE -->
-  <div class="card" style="margin-top:16px;">
-    <p class="lbl" id="weekLbl">The week</p>
-    <table>
-      <thead><tr><th>Class</th><th>Day</th><th id="timeHead">Group time</th><th style="text-align:right;">Places</th></tr></thead>
-      <tbody id="week"></tbody>
-    </table>
-  </div>
-
   <!-- PUBLISH + RESORT WEEKLY CALENDAR -->
   <div class="card" style="margin-top:16px;">
     <div class="card-head" style="margin-bottom:13px;">
@@ -2146,16 +2137,6 @@ function render(){
   if(total>0 && poolN>0) N.push(["good","↻",`<b>${poolN} pool class${poolN!==1?"es":""} · ${fmtMins(courseTime)} of pool time</b> across the course. Each class puts <b>${perSlot}</b> ${isGroup?"swimmers":"1-2-1s"} in the water — ${perSlot*poolN} class places in total.`]);
   if(poolN===0) N.push(["warn","○",`<b>No pool classes yet.</b> Raise the “Pool classes” toggle to build the course.`]);
   document.getElementById("notes").innerHTML=N.map(([c,ic,t])=>`<div class="note ${c}"><span class="ic">${ic}</span><span>${t}</span></div>`).join("");
-
-  /* WEEK — the pool classes you've actually built; blank until you pick classes, then auto-generated */
-  const placeText=isGroup?`${perSlot}`:`${total}`;
-  document.getElementById("timeHead").textContent=isGroup?"Group time":"1-2-1 time";
-  const wkList=[];
-  poolPlan().forEach(s=>{ if(!s.act||s.day==null||!s.time) return; wkList.push({title:ACT_LABEL[s.act]||s.act,day:s.day,time:s.time}); });
-  document.getElementById("week").innerHTML = wkList.length
-    ? wkList.map((c,i)=>`<tr><td><span class="cn">${i+1}</span><span class="nm">${esc(c.title)}</span></td><td class="day">${dayName(c.day)}</td><td class="tm">${c.time}</td><td class="cp">${placeText}</td></tr>`).join("")
-    : `<tr><td colspan="4" style="color:var(--ink-faint);padding:14px 2px;">No pool sessions yet — add a session in the Programme schedule with a pool location and an activity. They’ll auto-fill here.</td></tr>`;
-  document.getElementById("weekLbl").textContent=`The week — ${sv.name}${sv.stroke?" · "+STROKES[S.course].label:""}`;
 
   buildRegister();
   buildTimeline();
