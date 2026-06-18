@@ -2338,12 +2338,14 @@ document.getElementById("calendarView").addEventListener("click",e=>{
   const load=e.target.closest("[data-load]"); if(load){loadCourse(load.dataset.load);return;}
 });
 /* assign a teacher to a lane */
+/* defer the DOM rebuild out of the <select>'s own change handler — removing the active <select> synchronously crashes Safari's WebContent process */
+function deferRebuild(fn){ setTimeout(fn,0); }
 document.getElementById("laneEditor").addEventListener("change",e=>{
   const sel=e.target.closest("select[data-side]"); if(!sel)return;
   const tid=sel.value;
   if(tid){ clearTeacher(tid); const at=teacherById(tid); if(at&&!at.on) at.on=true; } /* assigning brings them on shift */
   S.assign[sel.dataset.side][+sel.dataset.idx]=tid;
-  buildRoster(); buildEditor(); render();
+  deferRebuild(()=>{ buildRoster(); buildEditor(); render(); });
 });
 /* LANE DESIGNATOR — write per-lane gender/ability/name overrides (clears the override when it matches auto / is blank) */
 function setLaneOv(key,f,v){
@@ -2354,9 +2356,9 @@ function setLaneOv(key,f,v){
 }
 document.getElementById("laneDesignator").addEventListener("change",e=>{
   const coach=e.target.closest(".ld-coach");
-  if(coach){const tid=coach.value; if(tid){clearTeacher(tid);const at=teacherById(tid);if(at&&!at.on)at.on=true;} S.assign[coach.dataset.side][+coach.dataset.idx]=tid; buildRoster(); buildEditor(); render(); return;} /* assign coach right from the designator (syncs with the Lane selector) */
+  if(coach){const tid=coach.value; if(tid){clearTeacher(tid);const at=teacherById(tid);if(at&&!at.on)at.on=true;} S.assign[coach.dataset.side][+coach.dataset.idx]=tid; deferRebuild(()=>{ buildRoster(); buildEditor(); render(); }); return;} /* assign coach right from the designator (syncs with the Lane selector) */
   const sel=e.target.closest(".ld-sel"); if(!sel) return;
-  setLaneOv(sel.dataset.key, sel.dataset.f, sel.value); buildEditor(); render(); /* gender/ability override changes lane-editor grouping + coach suitability */
+  setLaneOv(sel.dataset.key, sel.dataset.f, sel.value); deferRebuild(()=>{ buildEditor(); render(); }); /* gender/ability override changes lane-editor grouping + coach suitability */
 });
 
 /* ── INIT ─────────────────────────────────────────────────── */
