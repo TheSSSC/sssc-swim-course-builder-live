@@ -332,6 +332,11 @@
   .tchip.qchip{background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.16);color:var(--svc);}
   .nofit{font-size:10.5px;font-weight:600;color:#b91c1c;flex:0 0 auto;}
   .nofit-mini{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;background:#e11d48;color:#fff;font-size:11px;font-weight:800;cursor:help;}
+  .fac-lane td{padding-top:3px;padding-bottom:3px;border-top:0;}
+  .fac-lane .nm{padding-left:18px;display:flex;align-items:center;gap:8px;}
+  .fac-lane-badge{flex:0 0 auto;color:#fff;font-size:10px;font-weight:800;border-radius:7px;padding:2px 7px;}
+  .fac-lane-desc{font-size:11px;font-weight:500;color:var(--ink-soft);}
+  .fac-lane .cp{font-weight:500;color:var(--ink-soft);}
   .tcard{margin-top:7px;padding:12px 13px;border-radius:11px;background:#fff;box-shadow:inset 0 0 0 1px rgba(0,0,0,.05);display:flex;flex-direction:column;gap:11px;}
   .tcard-head{display:flex;gap:12px;align-items:flex-start;padding-bottom:11px;border-bottom:1px solid #eef0f4;}
   .avatar{flex:0 0 auto;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--svc);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.14);}
@@ -1785,13 +1790,20 @@ function buildFacilities(){
   const rows=F.list.map(f=>{
     const hire=f.pool?`${F.lanes} lane${F.lanes!==1?"s":""} × ${hrsLabel(f.hours)}`:hrsLabel(f.hours);
     const unit=f.pool?"/lane/hr":"/hr";
-    return `<tr>
+    let r=`<tr>
       <td class="nm">${esc(f.label)}${f.pool?` <span class="biz-note">lane hire</span>`:""}<div class="fac-for">${esc(f.typeList.join(" · "))}</div></td>
       <td>${f.sessions} session${f.sessions!==1?"s":""}</td>
       <td>${hire}</td>
       <td class="fac-rate"><span class="fac-eur">€</span><input type="number" min="0" step="1" value="${f.rate}" data-area="${f.key}" class="fac-rate-in" aria-label="Rate for ${esc(f.label)}"><span class="fac-unit">${unit}</span></td>
       <td class="cp">€${num(f.cost)}</td>
     </tr>`;
+    if(f.pool){ /* break the pool's lane-hire down lane by lane (each lane hires the full pool hours) */
+      const laneCost=f.rate*f.hours;
+      r+=lanesList().map((ln,i)=>{const eg=laneGender(ln.side,ln.idx);
+        return `<tr class="fac-lane"><td class="nm"><span class="fac-lane-badge" style="background:${GENDER[eg]}">L${i+1} · ${SIDE[eg]} · ${abilLetter(laneAbility(ln.side,ln.idx))}</span><span class="fac-lane-desc">${esc(laneDesc(ln.side,ln.idx))}${coachOf(ln)?" · "+esc(coachOf(ln).split(" ")[0]):""}</span></td><td></td><td>${hrsLabel(f.hours)}</td><td></td><td class="cp">€${num(laneCost)}</td></tr>`;
+      }).join("");
+    }
+    return r;
   }).join("");
   host.innerHTML=`<table class="tl fac-table"><thead><tr><th>Facility</th><th>Use</th><th>Hire</th><th>Rate</th><th>Cost</th></tr></thead><tbody>${rows}<tr class="biz-total"><td class="nm" colspan="4">Total facility hire / course</td><td class="cp">€${num(F.total)}</td></tr></tbody></table>`;
   document.getElementById("facTotal").textContent="€"+num(F.total);
