@@ -1245,6 +1245,7 @@ function laneAbility(side,idx){return laneOvOf(side,idx).abil||laneAbilityAuto(s
 function laneGender(side,idx){return laneOvOf(side,idx).gender||side;}
 function laneName(side,idx){return laneOvOf(side,idx).name||"";}
 function abilAbbr(a){return a==="Beginner"?"Beg":a==="Intermediate"?"Int":a==="Advanced"?"Adv":"Mix";}
+function abilLetter(a){return a==="Beginner"?"B":a==="Intermediate"?"I":a==="Advanced"?"A":"Mx";}
 function abilPlural(a){return a==="Beginner"?"Beginners":a==="Intermediate"?"Intermediates":a==="Advanced"?"Advanced":"";}
 function laneDesc(side,idx){const g=laneGender(side,idx),ab=laneAbility(side,idx);return g==="mixed"?"Mixed ability":`${g==="male"?"Male":"Female"} ${abilPlural(ab)}`.trim();}
 /* is this teacher suited to this lane's class, gender & level? */
@@ -1968,7 +1969,7 @@ function buildEditor(){
     const note=unsuited?`<span class="nofit">${curT.on?"not suited · "+unsuitReason(curT,ln):"off shift"}</span>`:"";
     const eg=laneGender(ln.side,ln.idx), nm=laneName(ln.side,ln.idx);
     cols[eg].push(`<label class="lane-edit">
-      <span class="side-badge" style="background:${GENDER[eg]}">L${i+1} · ${nm?esc(nm):SIDE[eg]}</span>
+      <span class="side-badge" style="background:${GENDER[eg]}">L${i+1} · ${nm?esc(nm):SIDE[eg]+" · "+abilLetter(laneAbility(ln.side,ln.idx))}</span>
       <select data-side="${ln.side}" data-idx="${ln.idx}">${o}</select>${note}
     </label>`);
   });
@@ -2006,7 +2007,7 @@ function buildRegister(){
     const chips=pickClients(eg,i,booked).map(c=>`<span class="reg-chip" style="background:${clientColor(c.gender)}">${esc(c.name)} · ${c.age}</span>`).join("");
     const tone=booked>=cap?"#e11d48":booked>=cap-2?"#b45309":"#059669";
     return `<div class="reg-lane">
-      <span class="side-badge" style="background:${GENDER[eg]}">L${i+1} · ${nm?esc(nm):SIDE[eg]}</span>
+      <span class="side-badge" style="background:${GENDER[eg]}">L${i+1} · ${nm?esc(nm):SIDE[eg]+" · "+abilLetter(laneAbility(ln.side,ln.idx))}</span>
       <div class="reg-info"><div class="reg-coach">${nm?esc(nm)+" · ":""}${laneDesc(ln.side,ln.idx)} · ${esc(coach)}</div><div class="reg-clients">${chips||'<span class="reg-empty">no clients booked yet</span>'}</div></div>
       <span class="reg-count" style="color:${tone}">${booked}/${cap}</span>
     </div>`;
