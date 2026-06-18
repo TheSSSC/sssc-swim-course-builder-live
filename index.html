@@ -1258,6 +1258,18 @@ function suitableForLane(t,ln){
   if(ab!=="mixed" && !t.tags.levels.includes(ab)) return false;
   return true;
 }
+/* the FIRST reason a teacher isn't suited to this lane — a short bit of "why" for the lane editor flag */
+function unsuitReason(t,ln){
+  const sv=SERVICES[S.svc];
+  if(!t.tags.services.includes(S.svc)) return `${SVC_SHORT[t.tags.services[0]]||"other-service"} coach`;
+  if(sv.stroke && !t.tags.courses.includes(S.course)) return `doesn’t coach ${STROKES[S.course]?STROKES[S.course].label:"this stroke"}`;
+  if(!(t.tags.teaches.includes("pool")||t.tags.teaches.includes("pool-training"))) return "doesn’t teach pool";
+  const g=laneGender(ln.side,ln.idx);
+  if(!t.tags.prefers.includes(g)) return `doesn’t take ${g} lanes`;
+  const ab=laneAbility(ln.side,ln.idx).toLowerCase();
+  if(ab!=="mixed" && !t.tags.levels.includes(ab)) return `not ${ab}-level`;
+  return "not suited";
+}
 function timetable(){const sv=SERVICES[S.svc];return sv.stroke?STROKES[S.course].classes.map((c,i)=>[c,...STROKE_TIMES[i]]):FIXED[S.svc];}
 function setCssColor(){const sv=SERVICES[S.svc],r=document.documentElement.style;r.setProperty("--svc",sv.hex);r.setProperty("--pill-r",sv.rgb[0]);r.setProperty("--pill-g",sv.rgb[1]);r.setProperty("--pill-b",sv.rgb[2]);}
 
@@ -1953,7 +1965,7 @@ function buildEditor(){
       o+=`<optgroup label="${(SVC_SHORT[sk]||sk)} coaches (${bySvc[sk].length})">${bySvc[sk].map(optHtml).join("")}</optgroup>`;
     });
     const unsuited=curT&&!suit.includes(curT);
-    const note=unsuited?`<span class="nofit">${curT.on?"not suited to this lane":"off shift"}</span>`:"";
+    const note=unsuited?`<span class="nofit">${curT.on?"not suited · "+unsuitReason(curT,ln):"off shift"}</span>`:"";
     const eg=laneGender(ln.side,ln.idx), nm=laneName(ln.side,ln.idx);
     cols[eg].push(`<label class="lane-edit">
       <span class="side-badge" style="background:${GENDER[eg]}">L${i+1} · ${nm?esc(nm):SIDE[eg]}</span>
@@ -1975,7 +1987,9 @@ function buildLaneDesignator(){
     const genSel=`<select class="ps-sel ld-sel" data-key="${key}" data-f="gender">${["male","mixed","female"].map(x=>`<option value="${x}"${x===g?" selected":""}>${GLAB[x]}</option>`).join("")}</select>`;
     const abSel=`<select class="ps-sel ld-sel" data-key="${key}" data-f="abil">${abOpts.map(([v,l])=>`<option value="${v}"${v===ab?" selected":""}>${esc(l)}</option>`).join("")}</select>`;
     const coachSel=`<select class="ps-sel ld-coach" data-side="${ln.side}" data-idx="${ln.idx}">${coachOptsHtml(ln)}</select>`;
-    return `<div class="ld-row"><span class="ld-num" style="background:${GENDER[g]}">L${i+1}</span>${genSel}${abSel}${coachSel}</div>`;
+    const cur=teacherById(assignedId(ln)), unsuited=cur&&!suitableForLane(cur,ln);
+    const note=unsuited?`<span class="nofit">${cur.on?"not suited · "+unsuitReason(cur,ln):"off shift"}</span>`:"";
+    return `<div class="ld-row"><span class="ld-num" style="background:${GENDER[g]}">L${i+1}</span>${genSel}${abSel}${coachSel}${note}</div>`;
   }).join("");
   host.innerHTML=`<p class="lbl" style="margin:18px 0 9px;">Lane designator <span style="font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink-faint)">— auto by the lane rule; change any lane to override</span></p><div class="ld-list">${rows}</div>`;
 }
