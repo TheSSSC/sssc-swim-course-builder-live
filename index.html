@@ -1323,10 +1323,9 @@ function tlRow(s,n,rowCls){
   const locSel=sel("area",AREAS.map(([k,lab])=>`<option value="${k}"${k===s.area?" selected":""}>${lab}</option>`).join(""));
   const actSel=sel("act",`<option value=""${s.act?"":" selected"}>— what are we doing? —</option>`+ACTIVITIES.map(([g,items])=>`<optgroup label="${esc(g)}">${items.map(([k,lab])=>`<option value="${k}"${k===s.act?" selected":""}>${esc(lab)}</option>`).join("")}</optgroup>`).join(""));
   const noteCell=`<input type="text" class="tl-note" data-i="${i}" value="${esc(s.note||"")}" placeholder="add details…">`;
-  /* swim sessions get a multi-select Focus — pick from ALL options (own activity first), stack as many as you need */
-  const focusSel=sessionCategory(s)==="pool"?`<div style="margin-top:6px">${focusCell(i,s)}</div>`:"";
+  /* Focus lives ONLY in the Course-breakdown Pool-sessions table (room there) — the Programme schedule row stays compact, one box per cell */
   const durSel=`<select class="ps-sel tl-sel tl-dur" data-i="${i}" data-f="dur">${PLAN_DURS.map(m=>`<option value="${m}"${m===s.dur?" selected":""}>${durLabel(m)}</option>`).join("")}</select>`;
-  return `<tr class="${rowCls||""}"><td class="tl-num">${n}</td><td>${timeSel}</td><td>${locSel}</td><td class="tl-classcell">${actSel}${focusSel}</td><td>${noteCell}</td><td>${durSel}</td><td class="tl-actions"><button class="tl-copy" data-i="${i}" title="Copy this session">⧉</button><button class="tl-del" data-i="${i}" title="Remove this session">✕</button></td></tr>`;
+  return `<tr class="${rowCls||""}"><td class="tl-num">${n}</td><td>${timeSel}</td><td>${locSel}</td><td class="tl-classcell">${actSel}</td><td>${noteCell}</td><td>${durSel}</td><td class="tl-actions"><button class="tl-copy" data-i="${i}" title="Copy this session">⧉</button><button class="tl-del" data-i="${i}" title="Remove this session">✕</button></td></tr>`;
 }
 /* COURSE TIMELINE — the master builder; build the course one session at a time */
 function buildTimeline(){
