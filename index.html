@@ -1327,7 +1327,7 @@ const PARTS={
 };
 function partOfDay(s){ if(!s.time) return "tbc"; if(s.time<"12:00") return "morning"; if(s.time<"17:00") return "afternoon"; return "evening"; }
 /* POOL-SESSION time bands (finer than the programme-schedule parts) — Sean 18 Jun 2026 */
-const POOL_BANDS=[["early-morning","Early morning","🌅","06:00","09:00"],["late-morning","Late morning","☀️","09:00","12:00"],["early-afternoon","Early afternoon","⛅","12:00","15:00"],["late-afternoon","Late afternoon","🌇","15:00","19:00"]];
+const POOL_BANDS=[["early-morning","Early morning","🌅","06:00","09:00"],["late-morning","Late morning","☀️","09:00","12:00"],["early-afternoon","Early afternoon","⛅","12:00","15:00"],["late-afternoon","Late afternoon","🌇","15:00","19:00"],["evening","Evening","🌙","19:00","24:00"]];
 function poolBandOf(t){ if(!t) return "tbc"; for(const b of POOL_BANDS){ if(t>=b[3]&&t<b[4]) return b[0]; } return "other"; }
 /* days alternate the SAME two colours as the programme schedule — soft service-blue and white — so consecutive days contrast */
 const DAY_TINTS=["rgba(var(--pill-r),var(--pill-g),var(--pill-b),.09)","#ffffff"];
@@ -1795,7 +1795,7 @@ function buildTemplateBar(){
   const n=S.tplTargets.filter(i=>i!==S.tplSrc).length;
   host.innerHTML=`<span class="lbl">Use as template</span><select class="ps-sel" id="tplSrc" style="width:108px">${srcOpts}</select><span class="lbl2" style="color:var(--ink-faint)">copy to →</span><div class="tpl-days">${chips}</div><button class="add-btn add-btn-main" id="tplApply"${n?"":" disabled"}>Copy to ${n} day${n!==1?"s":""}</button>`;
 }
-/* COURSE BREAKDOWN — Pool sessions = a full-width EDITABLE pool schedule; other types stay as little boxes */
+/* COURSE BREAKDOWN — EVERY session type as a full-width schedule: rounded day-cards, time-bands, alternating colours (Pool keeps a Focus column; others get a Location column) */
 function buildBreakdown(){
   const host=document.getElementById("breakdown"); if(!host) return;
   document.getElementById("bdTotal").textContent=S.plan.length;
@@ -1805,28 +1805,27 @@ function buildBreakdown(){
   const groups={}; S.plan.forEach((s,i)=>{const c=sessionCategory(s);(groups[c]=groups[c]||[]).push(Object.assign({},s,{_no:noByIdx[i],_i:i}));});
   const present=CATS.filter(([k])=>groups[k]&&groups[k].length);
   const sortItems=arr=>arr.slice().sort((a,b)=>{const au=a.day==null,bu=b.day==null;if(au!==bu)return au?1:-1;return (a.day-b.day)||(""+a.time).localeCompare(""+b.time);});
-  const box=([k,lab])=>{
-    const items=sortItems(groups[k]).map((s,bi)=>{const t=teacherById(s.lead), when=s.day==null?"—":dayShort(s.day)+(s.time?" "+s.time:"");
-        return `<div class="bd-item"><div class="bd-i1"><span class="bd-typeno" title="${esc(lab)} — number ${bi+1} of ${groups[k].length}">${bi+1}</span><span class="bd-no" title="Programme schedule #${s._no}">#${s._no}</span><span class="bd-when">${esc(when)}</span><span class="bd-act">${s.act?esc(ACT_LABEL[s.act]||s.act):"—"}</span></div>${focusKeys(s).length?`<div class="bd-focus">${focusKeys(s).map(k=>esc(FOCUS_LABEL[k]||k)).join(" · ")}</div>`:""}<div class="bd-i2">${esc(areaLabel(s.area))} · ${durLabel(s.dur)}${t?" · "+esc(t.name.split(" ")[0]):""}</div>${s.note?`<div class="bd-note">${esc(s.note)}</div>`:""}</div>`;}).join("");
-    return `<div class="bd-box"><div class="bd-box-h"><span class="bd-ttl">${esc(lab)}</span><span class="bd-box-n">${groups[k].length}</span></div>${items}</div>`;
-  };
-  /* the full-width Pool schedule — write what we're doing in the water, session by session (same data + handler as the Programme schedule) */
-  const dayOptCount=Math.min(MAX_DAY+1,Math.max(7,maxPlanDay()+8));
-  const poolTable=(k,lab)=>{
-    const sel=(i,f,opts,extra)=>`<select class="ps-sel tl-sel${extra||""}" data-i="${i}" data-f="${f}">${opts}</select>`;
-    const COLS=`<colgroup><col class="bdc-no"><col class="bdc-time"><col class="bdc-what"><col class="bdc-focus"><col class="bdc-det"><col class="bdc-dur"></colgroup>`;
-    const sessionRow=(s)=>{const i=s._i;
-      const timeSel=sel(i,"time",`<option value=""${!s.time?" selected":""}>— time —</option>`+CLASS_TIMES.map(x=>`<option${x===s.time?" selected":""}>${x}</option>`).join(""));
-      const actSel=sel(i,"act",`<option value=""${s.act?"":" selected"}>—</option>`+ACTIVITIES.map(([g,its])=>`<optgroup label="${esc(g)}">${its.map(([kk,ll])=>`<option value="${kk}"${kk===s.act?" selected":""}>${esc(ll)}</option>`).join("")}</optgroup>`).join(""));
-      const focusSel=focusCell(i,s);
-      const noteCell=`<input type="text" class="tl-note" data-i="${i}" value="${esc(s.note||"")}" placeholder="add details…">`;
-      const durSel=sel(i,"dur",PLAN_DURS.map(m=>`<option value="${m}"${m===s.dur?" selected":""}>${durLabel(m)}</option>`).join("")," tl-dur");
-      return `<tr><td class="bd-pno"><span class="bd-typeno">${s._bn}</span><span class="bd-no">#${s._no}</span></td><td>${timeSel}</td><td>${actSel}</td><td>${focusSel}</td><td>${noteCell}</td><td>${durSel}</td></tr>`;
-    };
-    /* ONE rounded CARD per day with a gap between (mirrors the Programme schedule's day cards); cards alternate the two programme colours */
+  /* shared cell builders (all write back via the generic tl-sel / tl-note handlers) */
+  const sel=(i,f,opts,extra)=>`<select class="ps-sel tl-sel${extra||""}" data-i="${i}" data-f="${f}">${opts}</select>`;
+  const timeSel=(i,s)=>sel(i,"time",`<option value=""${!s.time?" selected":""}>— time —</option>`+CLASS_TIMES.map(x=>`<option${x===s.time?" selected":""}>${x}</option>`).join(""));
+  const actSel=(i,s)=>sel(i,"act",`<option value=""${s.act?"":" selected"}>—</option>`+ACTIVITIES.map(([g,its])=>`<optgroup label="${esc(g)}">${its.map(([kk,ll])=>`<option value="${kk}"${kk===s.act?" selected":""}>${esc(ll)}</option>`).join("")}</optgroup>`).join(""));
+  const locSel=(i,s)=>sel(i,"area",AREAS.map(([ak,al])=>`<option value="${ak}"${ak===s.area?" selected":""}>${esc(al)}</option>`).join(""));
+  const durSel=(i,s)=>sel(i,"dur",PLAN_DURS.map(m=>`<option value="${m}"${m===s.dur?" selected":""}>${durLabel(m)}</option>`).join("")," tl-dur");
+  const noteCell=(i,s)=>`<input type="text" class="tl-note" data-i="${i}" value="${esc(s.note||"")}" placeholder="add details…">`;
+  const numCell=(s)=>`<td class="bd-pno"><span class="bd-typeno">${s._bn}</span><span class="bd-no">#${s._no}</span></td>`;
+  /* POOL layout: Time · What · Focus · Details · Dur */
+  const POOL_COLS=`<colgroup><col class="bdc-no"><col class="bdc-time"><col class="bdc-what"><col class="bdc-focus"><col class="bdc-det"><col class="bdc-dur"></colgroup>`;
+  const POOL_HEAD=`<th>#</th><th>Time</th><th>What we’re doing</th><th>Focus</th><th>Details</th><th>Dur</th>`;
+  const poolRow=(s)=>{const i=s._i;return `<tr>${numCell(s)}<td>${timeSel(i,s)}</td><td>${actSel(i,s)}</td><td>${focusCell(i,s)}</td><td>${noteCell(i,s)}</td><td>${durSel(i,s)}</td></tr>`;};
+  /* OTHER layout: Time · Location · What · Details · Dur */
+  const OTHER_COLS=`<colgroup><col class="bdc-no"><col class="bdc-time"><col class="bdc-loc"><col class="bdc-what"><col class="bdc-det"><col class="bdc-dur"></colgroup>`;
+  const OTHER_HEAD=`<th>#</th><th>Time</th><th>Location</th><th>What we’re doing</th><th>Details</th><th>Dur</th>`;
+  const otherRow=(s)=>{const i=s._i;return `<tr>${numCell(s)}<td>${timeSel(i,s)}</td><td>${locSel(i,s)}</td><td>${actSel(i,s)}</td><td>${noteCell(i,s)}</td><td>${durSel(i,s)}</td></tr>`;};
+  /* one rounded day-card per day (gap between), alternating the two programme colours, grouped into time-bands — same architecture as the Programme schedule */
+  const bandOrder=POOL_BANDS.map(b=>b[0]).concat(["other","tbc"]);
+  const daySection=(k,lab,COLS,headTh,rowFn)=>{
     const all=sortItems(groups[k]); all.forEach((s,ix)=>s._bn=ix+1);
     const byDay=new Map(); all.forEach(s=>{const d=s.day==null?"_un":s.day; if(!byDay.has(d))byDay.set(d,[]); byDay.get(d).push(s);});
-    const bandOrder=POOL_BANDS.map(b=>b[0]).concat(["other","tbc"]);
     let cards="", dayPos=0;
     byDay.forEach((arr,d)=>{
       const tint=DAY_TINTS[dayPos%DAY_TINTS.length]; dayPos++;
@@ -1837,17 +1836,14 @@ function buildBreakdown(){
         const meta=POOL_BANDS.find(b=>b[0]===bk);
         const bLabel=meta?`${meta[2]} ${meta[1]} · ${meta[3]}–${meta[4]}`:(bk==="tbc"?"⏳ Time to be set":"🕐 Other times");
         inner+=`<tr class="bd-bandrow"><td colspan="6"><span class="bd-bandname">${bLabel}</span><span class="bd-bandcount">${list.length}</span></td></tr>`;
-        list.forEach(s=>{inner+=sessionRow(s);});
+        list.forEach(s=>{inner+=rowFn(s);});
       });
       cards+=`<div class="bd-day-card" style="background:${tint}"><table class="bd-pooltable">${COLS}<tbody>${inner}</tbody></table></div>`;
     });
-    const colhead=`<div class="bd-colhead"><table class="bd-pooltable">${COLS}<thead><tr><th>#</th><th>Time</th><th>What we’re doing</th><th>Focus</th><th>Details</th><th>Dur</th></tr></thead></table></div>`;
+    const colhead=`<div class="bd-colhead"><table class="bd-pooltable">${COLS}<thead><tr>${headTh}</tr></thead></table></div>`;
     return `<div class="bd-pool"><div class="bd-box-h"><span class="bd-ttl">${esc(lab)}</span><span class="bd-box-n">${groups[k].length}</span></div><div class="bd-poolwrap">${colhead}${cards}</div></div>`;
   };
-  const poolHtml=(groups["pool"]&&groups["pool"].length)?poolTable("pool",CAT_LABEL["pool"]):"";
-  const rest=present.filter(([k])=>k!=="pool");
-  const gridHtml=rest.length?`<div class="bd-grid">${rest.map(c=>box(c)).join("")}</div>`:"";
-  host.innerHTML=poolHtml+gridHtml;
+  host.innerHTML=present.map(([k,lab])=> k==="pool" ? daySection(k,lab,POOL_COLS,POOL_HEAD,poolRow) : daySection(k,lab,OTHER_COLS,OTHER_HEAD,otherRow)).join("");
 }
 /* SESSIONS PER COURSE — now a live read-only tally of what you've built in the Programme schedule */
 function buildSessions(){
