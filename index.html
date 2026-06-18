@@ -1058,6 +1058,7 @@ S.published=[];            /* published courses (loaded from localStorage) */
 S.pubWeeks=[S.week];       /* which weeks to publish to (block-booking) */
 S.loadedId=null;           /* id of a published course currently loaded for editing */
 S.poolLayers={biz:false,occ:false,names:false};  /* overlay toggles for the pool visualizer */
+S.busDays=null;            /* transport days for the bus cost (null = auto: the course's active days) */
 S.areaRates={};            /* per-area €/hr overrides for facility hire (defaults from AREA_COST) */
 S.lead={};                 /* (legacy, unused) */
 S.laneOv={};               /* per-lane OVERRIDES of the auto lane-law: "side:idx" -> {gender?,abil?,name?} */
@@ -1197,8 +1198,6 @@ const SWIM_FOCUS_BY_ACT={
     ["what-next-chat","What-next chat in water"],
   ],
 };
-/* the right Focus options for a session's activity (empty = no focus list for that activity yet) */
-function focusOptionsFor(act){return SWIM_FOCUS_BY_ACT[act]||[];}
 /* flat key→label lookup across every activity (same key always maps to the same label) */
 const FOCUS_LABEL=Object.fromEntries(Object.values(SWIM_FOCUS_BY_ACT).flat());
 /* focus is a LIST now (multi-select) — a session can carry BOTH technique + training etc.; back-compat with the old single string */
@@ -1283,7 +1282,7 @@ function laneGender(side,idx){return laneOvOf(side,idx).gender||side;}
 function laneName(side,idx){return laneOvOf(side,idx).name||"";}
 function abilAbbr(a){return a==="Beginner"?"Beg":a==="Intermediate"?"Int":a==="Advanced"?"Adv":"Mix";}
 function abilLetter(a){return a==="Beginner"?"B":a==="Intermediate"?"I":a==="Advanced"?"A":"MIX";}
-function abilPlural(a){return a==="Beginner"?"Beginners":a==="Intermediate"?"Intermediates":a==="Advanced"?"Advanced":"";}
+function abilPlural(a){return a==="Beginner"?"Beginners":a==="Intermediate"?"Intermediates":a==="Advanced"?"Advanced":"Mixed";}
 function laneDesc(side,idx){const g=laneGender(side,idx),ab=laneAbility(side,idx);return g==="mixed"?"Mixed ability":`${g==="male"?"Male":"Female"} ${abilPlural(ab)}`.trim();}
 /* is this teacher suited to this lane's class, gender & level? */
 function suitableForLane(t,ln){
@@ -1416,7 +1415,10 @@ function buildTimeline(){
   const wk=WEEKS.find(w=>w.key===S.week)||WEEKS[0], venue=VENUES.find(v=>v.key===S.venue)||VENUES[0];
   const sc=lanes.reduce((a,ln)=>{a[ln.side]=(a[ln.side]||0)+1;return a;},{});
   const poolTime=S.plan.filter(s=>isPoolArea(s.area)).reduce((a,s)=>a+s.dur,0);
+  const _lc=S.loadedId?S.published.find(c=>c.id===S.loadedId):null;
+  const _status=_lc?`<span style="color:#059669;font-weight:700">● Published · Wk ${_lc.wk}${_lc.resortName?" · "+esc(_lc.resortName):""}</span>`:`<span style="color:#e11d48;font-weight:700">● Draft — not published yet</span>`;
   const meta=[
+    ["Status",_status],
     ["Service",`<span class="tl-dot" style="background:${sv.hex}"></span>${esc(sv.name)}`],
     ...(sv.stroke?[["Stroke",esc(STROKES[S.course].label)]]:[]),
     ["Format",isGroup?`Group · ${S.size}/lane`:"One 2 One"],
@@ -1499,11 +1501,6 @@ function buildProgramme(){
   document.getElementById("programme").innerHTML = total ? groups : `<p class="lbl2" style="margin:0">No sessions yet — set the counts in Sessions per course below.</p>`;
   document.getElementById("progTotal").textContent=total;
 }
-function buildPoolSched(){
-  const n=S.sessions.pool; let h="";
-  for(let i=0;i<n;i++) h+=schedRow("pool",i,POOL_AREAS);
-  document.getElementById("poolSched").innerHTML=n?h:`<p class="lbl2" style="margin:0">No pool classes — raise “Pool classes” in Sessions per course.</p>`;
-}
 /* ── BULK "set them all the same" controls ─────────────────── */
 const BULK_SCOPES=[["all","All sessions"],...PROG_TYPES.filter(([t])=>t!=="pool").map(([t,,short])=>[t,short])];
 function scopeShort(sc){const f=BULK_SCOPES.find(x=>x[0]===sc);return f?f[1]:sc;}
@@ -1528,15 +1525,16 @@ function buildSchedules(){ /* legacy per-type renderers removed — the flat bui
 /* ── PUBLISH + RESORT WEEKLY CALENDAR ──────────────────────── */
 const LS_KEY="sssc-course-builder-v1";
 function loadPublished(){try{const raw=localStorage.getItem(LS_KEY);S.published=raw?JSON.parse(raw):[];}catch(e){S.published=[];}}
-function savePublished(){try{localStorage.setItem(LS_KEY,JSON.stringify(S.published));}catch(e){}}
+function savePublished(){try{localStorage.setItem(LS_KEY,JSON.stringify(S.published));}catch(e){showToast("⚠️ Couldn’t save published courses — storage may be full");}}
 /* ── AUTO-SAVE the in-progress working draft (no save button needed) ── */
 const DRAFT_KEY="sssc-course-builder-draft-v1";
+let _saveFailWarned=false;
 function saveDraft(){try{localStorage.setItem(DRAFT_KEY,JSON.stringify({
   svc:S.svc,course:S.course,mode:S.mode,week:S.week,venue:S.venue,calY:S.calY,calM:S.calM,
-  male:S.male,mixed:S.mixed,female:S.female,size:S.size,
-  plan:S.plan,areaRates:S.areaRates,assign:S.assign,laneOv:S.laneOv,
+  male:S.male,mixed:S.mixed,female:S.female,size:S.size,busDays:S.busDays,
+  plan:S.plan,areaRates:S.areaRates,assign:S.assign,laneOv:S.laneOv,poolLayers:S.poolLayers,
   onShift:S.roster.filter(t=>t.on).map(t=>t.id),pubWeeks:S.pubWeeks,loadedId:S.loadedId
-}));}catch(e){}}
+}));_saveFailWarned=false;}catch(e){if(!_saveFailWarned){_saveFailWarned=true;showToast("⚠️ Couldn’t save — browser storage may be full (remove some facility photos)");}}}
 function loadDraft(){try{
   const raw=localStorage.getItem(DRAFT_KEY); if(!raw) return;
   const d=JSON.parse(raw);
@@ -1546,6 +1544,8 @@ function loadDraft(){try{
   S.male=d.male||0; S.mixed=d.mixed||0; S.female=d.female||0; S.size=d.size||0;
   S.plan=Array.isArray(d.plan)?d.plan:[]; S.areaRates=d.areaRates||{};
   S.assign=d.assign||{male:[],mixed:[],female:[]}; S.laneOv=d.laneOv||{};
+  if(d.poolLayers)S.poolLayers=Object.assign({biz:false,occ:false,names:false},d.poolLayers);
+  S.busDays=(typeof d.busDays==="number")?d.busDays:null;
   if(Array.isArray(d.onShift))S.roster.forEach(t=>t.on=d.onShift.includes(t.id));
   S.pubWeeks=Array.isArray(d.pubWeeks)&&d.pubWeeks.length?d.pubWeeks:[S.week]; S.loadedId=d.loadedId||null;
 }catch(e){}}
@@ -1553,7 +1553,7 @@ function newCourse(){
   try{localStorage.removeItem(DRAFT_KEY);}catch(e){}
   S.svc="swim-school";S.course="freestyle";S.mode="group";S.week=WEEKS[0].key;S.venue="playitas";
   S.calY=+WEEKS[0].key.slice(0,4);S.calM=+WEEKS[0].key.slice(5,7)-1;
-  S.male=0;S.mixed=0;S.female=0;S.size=0;S.plan=[];S.areaRates={};S.assign={male:[],mixed:[],female:[]};S.laneOv={};
+  S.male=0;S.mixed=0;S.female=0;S.size=0;S.plan=[];S.areaRates={};S.assign={male:[],mixed:[],female:[]};S.laneOv={};S.busDays=null;
   S.roster.forEach(t=>t.on=false); S.pubWeeks=[WEEKS[0].key]; S.loadedId=null; S.poolIdx=0; S.tplSrc=null; S.tplTargets=null;
   tlClip=null; undoStack=[]; updateUndoBtn();
   refreshAll(); showToast("Started a new blank course");
@@ -1616,7 +1616,8 @@ function exportMyWork(){
   const blob=new Blob([data],{type:"application/json"}), url=URL.createObjectURL(blob);
   const a=document.createElement("a"); a.href=url; a.download="sssc-my-work.json"; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
-  showToast(`Exported ${tpls.length} template${tpls.length!==1?"s":""} + ${crs.length} course${crs.length!==1?"s":""} → sssc-my-work.json`);
+  const draftNote=(S.plan.length && !S.loadedId)?" · ⚠️ your current unpublished draft is NOT included — Publish it or Save as template first":"";
+  showToast(`Exported ${tpls.length} template${tpls.length!==1?"s":""} + ${crs.length} course${crs.length!==1?"s":""} → sssc-my-work.json${draftNote}`);
 }
 function importMyWork(file){
   const r=new FileReader();
@@ -1628,7 +1629,7 @@ function importMyWork(file){
     const mergeById=(existing,incoming)=>{const m={};(existing||[]).forEach(x=>{if(x&&x.id)m[x.id]=x;});incoming.forEach(x=>{if(x&&x.id)m[x.id]=x;});return Object.values(m);};
     if(tpls.length){ S.templates=mergeById(S.templates,tpls); saveTemplates(); buildTemplatesList(); }
     if(crs.length){ S.published=mergeById(S.published,crs); savePublished(); buildPublish(); buildResortCal(); }
-    if(d.facilityImg && typeof d.facilityImg==="object"){ Object.keys(d.facilityImg).forEach(k=>{ if(Array.isArray(d.facilityImg[k])) S.facilityImg[k]=(S.facilityImg[k]||[]).concat(d.facilityImg[k]); }); saveFacilityImg(); buildResortBooking(); }
+    if(d.facilityImg && typeof d.facilityImg==="object"){ Object.keys(d.facilityImg).forEach(k=>{ if(Array.isArray(d.facilityImg[k])) S.facilityImg[k]=Array.from(new Set((S.facilityImg[k]||[]).concat(d.facilityImg[k]))); }); saveFacilityImg(); buildResortBooking(); }
     showToast(`Imported ${tpls.length} template${tpls.length!==1?"s":""} + ${crs.length} course${crs.length!==1?"s":""} — find them below`);
   }catch(e){showToast("Couldn't read that file — not a valid SSSC export");}};
   r.readAsText(file);
@@ -1654,7 +1655,7 @@ function loadCourse(id){
 const TPL_KEY="sssc-course-templates-v1";
 const CAT_SHORT={info:"info",classroom:"classroom",pool:"pool",openwater:"open-water",gym:"gym",dryland:"dryland",recovery:"recovery",recreation:"recreation",resort:"resort class",social:"social",freetime:"free time",meals:"meals",other:"other"};
 function loadTemplates(){try{const raw=localStorage.getItem(TPL_KEY);S.templates=raw?JSON.parse(raw):[];}catch(e){S.templates=[];}}
-function saveTemplates(){try{localStorage.setItem(TPL_KEY,JSON.stringify(S.templates));}catch(e){}}
+function saveTemplates(){try{localStorage.setItem(TPL_KEY,JSON.stringify(S.templates));}catch(e){showToast("⚠️ Couldn’t save templates — storage may be full");}}
 function courseDayCount(){return new Set(S.plan.filter(s=>s.day!=null).map(s=>s.day)).size;}
 function summarizeCourse(){
   const sv=SERVICES[S.svc], stroke=sv.stroke&&STROKES[S.course]?" · "+STROKES[S.course].label:"";
@@ -1786,13 +1787,15 @@ function computeBusiness(){
   const F=computeFacilities(), facTotal=F.total, facilities=F.list;
   const coachN=onShift().length, coachCost=coachN*COACH_DAY*COURSE_DAYS_N;
   const hasCourse=S.plan.length>0;
-  const busCost=sv.bus?BUS_DAY*COURSE_DAYS_N:0, admin=hasCourse?ADMIN_FLAT:0;
+  const activeDays=new Set(S.plan.filter(s=>s.day!=null).map(s=>s.day)).size||1;
+  const busDays=sv.bus?(typeof S.busDays==="number"?S.busDays:Math.min(activeDays,COURSE_DAYS_N)):0;
+  const busCost=sv.bus?BUS_DAY*busDays:0, admin=hasCourse?ADMIN_FLAT:0;
   const cost=facTotal+coachCost+busCost+admin;
   const revFull=capacity*sv.full, revNow=booked*sv.full;
   const beBookings=sv.full>0?Math.ceil(cost/sv.full):0;
   const bePct=capacity>0?Math.round(beBookings/capacity*100):0;
   const profit=revFull-cost, margin=revFull>0?Math.round(profit/revFull*100):0, pnlNow=revNow-cost;
-  return {sv,nLanes,perLane,capacity,booked,facilities,facTotal,coachN,coachCost,busCost,admin,cost,revFull,revNow,beBookings,bePct,profit,margin,pnlNow};
+  return {sv,nLanes,perLane,capacity,booked,facilities,facTotal,coachN,coachCost,busCost,busDays,admin,cost,revFull,revNow,beBookings,bePct,profit,margin,pnlNow};
 }
 function money(n){return (n<0?"−€":"€")+num(Math.abs(n));}
 function hrsLabel(h){return (h%1?h.toFixed(1):h)+"h";}
@@ -1809,9 +1812,9 @@ function buildBusiness(){
   document.getElementById("bizMetrics").innerHTML=tiles.map(([k,c,v,sub,col])=>`<div class="m ${c}"><div class="k">${k}</div><div class="v"${col?` style="color:${col}"`:""}>${v}</div><div class="ksub">${sub}</div></div>`).join("");
   const rows=b.facilities.map(a=>`<tr><td class="nm">${esc(a.label)}${a.pool?` <span class="biz-note">lane hire × ${b.nLanes}</span>`:""}</td><td>${a.sessions} session${a.sessions!==1?"s":""}</td><td>${hrsLabel(a.hours)}</td><td class="cp">€${num(a.cost)}</td></tr>`).join("");
   const extra=[[`Coaches — ${b.coachN} on shift × €${COACH_DAY}/day × ${COURSE_DAYS_N} days`,b.coachCost]]
-    .concat(b.busCost?[[`Mini-bus / transport — €${BUS_DAY}/day × ${COURSE_DAYS_N} days`,b.busCost]]:[])
+    .concat(b.busCost?[[`Mini-bus / transport — €${BUS_DAY}/day × <input type="number" min="0" max="${COURSE_DAYS_N+1}" step="1" value="${b.busDays}" class="biz-busdays" title="Transport days — edit if the bus doesn’t run every day"> days`,b.busCost]]:[])
     .concat([[`Admin, insurance & safeguarding`,b.admin]])
-    .map(([l,c])=>`<tr><td class="nm" colspan="3">${esc(l)}</td><td class="cp">€${num(c)}</td></tr>`).join("");
+    .map(([l,c])=>`<tr><td class="nm" colspan="3">${l}</td><td class="cp">€${num(c)}</td></tr>`).join(""); /* labels are static (incl. the transport-days input) — safe un-escaped */
   const costTable=`<table class="tl biz-table"><thead><tr><th>Cost line</th><th>Use</th><th>Hours</th><th>Cost</th></tr></thead><tbody>${rows}${extra}<tr class="biz-total"><td class="nm" colspan="3">Total course cost</td><td class="cp">€${num(b.cost)}</td></tr></tbody></table>`;
   /* PER-LANE breakdown — each lane's full-house revenue vs its direct costs (pool hire + coach); course admin/transport/room hire sit on top */
   const full=b.sv.full, perLane=b.perLane, coachDay=COACH_DAY*COURSE_DAYS_N;
@@ -2359,7 +2362,7 @@ document.getElementById("timeline").addEventListener("input",e=>{const inp=e.tar
 document.getElementById("breakdown").addEventListener("change",onPlanChange);
 document.getElementById("breakdown").addEventListener("input",e=>{const inp=e.target.closest(".tl-note");if(!inp)return;const i=+inp.dataset.i;if(S.plan[i]){S.plan[i].note=inp.value;saveDraft();}});
 document.getElementById("timeline").addEventListener("click",e=>{
-  const del=e.target.closest(".tl-del"); if(del){pushUndo();removePlan(+del.dataset.i);render();return;}
+  const del=e.target.closest(".tl-del"); if(del){pushUndo();removePlan(+del.dataset.i);render();showToast("Session removed — press ↶ Undo to bring it back");return;}
   const cp=e.target.closest(".tl-copy"); if(cp){const s=S.plan[+cp.dataset.i]; if(s){tlClip={time:s.time,area:s.area,act:s.act,note:s.note,dur:s.dur,lead:s.lead,focus:s.focus};} render(); return;}
   const ps=e.target.closest(".tl-paste"); if(ps){if(tlClip){pushUndo();addPlan(Object.assign({day:+ps.dataset.day},tlClip));} render(); return;}
   const cc=e.target.closest(".tl-clip-clear"); if(cc){tlClip=null; render(); return;}
@@ -2441,6 +2444,7 @@ document.getElementById("weekTrack").addEventListener("click",e=>{
 /* pool gallery — one class in view, ‹ › to move through the course */
 document.getElementById("poolLayers").addEventListener("click",e=>{const b=e.target.closest("[data-layer]");if(!b)return;S.poolLayers[b.dataset.layer]=!S.poolLayers[b.dataset.layer];render();});
 document.getElementById("facilities").addEventListener("change",e=>{const inp=e.target.closest("input[data-area]");if(!inp)return;S.areaRates[inp.dataset.area]=Math.max(0,+inp.value||0);render();});
+document.getElementById("bizBreakdown").addEventListener("change",e=>{const inp=e.target.closest(".biz-busdays");if(!inp)return;S.busDays=Math.max(0,Math.min(+inp.value||0,COURSE_DAYS_N+1));render();});
 document.getElementById("poolPrev").addEventListener("click",()=>{S.poolIdx=Math.max(0,(S.poolIdx||0)-1);render();});
 document.getElementById("poolNext").addEventListener("click",()=>{S.poolIdx=Math.min(Math.max(0,poolPlan().length-1),(S.poolIdx||0)+1);render();});
 /* pool — click a START block to reveal client names, click a booked dot for the contact card */
