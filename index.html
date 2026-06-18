@@ -106,6 +106,12 @@
   .foc-rm{background:transparent;border:0;color:var(--svc);font-size:13px;line-height:1;cursor:pointer;padding:0 3px;border-radius:50%;}
   .foc-rm:hover{background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.25);}
   .tl-focus-add{flex:1 1 120px;min-width:108px;width:auto;}
+  .ld-list{display:flex;flex-direction:column;gap:8px;}
+  .ld-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .ld-num{flex-shrink:0;min-width:34px;text-align:center;color:#fff;font-size:11px;font-weight:800;border-radius:8px;padding:7px 9px;}
+  .ld-row .ps-sel{flex:0 1 auto;max-width:100%;}
+  .ld-name{font:inherit;font-size:12px;font-weight:500;color:var(--ink);background:#fff;border:0;border-radius:8px;padding:8px 11px;min-width:120px;flex:1 1 130px;box-shadow:inset 1px 1px 3px rgba(174,178,196,.35),inset -1px -1px 2px #fff,inset 0 0 0 1px rgba(0,0,0,.05);}
+  .ld-name::placeholder{color:var(--ink-faint);font-weight:400;}
   .tl-type{font-weight:700;color:var(--svc);}
   .tl-dur{max-width:100%;padding-left:9px;padding-right:20px;}
   .tl-focus{margin-top:6px;font-size:11.5px;font-weight:500;color:var(--ink-soft);}
@@ -616,6 +622,7 @@
         <div class="seg" id="sizeSeg"></div>
       </div>
     </div>
+    <div id="laneDesignator"></div>
   </div>
 
   <!-- LANE SELECTOR + TEACHERS (tabbed) -->
@@ -1016,6 +1023,7 @@ S.loadedId=null;           /* id of a published course currently loaded for edit
 S.poolLayers={biz:false,occ:false,names:false};  /* overlay toggles for the pool visualizer */
 S.areaRates={};            /* per-area €/hr overrides for facility hire (defaults from AREA_COST) */
 S.lead={};                 /* (legacy, unused) */
+S.laneOv={};               /* per-lane OVERRIDES of the auto lane-law: "side:idx" -> {gender?,abil?,name?} */
 S.plan=[];                 /* THE COURSE: a flat list of sessions, built one at a time */
 
 /* ── HELPERS ──────────────────────────────────────────────── */
@@ -1228,17 +1236,23 @@ function laneBookedCount(i,cap){return Math.min(cap,Math.max(0,cap-(i%4)));}
 /* THE LANE LAW (iOS roster.ts): males lanes 1·2·3 Beginner→Advanced, females
    lanes 8·7·6 Beginner→Advanced — so ability ramps up toward the middle; mixed = flex */
 const ABIL=["Beginner","Intermediate","Advanced"];
-function laneAbility(side,idx){if(side==="mixed")return "Mixed";return side==="male"?ABIL[Math.min(idx,2)]:ABIL[Math.max(0,2-idx)];}
+const ABIL_DESC={Beginner:"can’t breathe yet",Intermediate:"breathing a little, still learning",Advanced:"breathing comfortably"};
+/* per-lane override accessors — fall back to the automatic lane law when no override is set */
+function laneOvOf(side,idx){return S.laneOv[side+":"+idx]||{};}
+function laneAbilityAuto(side,idx){if(side==="mixed")return "Mixed";return side==="male"?ABIL[Math.min(idx,2)]:ABIL[Math.max(0,2-idx)];}
+function laneAbility(side,idx){return laneOvOf(side,idx).abil||laneAbilityAuto(side,idx);}
+function laneGender(side,idx){return laneOvOf(side,idx).gender||side;}
+function laneName(side,idx){return laneOvOf(side,idx).name||"";}
 function abilAbbr(a){return a==="Beginner"?"Beg":a==="Intermediate"?"Int":a==="Advanced"?"Adv":"Mix";}
 function abilPlural(a){return a==="Beginner"?"Beginners":a==="Intermediate"?"Intermediates":a==="Advanced"?"Advanced":"";}
-function laneDesc(side,idx){return side==="mixed"?"Mixed ability":`${side==="male"?"Male":"Female"} ${abilPlural(laneAbility(side,idx))}`;}
+function laneDesc(side,idx){const g=laneGender(side,idx),ab=laneAbility(side,idx);return g==="mixed"?"Mixed ability":`${g==="male"?"Male":"Female"} ${abilPlural(ab)}`.trim();}
 /* is this teacher suited to this lane's class, gender & level? */
 function suitableForLane(t,ln){
   const sv=SERVICES[S.svc];
   if(!t.tags.services.includes(S.svc)) return false;
   if(sv.stroke && !t.tags.courses.includes(S.course)) return false;
   if(!(t.tags.teaches.includes("pool")||t.tags.teaches.includes("pool-training"))) return false;
-  if(!t.tags.prefers.includes(ln.side)) return false;
+  if(!t.tags.prefers.includes(laneGender(ln.side,ln.idx))) return false;
   const ab=laneAbility(ln.side,ln.idx).toLowerCase();
   if(ab!=="mixed" && !t.tags.levels.includes(ab)) return false;
   return true;
@@ -1469,7 +1483,7 @@ const DRAFT_KEY="sssc-course-builder-draft-v1";
 function saveDraft(){try{localStorage.setItem(DRAFT_KEY,JSON.stringify({
   svc:S.svc,course:S.course,mode:S.mode,week:S.week,venue:S.venue,calY:S.calY,calM:S.calM,
   male:S.male,mixed:S.mixed,female:S.female,size:S.size,
-  plan:S.plan,areaRates:S.areaRates,assign:S.assign,
+  plan:S.plan,areaRates:S.areaRates,assign:S.assign,laneOv:S.laneOv,
   onShift:S.roster.filter(t=>t.on).map(t=>t.id),pubWeeks:S.pubWeeks,loadedId:S.loadedId
 }));}catch(e){}}
 function loadDraft(){try{
@@ -1480,7 +1494,7 @@ function loadDraft(){try{
   if(VENUES.some(v=>v.key===d.venue))S.venue=d.venue;
   S.male=d.male||0; S.mixed=d.mixed||0; S.female=d.female||0; S.size=d.size||0;
   S.plan=Array.isArray(d.plan)?d.plan:[]; S.areaRates=d.areaRates||{};
-  S.assign=d.assign||{male:[],mixed:[],female:[]};
+  S.assign=d.assign||{male:[],mixed:[],female:[]}; S.laneOv=d.laneOv||{};
   if(Array.isArray(d.onShift))S.roster.forEach(t=>t.on=d.onShift.includes(t.id));
   S.pubWeeks=Array.isArray(d.pubWeeks)&&d.pubWeeks.length?d.pubWeeks:[S.week]; S.loadedId=d.loadedId||null;
 }catch(e){}}
@@ -1488,7 +1502,7 @@ function newCourse(){
   try{localStorage.removeItem(DRAFT_KEY);}catch(e){}
   S.svc="swim-school";S.course="freestyle";S.mode="group";S.week=WEEKS[0].key;S.venue="playitas";
   S.calY=+WEEKS[0].key.slice(0,4);S.calM=+WEEKS[0].key.slice(5,7)-1;
-  S.male=0;S.mixed=0;S.female=0;S.size=0;S.plan=[];S.areaRates={};S.assign={male:[],mixed:[],female:[]};
+  S.male=0;S.mixed=0;S.female=0;S.size=0;S.plan=[];S.areaRates={};S.assign={male:[],mixed:[],female:[]};S.laneOv={};
   S.roster.forEach(t=>t.on=false); S.pubWeeks=[WEEKS[0].key]; S.loadedId=null; S.poolIdx=0; S.tplSrc=null; S.tplTargets=null;
   tlClip=null; undoStack=[]; updateUndoBtn();
   refreshAll(); showToast("Started a new blank course");
@@ -1510,7 +1524,7 @@ function snapshotCourse(weekKey){
     lead:led.lead?{name:led.lead.name,qual:QUALS[led.lead.qual].label}:null, team:led.team.map(t=>t.name),
     biz:(()=>{const b=computeBusiness();return {revFull:b.revFull,revNow:b.revNow,cost:b.cost,profit:b.profit,beBookings:b.beBookings,capacity:b.capacity,booked:b.booked};})(),
     title:sv.name+(sv.stroke&&STROKES[S.course]?" · "+STROKES[S.course].label:""),
-    raw:{plan:JSON.parse(JSON.stringify(S.plan)),assign:JSON.parse(JSON.stringify(S.assign)),areaRates:JSON.parse(JSON.stringify(S.areaRates)),onShift:S.roster.filter(t=>t.on).map(t=>t.id)}
+    raw:{plan:JSON.parse(JSON.stringify(S.plan)),assign:JSON.parse(JSON.stringify(S.assign)),areaRates:JSON.parse(JSON.stringify(S.areaRates)),laneOv:JSON.parse(JSON.stringify(S.laneOv)),onShift:S.roster.filter(t=>t.on).map(t=>t.id)}
   };
 }
 function publishCourse(){
@@ -1577,8 +1591,9 @@ function loadCourse(id){
     S.plan=c.raw.plan?JSON.parse(JSON.stringify(c.raw.plan)):[];
     S.assign=JSON.parse(JSON.stringify(c.raw.assign||{male:[],mixed:[],female:[]}));
     S.areaRates=c.raw.areaRates?JSON.parse(JSON.stringify(c.raw.areaRates)):{};
+    S.laneOv=c.raw.laneOv?JSON.parse(JSON.stringify(c.raw.laneOv)):{};
     S.roster.forEach(t=>t.on=(c.raw.onShift||[]).includes(t.id));
-  } else { S.plan=[]; }
+  } else { S.plan=[]; S.laneOv={}; }
   refreshAll();
   showToast(`Loaded “${c.title}” — Wk ${c.wk} at ${c.resortName}`);
   document.getElementById("publishPanel").scrollIntoView({block:"center"});
@@ -1606,7 +1621,7 @@ function saveCurrentAsTemplate(){
   const tpl={ id:"t"+Date.now().toString(36)+Math.floor(Math.random()*46656).toString(36), ts:Date.now(),
     title, summary:summarizeCourse(), days:courseDayCount(), sessions:S.plan.length,
     design:{ svc:S.svc, course:S.course, mode:S.mode, male:S.male, mixed:S.mixed, female:S.female, size:S.size,
-      plan:JSON.parse(JSON.stringify(S.plan)), areaRates:JSON.parse(JSON.stringify(S.areaRates)),
+      plan:JSON.parse(JSON.stringify(S.plan)), areaRates:JSON.parse(JSON.stringify(S.areaRates)), laneOv:JSON.parse(JSON.stringify(S.laneOv)),
       onShift:S.roster.filter(t=>t.on).map(t=>t.id) } };
   S.templates.unshift(tpl); saveTemplates(); buildTemplatesList();
   showToast(`Saved template “${title}”`);
@@ -1619,6 +1634,7 @@ function useTemplate(id){
   S.male=d.male||0;S.mixed=d.mixed||0;S.female=d.female||0;S.size=d.size||0;
   S.plan=d.plan?JSON.parse(JSON.stringify(d.plan)):[];
   S.areaRates=d.areaRates?JSON.parse(JSON.stringify(d.areaRates)):{};
+  S.laneOv=d.laneOv?JSON.parse(JSON.stringify(d.laneOv)):{};
   S.roster.forEach(tt=>tt.on=(d.onShift||[]).includes(tt.id));
   S.loadedId=null; S.tplSrc=null; S.tplTargets=null; tlClip=null; undoStack=[]; updateUndoBtn();
   refreshAll();
@@ -1925,13 +1941,30 @@ function buildEditor(){
     });
     const unsuited=curT&&!suit.includes(curT);
     const note=unsuited?`<span class="nofit">${curT.on?"not suited to this lane":"off shift"}</span>`:"";
-    cols[ln.side].push(`<label class="lane-edit">
-      <span class="side-badge" style="background:${GENDER[ln.side]}">L${i+1} · ${SIDE[ln.side]}</span>
+    const eg=laneGender(ln.side,ln.idx), nm=laneName(ln.side,ln.idx);
+    cols[eg].push(`<label class="lane-edit">
+      <span class="side-badge" style="background:${GENDER[eg]}">L${i+1} · ${nm?esc(nm):SIDE[eg]}</span>
       <select data-side="${ln.side}" data-idx="${ln.idx}">${o}</select>${note}
     </label>`);
   });
   const col=(side,label)=>`<div class="lane-col"><div class="lane-col-h" style="color:${GENDER[side]}">${label} lanes</div>${cols[side].join("")||`<div class="lane-col-empty">none</div>`}</div>`;
   box.innerHTML=col("male","Male")+col("mixed","Mixed")+col("female","Female");
+}
+/* LANE DESIGNATOR — auto by the lane law, but every lane's gender / ability / name can be overridden */
+function buildLaneDesignator(){
+  const host=document.getElementById("laneDesignator"); if(!host) return;
+  const lanes=lanesList();
+  if(!lanes.length){ host.innerHTML=""; return; }
+  const GLAB={male:"Male",mixed:"Mixed",female:"Female"};
+  const abOpts=[["Mixed","Mixed (flex)"]].concat(ABIL.map(a=>[a,a+" — "+ABIL_DESC[a]]));
+  const rows=lanes.map((ln,i)=>{
+    const key=ln.side+":"+ln.idx, g=laneGender(ln.side,ln.idx), ab=laneAbility(ln.side,ln.idx), nm=laneName(ln.side,ln.idx);
+    const genSel=`<select class="ps-sel ld-sel" data-key="${key}" data-f="gender">${["male","mixed","female"].map(x=>`<option value="${x}"${x===g?" selected":""}>${GLAB[x]}</option>`).join("")}</select>`;
+    const abSel=`<select class="ps-sel ld-sel" data-key="${key}" data-f="abil">${abOpts.map(([v,l])=>`<option value="${v}"${v===ab?" selected":""}>${esc(l)}</option>`).join("")}</select>`;
+    const nameInp=`<input type="text" class="ld-name" data-key="${key}" value="${esc(nm)}" placeholder="name (optional)">`;
+    return `<div class="ld-row"><span class="ld-num" style="background:${GENDER[g]}">L${i+1}</span>${genSel}${abSel}${nameInp}</div>`;
+  }).join("");
+  host.innerHTML=`<p class="lbl" style="margin:18px 0 9px;">Lane designator <span style="font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink-faint)">— auto by the lane rule; change any lane to override</span></p><div class="ld-list">${rows}</div>`;
 }
 
 /* ── CLIENT POOL-LANE REGISTER (live, demo clients) ──────── */
@@ -1942,11 +1975,12 @@ function buildRegister(){
     const coach=coachOf(ln)||"— no teacher —";
     const booked=laneBookedCount(i,cap);
     tBooked+=booked; tCap+=cap;
-    const chips=pickClients(ln.side,i,booked).map(c=>`<span class="reg-chip" style="background:${clientColor(c.gender)}">${esc(c.name)} · ${c.age}</span>`).join("");
+    const eg=laneGender(ln.side,ln.idx), nm=laneName(ln.side,ln.idx);
+    const chips=pickClients(eg,i,booked).map(c=>`<span class="reg-chip" style="background:${clientColor(c.gender)}">${esc(c.name)} · ${c.age}</span>`).join("");
     const tone=booked>=cap?"#e11d48":booked>=cap-2?"#b45309":"#059669";
     return `<div class="reg-lane">
-      <span class="side-badge" style="background:${GENDER[ln.side]}">L${i+1} · ${SIDE[ln.side]}</span>
-      <div class="reg-info"><div class="reg-coach">${laneDesc(ln.side,ln.idx)} · ${esc(coach)}</div><div class="reg-clients">${chips||'<span class="reg-empty">no clients booked yet</span>'}</div></div>
+      <span class="side-badge" style="background:${GENDER[eg]}">L${i+1} · ${nm?esc(nm):SIDE[eg]}</span>
+      <div class="reg-info"><div class="reg-coach">${nm?esc(nm)+" · ":""}${laneDesc(ln.side,ln.idx)} · ${esc(coach)}</div><div class="reg-clients">${chips||'<span class="reg-empty">no clients booked yet</span>'}</div></div>
       <span class="reg-count" style="color:${tone}">${booked}/${cap}</span>
     </div>`;
   }).join("");
@@ -1990,8 +2024,9 @@ function render(){
   let laneBody=rope();
   if(total===0) laneBody+=`<div class="pool-empty">No lanes yet — add male, mixed or female lanes.</div>`;
   lanes.forEach((ln,i)=>{
-    const col=GENDER[ln.side], coach=coachOf(ln), first=coach?coach.split(" ")[0]:"—";
-    const booked=laneBookedCount(i,perLane), clients=pickClients(ln.side,i,booked), revealed=S.revealed.has(i)||!!PL.names;
+    const eg=laneGender(ln.side,ln.idx), lnm=laneName(ln.side,ln.idx);
+    const col=GENDER[eg], coach=coachOf(ln), first=coach?coach.split(" ")[0]:"—";
+    const booked=laneBookedCount(i,perLane), clients=pickClients(eg,i,booked), revealed=S.revealed.has(i)||!!PL.names;
     let dots="";
     for(let s=0;s<perLane;s++){
       if(s<booked){const cl=clients[s];
@@ -2004,9 +2039,9 @@ function render(){
     if(biz){ finishVal=`€${num(booked*biz.sv.full)}`; finishBg=col; }
     else if(PL.occ){ const pct=perLane?Math.round(booked/perLane*100):0; finishVal=`${pct}%`; finishBg=pct>=100?'#b1342f':pct>=60?'#059669':pct>=30?'#b45309':'#64748b'; }
     laneBody+=`<div class="pool-lane${revealed?" revealed":""}">
-      <button class="pool-start${coach?"":" unassigned"}" data-lane="${i}" style="background:${col}" title="${coach?esc(coach):"No teacher assigned"} · L${i+1} ${SIDE[ln.side]} — click to reveal clients">
+      <button class="pool-start${coach?"":" unassigned"}" data-lane="${i}" style="background:${col}" title="${coach?esc(coach):"No teacher assigned"} · L${i+1} ${lnm?esc(lnm)+" · ":""}${SIDE[eg]} — click to reveal clients">
         <span class="pool-start-l">L${i+1}</span>
-        <span class="pool-start-side">${!isGroup?"1-2-1":ln.side==="mixed"?"MIX":SIDE[ln.side]+"·"+abilAbbr(laneAbility(ln.side,ln.idx))}</span>
+        <span class="pool-start-side">${!isGroup?"1-2-1":eg==="mixed"?"MIX":SIDE[eg]+"·"+abilAbbr(laneAbility(ln.side,ln.idx))}</span>
         <span class="pool-start-coach">${esc(first)}</span>
       </button>
       <div class="pool-water"><span class="pool-guide"></span><div class="pool-dots">${dots}</div></div>
@@ -2083,6 +2118,7 @@ function render(){
 
   buildRegister();
   buildTimeline();
+  buildLaneDesignator();
   buildTemplateBar();
   buildBreakdown();
   buildSessions();
@@ -2253,7 +2289,7 @@ document.getElementById("pools").addEventListener("click",e=>{
   if(dot&&!wasOpen){
     dot.classList.add("on");
     const i=+dot.dataset.lane,s=+dot.dataset.seat,ln=lanesList()[i];if(!ln)return;
-    const cap=S.mode==="group"?S.size:1,cl=pickClients(ln.side,i,laneBookedCount(i,cap))[s];if(!cl)return;
+    const cap=S.mode==="group"?S.size:1,cl=pickClients(laneGender(ln.side,ln.idx),i,laneBookedCount(i,cap))[s];if(!cl)return;
     const sv=SERVICES[S.svc];
     const cT=teacherById(assignedId(ln));
     const coachLine=(cT&&cT.on)?`${esc(cT.name)} · ${QUALS[cT.qual].label}`:"— no teacher —";
@@ -2295,6 +2331,21 @@ document.getElementById("laneEditor").addEventListener("change",e=>{
   if(tid){ clearTeacher(tid); const at=teacherById(tid); if(at&&!at.on) at.on=true; } /* assigning brings them on shift */
   S.assign[sel.dataset.side][+sel.dataset.idx]=tid;
   buildRoster(); buildEditor(); render();
+});
+/* LANE DESIGNATOR — write per-lane gender/ability/name overrides (clears the override when it matches auto / is blank) */
+function setLaneOv(key,f,v){
+  S.laneOv[key]=S.laneOv[key]||{};
+  const [side,idx]=key.split(":"); const auto=f==="gender"?side:f==="abil"?laneAbilityAuto(side,+idx):"";
+  if(!v.trim()||v===auto) delete S.laneOv[key][f]; else S.laneOv[key][f]=v;
+  if(!Object.keys(S.laneOv[key]).length) delete S.laneOv[key];
+}
+document.getElementById("laneDesignator").addEventListener("change",e=>{
+  const sel=e.target.closest(".ld-sel"), inp=e.target.closest(".ld-name"); const el=sel||inp; if(!el) return;
+  setLaneOv(el.dataset.key, sel?sel.dataset.f:"name", el.value); buildEditor(); render(); /* gender/ability override changes lane-editor grouping + coach suitability */
+});
+document.getElementById("laneDesignator").addEventListener("input",e=>{
+  const inp=e.target.closest(".ld-name"); if(!inp) return;
+  setLaneOv(inp.dataset.key,"name",inp.value); saveDraft();
 });
 
 /* ── INIT ─────────────────────────────────────────────────── */
