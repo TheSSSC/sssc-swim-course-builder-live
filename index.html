@@ -110,6 +110,7 @@
   .ld-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
   .ld-num{flex-shrink:0;min-width:34px;text-align:center;color:#fff;font-size:11px;font-weight:800;border-radius:8px;padding:7px 9px;}
   .ld-row .ps-sel{flex:0 1 auto;max-width:100%;}
+  .ld-coach{flex:1 1 160px;min-width:140px;}
   .ld-name{font:inherit;font-size:12px;font-weight:500;color:var(--ink);background:#fff;border:0;border-radius:8px;padding:8px 11px;min-width:120px;flex:1 1 130px;box-shadow:inset 1px 1px 3px rgba(174,178,196,.35),inset -1px -1px 2px #fff,inset 0 0 0 1px rgba(0,0,0,.05);}
   .ld-name::placeholder{color:var(--ink-faint);font-weight:400;}
   .tl-type{font-weight:700;color:var(--svc);}
@@ -1920,6 +1921,18 @@ function buildRoster(){
 }
 
 /* ── LANE ASSIGNMENT EDITOR (rebuilt on composition / roster change) ── */
+/* context-aware coach <option>s for a lane: suited first, then the rest grouped by service (shared by the lane selector + the lane designator) */
+function coachOptsHtml(ln){
+  const cur=assignedId(ln), byQual=(a,b)=>QUALS[b.qual].rank-QUALS[a.qual].rank;
+  const optHtml=t=>`<option value="${t.id}"${t.id===cur?" selected":""}>${esc(t.name)} · ${QUALS[t.qual].label}${t.on?"":" · off shift"}</option>`;
+  const suit=S.roster.filter(t=>suitableForLane(t,ln)).sort(byQual);
+  const rest=S.roster.filter(t=>!suit.includes(t));
+  let o=`<option value="">— unassigned —</option>`;
+  if(suit.length) o+=`<optgroup label="✓ Suited (${suit.length})">${suit.map(optHtml).join("")}</optgroup>`;
+  const bySvc={}; rest.forEach(t=>{const sk=t.tags.services[0]||"other";(bySvc[sk]=bySvc[sk]||[]).push(t);});
+  Object.keys(bySvc).sort((a,b)=>(a===S.svc?-1:b===S.svc?1:0)).forEach(sk=>{bySvc[sk].sort(byQual);o+=`<optgroup label="${(SVC_SHORT[sk]||sk)} coaches (${bySvc[sk].length})">${bySvc[sk].map(optHtml).join("")}</optgroup>`;});
+  return o;
+}
 function buildEditor(){
   const lanes=lanesList(), opts=onShift(), box=document.getElementById("laneEditor");
   if(!lanes.length){ box.innerHTML=`<div class="foot" style="margin:0;grid-column:1/-1">No lanes yet — add lanes in the controls above.</div>`; return; }
@@ -1961,8 +1974,8 @@ function buildLaneDesignator(){
     const key=ln.side+":"+ln.idx, g=laneGender(ln.side,ln.idx), ab=laneAbility(ln.side,ln.idx), nm=laneName(ln.side,ln.idx);
     const genSel=`<select class="ps-sel ld-sel" data-key="${key}" data-f="gender">${["male","mixed","female"].map(x=>`<option value="${x}"${x===g?" selected":""}>${GLAB[x]}</option>`).join("")}</select>`;
     const abSel=`<select class="ps-sel ld-sel" data-key="${key}" data-f="abil">${abOpts.map(([v,l])=>`<option value="${v}"${v===ab?" selected":""}>${esc(l)}</option>`).join("")}</select>`;
-    const nameInp=`<input type="text" class="ld-name" data-key="${key}" value="${esc(nm)}" placeholder="name (optional)">`;
-    return `<div class="ld-row"><span class="ld-num" style="background:${GENDER[g]}">L${i+1}</span>${genSel}${abSel}${nameInp}</div>`;
+    const coachSel=`<select class="ps-sel ld-coach" data-side="${ln.side}" data-idx="${ln.idx}">${coachOptsHtml(ln)}</select>`;
+    return `<div class="ld-row"><span class="ld-num" style="background:${GENDER[g]}">L${i+1}</span>${genSel}${abSel}${coachSel}</div>`;
   }).join("");
   host.innerHTML=`<p class="lbl" style="margin:18px 0 9px;">Lane designator <span style="font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink-faint)">— auto by the lane rule; change any lane to override</span></p><div class="ld-list">${rows}</div>`;
 }
@@ -2340,12 +2353,10 @@ function setLaneOv(key,f,v){
   if(!Object.keys(S.laneOv[key]).length) delete S.laneOv[key];
 }
 document.getElementById("laneDesignator").addEventListener("change",e=>{
-  const sel=e.target.closest(".ld-sel"), inp=e.target.closest(".ld-name"); const el=sel||inp; if(!el) return;
-  setLaneOv(el.dataset.key, sel?sel.dataset.f:"name", el.value); buildEditor(); render(); /* gender/ability override changes lane-editor grouping + coach suitability */
-});
-document.getElementById("laneDesignator").addEventListener("input",e=>{
-  const inp=e.target.closest(".ld-name"); if(!inp) return;
-  setLaneOv(inp.dataset.key,"name",inp.value); saveDraft();
+  const coach=e.target.closest(".ld-coach");
+  if(coach){const tid=coach.value; if(tid){clearTeacher(tid);const at=teacherById(tid);if(at&&!at.on)at.on=true;} S.assign[coach.dataset.side][+coach.dataset.idx]=tid; buildRoster(); buildEditor(); render(); return;} /* assign coach right from the designator (syncs with the Lane selector) */
+  const sel=e.target.closest(".ld-sel"); if(!sel) return;
+  setLaneOv(sel.dataset.key, sel.dataset.f, sel.value); buildEditor(); render(); /* gender/ability override changes lane-editor grouping + coach suitability */
 });
 
 /* ── INIT ─────────────────────────────────────────────────── */
