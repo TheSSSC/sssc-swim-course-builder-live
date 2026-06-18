@@ -351,6 +351,8 @@
   .rb-dur{color:var(--ink-faint);font-size:11.5px;min-width:58px;}
   .rb-fac{color:var(--ink);font-weight:500;}
   .rb-act{color:var(--ink-soft);}
+  .rb-lanetags{display:flex;flex-wrap:wrap;gap:5px;margin:4px 0 8px 16px;}
+  .rb-ltag{color:#fff;font-size:10px;font-weight:800;border-radius:6px;padding:2px 7px;white-space:nowrap;}
   .tcard{margin-top:7px;padding:12px 13px;border-radius:11px;background:#fff;box-shadow:inset 0 0 0 1px rgba(0,0,0,.05);display:flex;flex-direction:column;gap:11px;}
   .tcard-head{display:flex;gap:12px;align-items:flex-start;padding-bottom:11px;border-bottom:1px solid #eef0f4;}
   .avatar{flex:0 0 auto;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--svc);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.14);}
@@ -1879,9 +1881,15 @@ function buildResortBooking(){
     const dayLabel=d==="_un"?"Unscheduled":`${dayName(d)} · ${courseDateShort(d)}`;
     T.push("", dayLabel);
     const items=arr.slice().sort((a,b)=>(""+a.time).localeCompare(""+b.time)).map(s=>{
-      const t=s.time?`${s.time}–${addMins(s.time,s.dur)}`:"time TBC", laneNote=isPoolArea(s.area)?` · ${lanes.length} lanes`:"";
+      const t=s.time?`${s.time}–${addMins(s.time,s.dur)}`:"time TBC", pool=isPoolArea(s.area), laneNote=pool?` · ${lanes.length} lanes`:"";
+      const row=`<div class="rb-row"><span class="rb-time">${esc(t)}</span><span class="rb-dur">${durLabel(s.dur)}</span><span class="rb-fac">${esc(areaLabel(s.area))}${laneNote}</span><span class="rb-act">${s.act?esc(ACT_LABEL[s.act]||s.act):""}</span></div>`;
+      let tags="";
+      if(pool && lanes.length){ /* exactly which lanes to book for THIS session */
+        tags=`<div class="rb-lanetags">${lanes.map((ln,i)=>{const eg=laneGender(ln.side,ln.idx);return `<span class="rb-ltag" style="background:${GENDER[eg]}">L${i+1} · ${SIDE[eg]} · ${abilLetter(laneAbility(ln.side,ln.idx))}</span>`;}).join("")}</div>`;
+      }
       T.push(`   ${t}  (${durLabel(s.dur)})  ${areaLabel(s.area)}${laneNote}  —  ${s.act?ACT_LABEL[s.act]||s.act:""}`);
-      return `<div class="rb-row"><span class="rb-time">${esc(t)}</span><span class="rb-dur">${durLabel(s.dur)}</span><span class="rb-fac">${esc(areaLabel(s.area))}${laneNote}</span><span class="rb-act">${s.act?esc(ACT_LABEL[s.act]||s.act):""}</span></div>`;
+      if(pool && lanes.length) T.push(`        Lanes: ${lanes.map((ln,i)=>`L${i+1}·${SIDE[laneGender(ln.side,ln.idx)]}·${abilLetter(laneAbility(ln.side,ln.idx))}`).join(", ")}`);
+      return row+tags;
     }).join("");
     sched+=`<div class="rb-day"><div class="rb-dayh">${esc(dayLabel)}</div>${items}</div>`;
   });
