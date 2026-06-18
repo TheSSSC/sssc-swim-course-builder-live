@@ -337,6 +337,20 @@
   .fac-lane-badge{flex:0 0 auto;color:#fff;font-size:10px;font-weight:800;border-radius:7px;padding:2px 7px;}
   .fac-lane-desc{font-size:11px;font-weight:500;color:var(--ink-soft);}
   .fac-lane .cp{font-weight:500;color:var(--ink-soft);}
+  .rb-head{margin-bottom:6px;}
+  .rb-title{font-size:16px;font-weight:700;color:var(--ink);}
+  .rb-meta{font-size:12px;color:var(--ink-soft);margin-top:3px;}
+  .rb-h{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin:20px 0 9px;}
+  .rb-lanes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;}
+  .rb-lanes li{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--ink-soft);}
+  .rb-lbadge{flex:0 0 auto;color:#fff;font-size:10px;font-weight:800;border-radius:7px;padding:2px 7px;white-space:nowrap;}
+  .rb-day{margin-bottom:14px;}
+  .rb-dayh{font-size:12.5px;font-weight:800;color:var(--svc);text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px;}
+  .rb-row{display:flex;align-items:baseline;gap:12px;padding:5px 0;border-top:1px solid #eef0f4;font-size:13px;flex-wrap:wrap;}
+  .rb-time{font-weight:700;color:var(--ink);min-width:108px;}
+  .rb-dur{color:var(--ink-faint);font-size:11.5px;min-width:58px;}
+  .rb-fac{color:var(--ink);font-weight:500;}
+  .rb-act{color:var(--ink-soft);}
   .tcard{margin-top:7px;padding:12px 13px;border-radius:11px;background:#fff;box-shadow:inset 0 0 0 1px rgba(0,0,0,.05);display:flex;flex-direction:column;gap:11px;}
   .tcard-head{display:flex;gap:12px;align-items:flex-start;padding-bottom:11px;border-bottom:1px solid #eef0f4;}
   .avatar{flex:0 0 auto;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--svc);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.14);}
@@ -715,6 +729,16 @@
     <div class="mtx biz-mtx" id="bizMetrics"></div>
     <div id="bizBreakdown" style="margin-top:16px;"></div>
     <p class="foot" style="margin:12px 0 0;">Resort-area rates, coach day-rate and transport are educated estimates for Fuerteventura — edit the <code>AREA_COST</code> / rate constants in the file to match real quotes.</p>
+  </div>
+
+  <!-- RESORT BOOKING SUMMARY -->
+  <div class="card" style="margin-top:16px;">
+    <div class="card-head" style="margin-bottom:6px;">
+      <p class="lbl">Resort booking summary — what to reserve with the host</p>
+      <button class="mini-btn" id="copyResort">⧉ Copy</button>
+    </div>
+    <p class="lbl2" style="margin:0 0 13px;">Everything to book with the host sports resort — facilities, dates &amp; times, with the Olympic-pool lane set-up. Driven by the course design (lanes &amp; capacity), so it can be reserved before any guest books.</p>
+    <div id="resortBooking"></div>
   </div>
 
   <!-- PUBLISH + RESORT WEEKLY CALENDAR -->
@@ -1814,6 +1838,55 @@ function buildFacilities(){
   host.innerHTML=`<table class="tl fac-table"><thead><tr><th>Facility</th><th>Use</th><th>Hire</th><th>Rate</th><th>Cost</th></tr></thead><tbody>${rows}<tr class="biz-total"><td class="nm" colspan="4">Total facility hire / course</td><td class="cp">€${num(F.total)}</td></tr></tbody></table>`;
   document.getElementById("facTotal").textContent="€"+num(F.total);
 }
+function addMins(t,m){if(!t)return"";const p=t.split(":");const tot=(+p[0])*60+(+p[1])+(+m||0);return String(Math.floor(tot/60)%24).padStart(2,"0")+":"+String(tot%60).padStart(2,"0");}
+/* RESORT BOOKING SUMMARY — everything to reserve with the host resort (facilities · dates · times · pool lane set-up). Driven by the course design, NOT guest bookings. */
+function buildResortBooking(){
+  const host=document.getElementById("resortBooking"); if(!host) return;
+  const sv=SERVICES[S.svc], venue=VENUES.find(v=>v.key===S.venue)||VENUES[0], wk=WEEKS.find(w=>w.key===S.week)||WEEKS[0];
+  const order=planSorted().filter(s=>s.area&&s.area!=="free-time");
+  if(!order.length){ host.innerHTML=`<p class="lbl2" style="margin:0">No course yet — build sessions (with a location) in the Programme schedule and the resort booking summary appears here.</p>`; S._resortText=""; return; }
+  const courseName=sv.name+(sv.stroke&&STROKES[S.course]?" · "+STROKES[S.course].label:"");
+  const dayCount=new Set(order.filter(s=>s.day!=null).map(s=>s.day)).size;
+  const F=computeFacilities(), lanes=lanesList();
+  const T=[]; /* plain-text mirror for the Copy button */
+  T.push(courseName, `${venue.name} · ${venue.place} · Week ${wk.wk} (${wk.range}) · ${dayCount} days · ${order.length} sessions`, "");
+  const head=`<div class="rb-head"><div class="rb-title">${esc(courseName)}</div><div class="rb-meta">${esc(venue.name)} · ${esc(venue.place)} &nbsp;·&nbsp; Week ${wk.wk} (${esc(wk.range)}) &nbsp;·&nbsp; ${dayCount} day${dayCount!==1?"s":""} · ${order.length} session${order.length!==1?"s":""}</div></div>`;
+  /* facilities to reserve */
+  T.push("FACILITIES TO RESERVE");
+  const facRows=F.list.map(f=>{
+    const reserve=f.pool?`${lanes.length} lane${lanes.length!==1?"s":""} per session · ${hrsLabel(f.units)} lane-hours`:(f.rate>0?"room / training area hire":"guest package — no hire");
+    T.push(` • ${f.label} — ${f.sessions} session${f.sessions!==1?"s":""}, ${hrsLabel(f.hours)} (${reserve})`);
+    return `<tr><td class="nm">${esc(f.label)}</td><td>${f.sessions}</td><td>${hrsLabel(f.hours)}</td><td>${esc(reserve)}</td></tr>`;
+  }).join("");
+  const facTable=`<p class="rb-h">Facilities to reserve</p><table class="tl biz-table"><thead><tr><th>Facility</th><th>Sessions</th><th>Total time</th><th>To reserve</th></tr></thead><tbody>${facRows}</tbody></table>`;
+  /* pool lane configuration */
+  let poolBlock=""; const poolFac=F.list.filter(f=>f.pool);
+  if(poolFac.length && lanes.length){
+    const poolName=poolFac.map(f=>f.label).join(" / ");
+    T.push("", `${poolName.toUpperCase()} — LANE SET-UP (every pool session)`);
+    const laneList=lanes.map((ln,i)=>{const eg=laneGender(ln.side,ln.idx);
+      T.push(` • L${i+1} · ${SIDE[eg]} · ${abilLetter(laneAbility(ln.side,ln.idx))} — ${laneDesc(ln.side,ln.idx)}${coachOf(ln)?" · "+coachOf(ln):""}`);
+      return `<li><span class="rb-lbadge" style="background:${GENDER[eg]}">L${i+1} · ${SIDE[eg]} · ${abilLetter(laneAbility(ln.side,ln.idx))}</span> ${esc(laneDesc(ln.side,ln.idx))}${coachOf(ln)?` · ${esc(coachOf(ln))}`:""}</li>`;
+    }).join("");
+    poolBlock=`<p class="rb-h">${esc(poolName)} — lane set-up <span style="font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink-faint)">(every pool session)</span></p><ul class="rb-lanes">${laneList}</ul>`;
+  }
+  /* day-by-day schedule */
+  T.push("", "DAY-BY-DAY SCHEDULE");
+  const byDay=new Map(); order.forEach(s=>{const d=s.day==null?"_un":s.day; if(!byDay.has(d))byDay.set(d,[]); byDay.get(d).push(s);});
+  let sched="";
+  byDay.forEach((arr,d)=>{
+    const dayLabel=d==="_un"?"Unscheduled":`${dayName(d)} · ${courseDateShort(d)}`;
+    T.push("", dayLabel);
+    const items=arr.slice().sort((a,b)=>(""+a.time).localeCompare(""+b.time)).map(s=>{
+      const t=s.time?`${s.time}–${addMins(s.time,s.dur)}`:"time TBC", laneNote=isPoolArea(s.area)?` · ${lanes.length} lanes`:"";
+      T.push(`   ${t}  (${durLabel(s.dur)})  ${areaLabel(s.area)}${laneNote}  —  ${s.act?ACT_LABEL[s.act]||s.act:""}`);
+      return `<div class="rb-row"><span class="rb-time">${esc(t)}</span><span class="rb-dur">${durLabel(s.dur)}</span><span class="rb-fac">${esc(areaLabel(s.area))}${laneNote}</span><span class="rb-act">${s.act?esc(ACT_LABEL[s.act]||s.act):""}</span></div>`;
+    }).join("");
+    sched+=`<div class="rb-day"><div class="rb-dayh">${esc(dayLabel)}</div>${items}</div>`;
+  });
+  host.innerHTML=head+facTable+poolBlock+`<p class="rb-h">Day-by-day schedule</p>${sched}`;
+  S._resortText=T.join("\n");
+}
 const POOL_LAYERS=[["biz","Business €"],["occ","Occupancy"],["names","Names"]];
 function buildPoolLayers(){
   const host=document.getElementById("poolLayers"); if(!host) return;
@@ -2161,6 +2234,7 @@ function render(){
   buildSessions();
   buildFacilities();
   buildBusiness();
+  buildResortBooking();
   buildPublish();
   buildResortCal();
   saveDraft();
@@ -2252,6 +2326,7 @@ document.getElementById("templateBar").addEventListener("change",e=>{const s=e.t
 document.getElementById("undoBtn").addEventListener("click",doUndo);
 document.getElementById("newCourseBtn").addEventListener("click",()=>{if(!S.plan.length||confirm("Start a new blank course? Your current unpublished work will be cleared (published courses stay safe).")) newCourse();});
 document.getElementById("saveTplBtn").addEventListener("click",saveCurrentAsTemplate);
+document.getElementById("copyResort").addEventListener("click",()=>{const t=S._resortText||"";if(!t){showToast("Build a course first");return;}try{navigator.clipboard.writeText(t).then(()=>showToast("Resort booking summary copied"),()=>showToast("Copy failed — select the text manually"));}catch(e){showToast("Copy not supported here");}});
 document.getElementById("exportTplBtn").addEventListener("click",exportMyWork);
 document.getElementById("importTplInput").addEventListener("change",e=>{if(e.target.files[0])importMyWork(e.target.files[0]);e.target.value="";});
 document.getElementById("templatesList").addEventListener("click",e=>{
