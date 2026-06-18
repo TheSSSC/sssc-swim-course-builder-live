@@ -331,6 +331,7 @@
   .tchip.tparent.part{background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.16);color:var(--svc);}
   .tchip.qchip{background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.16);color:var(--svc);}
   .nofit{font-size:10.5px;font-weight:600;color:#b91c1c;flex:0 0 auto;}
+  .nofit-mini{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;background:#e11d48;color:#fff;font-size:11px;font-weight:800;cursor:help;}
   .tcard{margin-top:7px;padding:12px 13px;border-radius:11px;background:#fff;box-shadow:inset 0 0 0 1px rgba(0,0,0,.05);display:flex;flex-direction:column;gap:11px;}
   .tcard-head{display:flex;gap:12px;align-items:flex-start;padding-bottom:11px;border-bottom:1px solid #eef0f4;}
   .avatar{flex:0 0 auto;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--svc);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.14);}
@@ -1966,7 +1967,7 @@ function buildEditor(){
       o+=`<optgroup label="${(SVC_SHORT[sk]||sk)} coaches (${bySvc[sk].length})">${bySvc[sk].map(optHtml).join("")}</optgroup>`;
     });
     const unsuited=curT&&!suit.includes(curT);
-    const note=unsuited?`<span class="nofit">${curT.on?"not suited · "+unsuitReason(curT,ln):"off shift"}</span>`:"";
+    const note=unsuited?`<span class="nofit-mini" title="${esc(curT.on?"Not suited · "+unsuitReason(curT,ln):"Off shift")}">!</span>`:"";
     const eg=laneGender(ln.side,ln.idx), nm=laneName(ln.side,ln.idx);
     cols[eg].push(`<label class="lane-edit">
       <span class="side-badge" style="background:${GENDER[eg]}">L${i+1} · ${nm?esc(nm):SIDE[eg]+" · "+abilLetter(laneAbility(ln.side,ln.idx))}</span>
