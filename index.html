@@ -308,8 +308,10 @@
   .total-pill span{font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint);}
 
   /* venue selector — single-select segmented cards (iOS Venue picker) */
-  .venues{display:flex;flex-wrap:wrap;gap:4px;max-width:760px;background:#e7eaf1;border-radius:16px;padding:4px;box-shadow:inset 1px 1px 4px rgba(174,178,196,.5),inset -1px -1px 2px #fff;}
-  .venue-seg{flex:1 1 0;min-width:118px;border:0;cursor:pointer;background:transparent;border-radius:12px;padding:11px 10px 9px;display:flex;flex-direction:column;align-items:center;gap:4px;transition:.18s;}
+  /* resort picker — single-row horizontal scroll like the client app's scrollable menu (no wrap) */
+  .venues{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:4px;max-width:760px;background:#e7eaf1;border-radius:16px;padding:4px;box-shadow:inset 1px 1px 4px rgba(174,178,196,.5),inset -1px -1px 2px #fff;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  .venues::-webkit-scrollbar{display:none;}
+  .venue-seg{flex:0 0 auto;min-width:118px;border:0;cursor:pointer;background:transparent;border-radius:12px;padding:11px 10px 9px;display:flex;flex-direction:column;align-items:center;gap:4px;transition:.18s;}
   .venue-seg .vicon{width:27px;height:20px;color:var(--ink-faint);}
   .venue-seg .vname{font-size:13px;font-weight:600;color:var(--ink-soft);white-space:nowrap;}
   .venue-seg .vplace{font-size:10.5px;font-weight:500;color:var(--ink-faint);white-space:nowrap;}
