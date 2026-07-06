@@ -1,0 +1,1238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+<title>SSSC — Scheduler Brain</title>
+<style>
+  :root{
+    --svc:#2563eb; --pill-r:37; --pill-g:99; --pill-b:235;
+    --ink:#1f2733; --ink-soft:#6b7280; --ink-faint:#9aa3b2;
+    --bg:#eceef3; --card:#ffffff;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1180px;margin:0 auto;padding:26px 18px 72px;}
+  h1{font-size:25px;font-weight:700;letter-spacing:-0.02em;margin:0 0 2px;}
+  .sub{color:var(--ink-soft);font-size:14px;margin:0 0 8px;max-width:780px;}
+  .accent{color:var(--svc);transition:color .25s;}
+
+  .card{background:var(--card);border-radius:18px;padding:18px;margin-bottom:16px;
+    box-shadow:-2px -2px 5px rgba(255,255,255,1),4px 5px 14px rgba(174,178,196,.22),
+      2px 2px 6px rgba(174,178,196,.12),inset 0 0 0 1px rgba(0,0,0,.025);}
+  .card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;gap:10px;flex-wrap:wrap;}
+  .lbl{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);margin:0;}
+  .lbl2{font-size:11px;font-weight:600;color:var(--ink-soft);display:inline-flex;align-items:center;gap:6px;}
+  .count-pill{font-size:11px;font-weight:700;color:var(--svc);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.1);padding:4px 11px;border-radius:999px;}
+
+  /* header row */
+  .top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:16px;}
+  .top-links{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .xlink{text-decoration:none;font-size:12px;font-weight:700;color:var(--svc);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.1);
+    border-radius:999px;padding:7px 13px;white-space:nowrap;transition:.15s;box-shadow:inset 0 0 0 1px rgba(var(--pill-r),var(--pill-g),var(--pill-b),.15);}
+  .xlink:hover{background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.2);}
+  .saved{font-size:11px;font-weight:600;color:var(--ink-faint);align-self:center;white-space:nowrap;}
+  .saved b{color:#059669;}
+
+  /* pills */
+  .pills{display:flex;flex-wrap:wrap;gap:8px;}
+  .pill{border:0;cursor:pointer;font:inherit;font-size:13px;font-weight:600;color:var(--ink-soft);
+    background:linear-gradient(145deg,#fff,#f3f5f8);border-radius:999px;padding:8px 15px;transition:.2s;
+    box-shadow:-2px -2px 5px rgba(255,255,255,.9),3px 3px 8px rgba(174,178,196,.3);}
+  .pill:hover{color:var(--ink);}
+  .pill.on{color:var(--svc);background:linear-gradient(145deg,#fff,#fafbfc);
+    box-shadow:-3px -3px 8px rgba(255,255,255,1),4px 5px 14px rgba(174,174,192,.38),
+      inset 0 0 0 1px rgba(255,255,255,1),
+      0 0 0 2px rgba(var(--pill-r),var(--pill-g),var(--pill-b),.22),
+      0 0 16px 2px rgba(var(--pill-r),var(--pill-g),var(--pill-b),.32);}
+
+  /* segmented control */
+  .seg{display:inline-flex;max-width:100%;flex-wrap:wrap;gap:4px;background:#e7eaf1;border-radius:16px;padding:4px;
+    box-shadow:inset 1px 1px 4px rgba(174,178,196,.5),inset -1px -1px 2px #fff;}
+  .seg button{border:0;cursor:pointer;font:inherit;font-size:12.5px;font-weight:600;color:var(--ink-soft);background:transparent;border-radius:999px;padding:7px 12px;transition:.18s;display:inline-flex;align-items:center;gap:6px;}
+  .seg button:hover{color:var(--ink);}
+  .seg button.on{color:var(--svc);font-weight:700;background:#fff;box-shadow:0 1px 3px rgba(174,178,196,.45),0 0 0 1px rgba(var(--pill-r),var(--pill-g),var(--pill-b),.18);}
+  .seg.sc button.on{color:var(--sc);box-shadow:0 1px 3px rgba(174,178,196,.45),0 0 0 1px var(--sc);}
+
+  /* switch toggle */
+  .switch{flex:0 0 auto;width:42px;height:24px;border-radius:999px;border:0;background:#d7dbe4;cursor:pointer;position:relative;transition:.18s;padding:0;
+    box-shadow:inset 1px 1px 3px rgba(174,178,196,.6),inset -1px -1px 2px #fff;}
+  .switch.on{background:var(--svc);}
+  .switch.on.sc{background:var(--sc);}
+  .switch .knob{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.18s;box-shadow:0 1px 3px rgba(0,0,0,.25);}
+  .switch.on .knob{left:21px;}
+
+  /* sliders */
+  .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:18px 26px;}
+  .ctl{min-width:0;}
+  .ctl .lbl{margin-bottom:9px;}
+  .srow{display:flex;align-items:center;gap:10px;margin-top:2px;}
+  input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:5px;border-radius:999px;background:#dfe3ec;outline:none;
+    box-shadow:inset 1px 1px 3px rgba(174,178,196,.7),inset -1px -1px 2px #fff;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;
+    background:var(--svc);cursor:pointer;border:3px solid #fff;box-shadow:0 2px 6px rgba(var(--pill-r),var(--pill-g),var(--pill-b),.5);}
+  .val{min-width:30px;text-align:center;font-weight:700;font-size:15px;color:var(--svc);}
+  .val-note{font-size:11px;font-weight:600;color:var(--ink-faint);margin-top:4px;}
+
+  /* steppers */
+  .steppers{display:flex;flex-wrap:wrap;gap:14px 20px;align-items:flex-end;}
+  .stepper-wrap{display:flex;flex-direction:column;gap:6px;}
+  .stepper-wrap .slbl{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);}
+  .stepper{display:inline-flex;align-items:center;background:#fff;border-radius:999px;
+    box-shadow:inset 1px 1px 4px rgba(174,178,196,.4),inset -1px -1px 2px #fff,inset 0 0 0 1px rgba(0,0,0,.04);}
+  .stepper button{border:0;background:transparent;font:inherit;font-size:18px;font-weight:600;color:var(--svc);width:30px;height:30px;cursor:pointer;border-radius:999px;line-height:1;}
+  .stepper button:hover{background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.1);}
+  .stepper button:disabled{color:var(--ink-faint);cursor:default;background:transparent;}
+  .stepper .sv{min-width:26px;text-align:center;font-weight:700;font-size:14px;font-variant-numeric:tabular-nums;}
+
+  /* time input */
+  .tin{font:inherit;font-size:13px;font-weight:600;color:var(--ink);background:#fff;border:0;border-radius:9px;padding:7px 9px;width:96px;
+    box-shadow:inset 1px 1px 4px rgba(174,178,196,.4),inset -1px -1px 2px #fff,inset 0 0 0 1px rgba(0,0,0,.05);}
+  .tin:focus{outline:2px solid rgba(var(--pill-r),var(--pill-g),var(--pill-b),.5);}
+  .field-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .field-row .fl{font-size:11px;font-weight:600;color:var(--ink-soft);min-width:38px;}
+
+  /* days chips */
+  .daychips{display:flex;flex-wrap:wrap;gap:6px;}
+  .daychip{border:0;cursor:pointer;font:inherit;font-size:12.5px;font-weight:700;color:var(--ink-soft);background:#eef1f6;border-radius:999px;padding:7px 12px;transition:.15s;}
+  .daychip:hover{color:var(--ink);}
+  .daychip.on{color:#fff;background:var(--svc);}
+
+  /* windows editor */
+  .win-rows{display:flex;flex-direction:column;gap:9px;}
+  .win-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#f6f7fa;border-radius:11px;padding:8px 10px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.025);}
+  .win-row .wtag{font-size:11px;font-weight:800;color:var(--svc);min-width:26px;}
+  .win-dur{font:inherit;font-size:13px;font-weight:600;color:var(--ink);background:#fff;border:0;border-radius:9px;padding:7px 8px;width:64px;text-align:center;
+    box-shadow:inset 1px 1px 4px rgba(174,178,196,.4),inset -1px -1px 2px #fff,inset 0 0 0 1px rgba(0,0,0,.05);}
+  .win-del{border:0;cursor:pointer;background:transparent;color:var(--ink-faint);font-size:15px;font-weight:700;padding:4px 8px;border-radius:7px;margin-left:auto;transition:.15s;}
+  .win-del:hover{color:#e11d48;background:rgba(225,29,72,.1);}
+  .win-warn{width:100%;font-size:11px;font-weight:700;color:#b91c1c;}
+  .add-btn{border:0;cursor:pointer;font:inherit;font-size:12.5px;font-weight:700;color:var(--svc);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.1);border-radius:999px;padding:8px 15px;transition:.15s;margin-top:9px;}
+  .add-btn:hover{background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.2);}
+
+  /* service cards */
+  .svc-card{border-radius:16px;padding:0;margin-bottom:13px;overflow:hidden;background:#fff;
+    box-shadow:-2px -2px 5px rgba(255,255,255,1),4px 5px 14px rgba(174,178,196,.2),inset 0 0 0 1px rgba(0,0,0,.03);}
+  .svc-bar{height:5px;background:var(--sc);}
+  .svc-body{padding:15px 16px;}
+  .svc-body.off{opacity:.58;}
+  .svc-head{display:flex;align-items:center;gap:10px;margin-bottom:11px;}
+  .svc-name{font-size:15px;font-weight:800;color:var(--sc);flex:1;}
+  .svc-prio{display:inline-flex;gap:3px;}
+  .prio-btn{border:0;cursor:pointer;background:#eef1f6;color:var(--ink-soft);font-size:12px;font-weight:800;width:26px;height:26px;border-radius:8px;line-height:1;transition:.15s;}
+  .prio-btn:hover{color:var(--ink);background:#e2e7ef;}
+  .prio-btn:disabled{opacity:.35;cursor:default;}
+  .svc-sec{margin-top:11px;}
+  .svc-sech{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 7px;}
+  .svc-note{font-size:12px;font-weight:600;color:var(--ink-soft);line-height:1.4;background:#f6f7fa;border-radius:10px;padding:8px 11px;}
+  .svc-derived{font-size:11.5px;font-weight:700;color:var(--sc);background:rgba(0,0,0,.02);border-radius:9px;padding:7px 11px;margin-top:9px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.04);}
+  .cchips{display:flex;flex-wrap:wrap;gap:6px;}
+  .cchip{border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:600;color:var(--ink-soft);background:#eef1f6;border-radius:999px;padding:6px 11px;transition:.15s;}
+  .cchip:hover{color:var(--ink);}
+  .cchip.on{color:#fff;background:var(--sc);}
+  .shape{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:flex-end;}
+
+  /* THE WEEK grid */
+  .daytabs{display:flex;gap:4px;overflow-x:auto;background:#e7eaf1;border-radius:14px;padding:4px;margin-bottom:14px;box-shadow:inset 1px 1px 4px rgba(174,178,196,.5),inset -1px -1px 2px #fff;}
+  .daytab{flex:0 0 auto;border:0;cursor:pointer;font:inherit;font-size:13px;font-weight:700;color:var(--ink-soft);background:transparent;border-radius:10px;padding:8px 15px;transition:.18s;white-space:nowrap;}
+  .daytab.on{color:var(--svc);background:#fff;box-shadow:0 1px 3px rgba(174,178,196,.45),0 0 0 1px rgba(var(--pill-r),var(--pill-g),var(--pill-b),.18);}
+  .daytab .dc{font-size:10px;font-weight:800;opacity:.55;margin-left:5px;}
+  .gridwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:14px;}
+  .pgrid{border-collapse:separate;border-spacing:0;min-width:640px;width:100%;table-layout:fixed;}
+  .pgrid th{font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-faint);padding:0 5px 7px;text-align:center;}
+  .pgrid th.wcol{text-align:left;width:70px;}
+  .pgrid td{padding:3px;vertical-align:top;}
+  .pgrid td.wcol{font-size:12px;font-weight:800;color:var(--svc);font-variant-numeric:tabular-nums;white-space:nowrap;vertical-align:middle;text-align:left;padding-left:5px;}
+  .cell{min-height:42px;border-radius:9px;background:#f4f6fa;box-shadow:inset 0 0 0 1px rgba(0,0,0,.03);display:flex;flex-direction:column;gap:2px;padding:3px;}
+  .cell.empty{background:repeating-linear-gradient(135deg,#f7f8fb,#f7f8fb 6px,#f2f4f8 6px,#f2f4f8 12px);}
+  .chip{border:0;cursor:pointer;font:inherit;text-align:left;border-radius:7px;padding:4px 6px;color:#fff;line-height:1.15;transition:.12s;box-shadow:0 1px 2px rgba(0,0,0,.12);width:100%;}
+  .chip:hover{filter:brightness(1.07);}
+  .chip .c1{font-size:10.5px;font-weight:800;display:block;}
+  .chip .c2{font-size:9px;font-weight:600;opacity:.92;display:block;}
+  .drystrip{margin-top:4px;}
+  .dry-win{margin-bottom:10px;}
+  .dry-winh{font-size:11px;font-weight:800;color:var(--svc);margin-bottom:6px;font-variant-numeric:tabular-nums;}
+  .dry-chips{display:flex;flex-wrap:wrap;gap:6px;}
+  .dry-chips .chip{width:auto;min-width:120px;}
+  .dry-empty{font-size:12px;font-style:italic;color:var(--ink-faint);}
+  .noday{font-size:13px;color:var(--ink-faint);font-style:italic;padding:16px 4px;}
+
+  /* popover */
+  .pop-back{position:fixed;inset:0;background:rgba(10,20,40,.28);z-index:80;display:flex;align-items:center;justify-content:center;padding:18px;}
+  .pop{background:#fff;border-radius:16px;max-width:340px;width:100%;padding:16px 17px;box-shadow:0 18px 44px rgba(10,30,55,.32);max-height:88vh;overflow:auto;}
+  .pop-h{display:flex;align-items:baseline;gap:8px;margin-bottom:3px;}
+  .pop-t{font-size:15px;font-weight:800;flex:1;}
+  .pop-x{border:0;background:transparent;font-size:22px;line-height:1;color:var(--ink-faint);cursor:pointer;}
+  .pop-sub{font-size:12px;font-weight:700;color:#fff;border-radius:999px;padding:2px 9px;display:inline-block;margin-bottom:9px;}
+  .pop-rows{display:grid;gap:6px;margin-bottom:12px;}
+  .pop-rows>div{display:grid;grid-template-columns:74px 1fr;gap:8px;font-size:12px;}
+  .pop-rows dt{color:var(--ink-soft);font-weight:600;margin:0;}
+  .pop-rows dd{margin:0;color:var(--ink);font-weight:600;}
+  .pop-acts{display:flex;flex-wrap:wrap;gap:7px;}
+  .pop-btn{border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:700;color:var(--svc);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.1);border-radius:999px;padding:7px 13px;transition:.15s;}
+  .pop-btn:hover{background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.2);}
+  .pop-btn.pinned{color:#fff;background:var(--svc);}
+  .pop-btn.rm{color:#e11d48;background:rgba(225,29,72,.1);}
+  .pop-move{margin-top:11px;}
+  .pop-moveh{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:6px;}
+  .pop-moves{display:flex;flex-wrap:wrap;gap:6px;}
+  .pop-mv{border:0;cursor:pointer;font:inherit;font-size:11.5px;font-weight:700;color:var(--ink-soft);background:#eef1f6;border-radius:8px;padding:6px 9px;}
+  .pop-mv:hover{color:var(--svc);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.14);}
+
+  /* teachers columns */
+  .tcolwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .tcols{display:flex;gap:10px;min-width:min-content;}
+  .tcol{flex:0 0 168px;background:#f6f7fa;border-radius:12px;padding:11px 12px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.025);}
+  .tcol-h{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;}
+  .tcol-nm{font-size:13px;font-weight:800;color:var(--svc);}
+  .tcol-ct{font-size:11px;font-weight:700;color:var(--ink-faint);}
+  .tcol-days{display:flex;flex-direction:column;gap:7px;}
+  .tcol-dn{font-size:9.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:3px;}
+  .tsess{font-size:10.5px;font-weight:700;color:#fff;border-radius:6px;padding:3px 6px;margin-bottom:3px;line-height:1.2;}
+  .tsess .cov{font-size:8.5px;font-weight:800;background:rgba(0,0,0,.28);border-radius:4px;padding:0 4px;margin-left:4px;}
+  .tcol-free{font-size:11px;font-style:italic;color:var(--ink-faint);}
+
+  /* course plans */
+  .cp-acc{border-radius:12px;background:#f6f7fa;margin-bottom:9px;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(0,0,0,.025);}
+  .cp-head{display:flex;align-items:center;gap:9px;padding:11px 13px;cursor:pointer;}
+  .cp-swatch{width:11px;height:11px;border-radius:50%;flex:0 0 auto;}
+  .cp-title{font-size:13px;font-weight:800;flex:1;}
+  .cp-meta{font-size:11px;font-weight:700;color:var(--ink-faint);}
+  .cp-caret{font-size:11px;color:var(--ink-faint);transition:.15s;}
+  .cp-body{padding:0 13px 12px;}
+  .cp-row{display:flex;align-items:baseline;gap:10px;padding:6px 0;border-top:1px solid #e9ecf1;font-size:12.5px;}
+  .cp-row:first-child{border-top:0;}
+  .cp-n{font-size:10px;font-weight:800;color:#fff;background:var(--sc);border-radius:6px;padding:1px 6px;min-width:20px;text-align:center;}
+  .cp-when{font-weight:700;color:var(--ink-soft);min-width:118px;font-variant-numeric:tabular-nums;}
+  .cp-cls{font-weight:700;color:var(--ink);flex:1;}
+  .cp-ven{font-size:11px;font-weight:600;color:var(--ink-faint);}
+
+  /* business panel */
+  .biz-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:11px;margin-bottom:16px;}
+  .biz-box{background:#f7f8fb;border-radius:13px;padding:12px 14px;}
+  .biz-k{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:4px;}
+  .biz-v{font-size:20px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;}
+  .biz-v.pos{color:#059669;} .biz-v.neg{color:#e11d48;}
+  .biz-sub{font-size:11px;font-weight:600;color:var(--ink-soft);margin-top:2px;}
+  .util{margin-bottom:12px;}
+  .util-h{display:flex;justify-content:space-between;font-size:11.5px;font-weight:700;color:var(--ink-soft);margin-bottom:5px;}
+  .util-bar{height:9px;border-radius:999px;background:#e3e7ef;overflow:hidden;box-shadow:inset 1px 1px 3px rgba(174,178,196,.5);}
+  .util-fill{height:100%;border-radius:999px;background:var(--svc);transition:.2s;}
+  .mchips{display:flex;flex-wrap:wrap;gap:9px;margin:6px 0 4px;}
+  .mchip{background:linear-gradient(180deg,rgba(5,150,105,.11),rgba(5,150,105,.04));border-radius:12px;padding:10px 13px;box-shadow:inset 0 0 0 1px rgba(5,150,105,.18);min-width:0;}
+  .mchip.zero{background:#f2f4f8;box-shadow:inset 0 0 0 1px rgba(0,0,0,.04);}
+  .mchip-k{font-size:11px;font-weight:800;color:#047857;}
+  .mchip.zero .mchip-k{color:var(--ink-soft);}
+  .mchip-v{font-size:12.5px;font-weight:700;color:var(--ink);margin-top:2px;}
+  .diag{display:flex;flex-direction:column;gap:8px;margin-top:4px;}
+  .diag-item{display:flex;align-items:flex-start;gap:10px;background:#fdf2f4;border-radius:11px;padding:9px 12px;box-shadow:inset 0 0 0 1px rgba(225,29,72,.14);flex-wrap:wrap;}
+  .diag-tag{font-size:10px;font-weight:800;color:#fff;background:#e11d48;border-radius:6px;padding:2px 7px;white-space:nowrap;flex:0 0 auto;}
+  .diag-tag.warn{background:#d68f1f;}
+  .diag-txt{font-size:12px;font-weight:600;color:var(--ink);flex:1;min-width:140px;line-height:1.4;}
+  .diag-txt b{color:#b91c1c;}
+  .diag-fix{border:0;cursor:pointer;font:inherit;font-size:11px;font-weight:800;color:var(--svc);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.12);border-radius:999px;padding:5px 11px;white-space:nowrap;}
+  .diag-fix:hover{background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.22);}
+  .diag-none{font-size:12.5px;font-weight:600;color:#059669;background:rgba(5,150,105,.09);border-radius:11px;padding:11px 13px;}
+
+  /* scenarios */
+  .scn-add{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+  .scn-add input{flex:1;min-width:150px;font:inherit;font-size:13px;font-weight:600;color:var(--ink);border:0;border-radius:9px;padding:9px 12px;background:#fff;box-shadow:inset 1px 1px 4px rgba(174,178,196,.4),inset -1px -1px 2px #fff,inset 0 0 0 1px rgba(0,0,0,.04);}
+  .scn-add input:focus{outline:2px solid rgba(var(--pill-r),var(--pill-g),var(--pill-b),.5);}
+  .scn-add button{border:0;cursor:pointer;font:inherit;font-size:13px;font-weight:700;color:#fff;background:var(--svc);border-radius:9px;padding:9px 16px;}
+  .scn-list{display:flex;flex-direction:column;gap:8px;}
+  .scn-row{display:flex;align-items:center;gap:9px;background:#f6f7fa;border-radius:11px;padding:9px 12px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.025);}
+  .scn-nm{font-size:13px;font-weight:700;flex:1;}
+  .scn-btn{border:0;cursor:pointer;font:inherit;font-size:11.5px;font-weight:700;color:var(--svc);background:rgba(var(--pill-r),var(--pill-g),var(--pill-b),.1);border-radius:999px;padding:6px 12px;}
+  .scn-btn.del{color:#e11d48;background:rgba(225,29,72,.1);}
+  .scn-empty{font-size:12.5px;font-style:italic;color:var(--ink-faint);}
+  .foot{font-size:11.5px;color:var(--ink-faint);line-height:1.5;margin-top:6px;}
+  .foot b{color:var(--ink-soft);}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:#1f2733;color:#fff;font-size:13px;font-weight:600;padding:12px 20px;border-radius:12px;box-shadow:0 8px 26px rgba(0,0,0,.28);opacity:0;pointer-events:none;transition:.25s;z-index:120;max-width:90vw;}
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ── HEADER ── -->
+  <div class="top">
+    <div>
+      <h1>SSSC — <span class="accent">Scheduler Brain</span></h1>
+      <p class="sub">Flip the switches — the week rebuilds itself.</p>
+    </div>
+    <div class="top-links">
+      <a class="xlink" id="builderLink" href="./index.html">Open the Course Builder →</a>
+      <span class="saved" id="savedBadge"><b>Auto-saved</b></span>
+    </div>
+  </div>
+
+  <!-- ── PRESETS ── -->
+  <div class="card">
+    <div class="card-head"><p class="lbl">Presets</p></div>
+    <div class="pills" id="presets"></div>
+    <p class="foot" id="presetNote" style="margin-top:10px"></p>
+  </div>
+
+  <!-- ── SWITCHBOARD ── -->
+  <div class="card">
+    <div class="card-head"><p class="lbl">The Switchboard</p></div>
+    <div class="controls" id="switchboard"></div>
+  </div>
+
+  <!-- ── SERVICES ── -->
+  <div class="card">
+    <div class="card-head"><p class="lbl">Services &amp; Day Shapes</p><span class="count-pill" id="grpCount">—</span></div>
+    <div id="services"></div>
+  </div>
+
+  <!-- ── THE WEEK ── -->
+  <div class="card">
+    <div class="card-head"><p class="lbl">The Week</p><span class="count-pill" id="weekCount">—</span></div>
+    <div class="daytabs" id="dayTabs"></div>
+    <div id="weekView"></div>
+  </div>
+
+  <!-- ── TEACHERS ── -->
+  <div class="card">
+    <div class="card-head"><p class="lbl">Teachers</p><span class="count-pill" id="tCount">—</span></div>
+    <div class="tcolwrap"><div class="tcols" id="teacherCols"></div></div>
+  </div>
+
+  <!-- ── COURSE PLANS ── -->
+  <div class="card">
+    <div class="card-head"><p class="lbl">Course Plans</p><span class="count-pill" id="cpCount">—</span></div>
+    <div id="coursePlans"></div>
+  </div>
+
+  <!-- ── BUSINESS ── -->
+  <div class="card">
+    <div class="card-head"><p class="lbl">Business</p></div>
+    <div class="biz-grid" id="bizGrid"></div>
+    <div id="bizUtil"></div>
+    <p class="svc-sech" style="margin-top:14px">What unlocks growth</p>
+    <div class="mchips" id="marginals"></div>
+    <p class="svc-sech" style="margin-top:14px">Diagnostics — nothing is silently dropped</p>
+    <div class="diag" id="diagnostics"></div>
+  </div>
+
+  <!-- ── SCENARIOS ── -->
+  <div class="card">
+    <div class="card-head"><p class="lbl">Scenarios</p></div>
+    <div class="scn-add">
+      <input id="scnName" placeholder="Name this scenario…" />
+      <button id="scnSave">Save</button>
+      <button id="scnExport" style="background:#059669">Export JSON</button>
+    </div>
+    <div class="scn-list" id="scnList"></div>
+    <p class="foot" style="margin-top:14px"><b>Out of scope v1:</b> One&nbsp;2&nbsp;One gap-filling · named teachers with tag-matching · export into the Course Builder's published format · multi-week planning · Online Coaching · per-window lane availability.</p>
+  </div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════
+   SOLVER-BEGIN — pure, deterministic scheduling core + its constants.
+   No DOM, no Date.now, no Math.random. Runs standalone in node.
+   ══════════════════════════════════════════════════════════════════ */
+/* SOLVER-BEGIN */
+
+/* ── SHARED DATA (copied verbatim from the Course Builder) ── */
+const SERVICES = {
+  "swim-school":{name:"Swim School",short:"School",hex:"#2563eb",rgb:[37,99,235],session:60,price:70,full:400,stroke:true},
+  "swim-lab":{name:"Swim Lab",short:"Lab",hex:"#a855f7",rgb:[168,85,247],session:75,price:90,full:520,stroke:false},
+  "swim-club":{name:"Swim Club",short:"Club",hex:"#059669",rgb:[5,150,105],session:75,price:60,full:350,stroke:false},
+  "swim-camps":{name:"Swim Camps",short:"Camps",hex:"#ff6b2b",rgb:[255,107,43],session:60,price:80,full:450,stroke:true},
+  "online-coaching":{name:"Online Coaching",short:"Online",hex:"#0d9488",rgb:[13,148,136],session:45,price:40,full:300,stroke:true},
+  "teacher-training":{name:"Teacher Training",short:"Teacher Tr.",hex:"#d97706",rgb:[217,119,6],session:90,price:120,full:900,stroke:false},
+  "teacher-certification":{name:"Teacher Certification",short:"Cert.",hex:"#4f46e5",rgb:[79,70,229],session:120,price:150,full:1200,stroke:false},
+  "fuerteventura-tours":{name:"Fuerteventura Swim Tours",short:"Tours",hex:"#06b6d4",rgb:[6,182,212],session:120,price:65,full:520,stroke:true,bus:true},
+};
+const STROKES = {
+  "freestyle":{label:"Freestyle",classes:["Posture, Line & Balance","Leg Kick","Arm Recovery","Catch & Pull","Rhythm & Timing","Breathing","Starts & Turns","Swim Drills"]},
+  "backstroke":{label:"Backstroke",classes:["Supine Body Position","Backstroke Kick","Arm Recovery & Entry","Catch & Pull","Rotation & Timing","Breathing & Head Position","Starts & Turns","Swim Drills"]},
+  "breaststroke":{label:"Breaststroke",classes:["Streamline & Glide","Breaststroke Kick","Pull & Coupling Motions","Timing & Coordination","Stroke Rate & Distance","Breathing & Head Position","Pullouts & Turns","Swim Drills"]},
+  "butterfly":{label:"Butterfly",classes:["Body Dolphin & Undulation","Dolphin Kick","Arm Recovery & Entry","Catch & Pull","Rhythm & Timing","Breathing","Starts & Turns","Swim Drills"]},
+  "individual-medley":{label:"Individual Medley",classes:["Butterfly Foundations","Backstroke Foundations","Breaststroke Foundations","Freestyle Foundations","Transition Turns","Pacing & Race Strategy","Starts & Underwater","Swim Drills"]},
+  "open-water":{label:"Open Water",classes:["Open Water Body Position","Kick for Open Water","Sighting & Navigation","Stroke Adaptation","Drafting & Pack Swimming","Breathing & Bilateral Skills","Entries, Exits & Feeding","Swim Drills"]},
+  "starts-turns":{label:"Starts & Turns",classes:["Dive Starts","Freestyle Flip Turns","Backstroke Turns","Breaststroke & Butterfly Turns","IM Transitions","Underwater Streamline & Dolphins","Breakout Technique","Race Simulation"]},
+};
+const FIXED = {
+  "swim-lab":[["Video Capture & Baseline","Monday","11:00","14:00"],["Body Position Analysis","Tuesday","11:00","14:00"],["Kick Analysis","Wednesday","11:00","14:00"],["Catch & Pull Analysis","Thursday","11:00","14:00"],["Stroke Rate & Timing","Friday","11:00","14:00"],["Breathing Mechanics","Friday","12:00","15:00"],["Starts & Turns Analysis","Saturday","11:00","14:00"],["Full Report & Correction Plan","Sunday","11:00","14:00"]],
+  "swim-club":[["Aerobic Base","Monday","07:00","14:00"],["Threshold Training","Tuesday","07:00","14:00"],["Technique Under Fatigue","Wednesday","07:00","14:00"],["Speed Work","Thursday","07:00","14:00"],["Race Pace Sets","Friday","07:00","14:00"],["IM & Stroke Variety","Friday","08:00","15:00"],["Race Strategy & Starts","Saturday","07:00","14:00"],["Endurance & Recovery","Sunday","08:00","14:00"]],
+  "teacher-training":[["Teaching Principles & Safeguarding","Monday","09:00","12:00"],["Pool-Deck Management","Tuesday","09:00","12:00"],["Stroke Fundamentals to Teach","Wednesday","09:00","12:00"],["Lesson Planning & Progression","Thursday","09:00","12:00"],["Delivering a Class (practical)","Friday","09:00","12:00"],["Feedback & Correction Skills","Friday","13:00","16:00"],["Observed Teaching Practice","Saturday","09:00","12:00"],["Review & Next Steps","Sunday","09:00","12:00"]],
+  "teacher-certification":[["Certification Briefing & Standards","Monday","09:00","12:00"],["Theory Examination","Tuesday","09:00","12:00"],["Stroke Technical Assessment","Wednesday","09:00","12:00"],["Lesson Delivery Assessment","Thursday","09:00","12:00"],["Safeguarding & First-Aid Sign-off","Friday","09:00","12:00"],["Rescue & Emergency Assessment","Friday","13:00","16:00"],["Practical Teaching Exam","Saturday","09:00","12:00"],["Certification Panel & Results","Sunday","09:00","12:00"]],
+};
+const GENDER={male:"#3b82f6",mixed:"#8b5cf6",female:"#ec4899"};
+const SIDE={male:"M",mixed:"MIX",female:"F"};
+const ABIL=["Beginner","Intermediate","Advanced"];
+const ABIL_DESC={Beginner:"can’t breathe yet",Intermediate:"breathing a little, still learning",Advanced:"breathing comfortably"};
+
+/* ── SOLVER CONSTANTS ── */
+/* venue concurrent-group capacity per window (pool = C.lanes) */
+const V_CAP={tank:1,classroom:3,gym:1,dryland:2,recovery:2,ocean:4};
+const V_LABEL={pool:"Pool",ocean:"Ocean",tank:"Tank",classroom:"Classroom",gym:"Gym",dryland:"Dryland",recovery:"Recovery"};
+const V_VENUE={pool:"Olympic pool",ocean:"Ocean",tank:"Analysis tank",classroom:"Classrooms 1–3",gym:"Gym",dryland:"Indoor/outdoor areas",recovery:"Leisure pool"};
+/* per-service distance-band labels for Swim Club (1km…5km) */
+const CLUB_BANDS=["1km","2km","3km","4km","5km"];
+/* which fixed-curriculum services carry a real curriculum */
+const FIXED_CURRIC={"swim-lab":true,"swim-club":true,"teacher-training":true,"teacher-certification":true};
+
+/* ── time helpers ── */
+function toMin(hhmm){const p=String(hhmm).split(":");return (+p[0])*60+(+p[1]||0);}
+function fromMin(m){const h=Math.floor(m/60),mm=m%60;return (h<10?"0"+h:h)+":"+(mm<10?"0"+mm:mm);}
+function winEnd(w){return toMin(w.start)+(w.dur||60);}
+function windowInOcean(C,w){const s=toMin(w.start),e=winEnd(w);return s>=toMin(C.oceanStart)&&e<=toMin(C.oceanEnd);}
+function windowInOpen(C,w){const s=toMin(w.start),e=winEnd(w);return s>=toMin(C.openStart)&&e<=toMin(C.openEnd);}
+function winIndex(C,id){return C.windows.findIndex(w=>w.id===id);}
+function sortedWindows(C){return C.windows.slice().sort((a,b)=>toMin(a.start)-toMin(b.start));}
+
+/* ── group expansion (Phase 1) ── */
+function bandLabels(svcKey,n){
+  if(svcKey==="swim-club")return CLUB_BANDS.slice(0,Math.max(1,n));
+  if(n<=1)return ["All"];
+  return ABIL.slice(0,n);
+}
+function courseList(svcKey,sc){
+  if(SERVICES[svcKey].stroke){return (sc.courses&&sc.courses.length)?sc.courses:["freestyle"];}
+  return [svcKey]; /* fixed-curriculum services: one pseudo-course keyed by service */
+}
+function defShape(){return {swims:0,swimVenue:"pool",tank:0,gymdl:"off",recovery:0,classroom:0};}
+function expandGroups(C){
+  const groups=[];
+  for(const svcKey of C.priority){
+    const sc=C.services[svcKey];
+    if(!sc||!sc.on)continue;
+    if(svcKey==="online-coaching")continue;
+    const courses=courseList(svcKey,sc);
+    const bands=Math.max(1,sc.bands||1);
+    const labels=bandLabels(svcKey,bands);
+    const genders=sc.gender==="separate"?["male","female"]:["mixed"];
+    const half=(svcKey==="swim-school"&&C.halfLaneSchool);
+    for(const course of courses){
+      for(let b=0;b<bands;b++){
+        for(const g of genders){
+          const cap=half?C.halfLaneCap:C.laneCap;
+          groups.push({
+            id:`${svcKey}|${course}|${b}|${g}`,
+            svc:svcKey, course, band:b, bandLabel:labels[b]||("Band "+(b+1)),
+            gender:g, cap, half,
+            shape:Object.assign(defShape(),sc.shape||{}),
+            owMode:sc.owMode||"pool",
+          });
+        }
+      }
+    }
+  }
+  return groups;
+}
+
+/* ── a group's DAY SHAPE becomes an ordered list of "parts" for the template ──
+   Each part: {kind:"swim"|"tank"|"gymdl"|"recovery"|"classroom", idx, half:bool}
+   swims:2 splits into an early-half swim (idx 0) + a late-half swim (idx 1). */
+function shapeParts(g){
+  const sh=g.shape;const parts=[];
+  for(let i=0;i<(sh.swims||0);i++)parts.push({kind:"swim",idx:i});
+  if(sh.tank)parts.push({kind:"tank",idx:0});
+  if(sh.gymdl&&sh.gymdl!=="off")parts.push({kind:"gymdl",idx:0});
+  if(sh.recovery)parts.push({kind:"recovery",idx:0});
+  if(sh.classroom)parts.push({kind:"classroom",idx:0});
+  return parts;
+}
+/* type a swim part alternates to, on a concrete day (0-based index within active days) */
+function swimVenueOnDay(g,dayIdx){
+  if(g.shape.swimVenue==="pool+ocean")return (dayIdx%2===0)?"pool":"ocean";
+  if(g.svc==="fuerteventura-tours")return "ocean";
+  return "pool";
+}
+function gymdlOnDay(g,dayIdx){
+  if(g.shape.gymdl==="alternate")return (dayIdx%2===0)?"gym":"dryland";
+  return g.shape.gymdl; /* "gym" | "dryland" */
+}
+
+/* ── template-window affinity per part kind ── */
+function partAffinity(C,g,part,w,idx,nWin){
+  const start=toMin(w.start);
+  const isEarliest=idx===0;
+  const isMorning=start<toMin("11:00");
+  const isMidday=start>=toMin("11:00")&&start<toMin("15:00");
+  const isAfternoon=start>=toMin("15:00");
+  const isLast=idx===nWin-1;
+  let s=0;
+  if(part.kind==="swim"){
+    if(g.svc==="swim-club"&&isEarliest)s+=3;
+    else if(g.svc==="swim-school"&&isMidday)s+=3;
+    else if(g.svc==="swim-lab"&&isMidday)s+=2;
+    else if(g.svc==="swim-camps"&&isAfternoon)s+=2;
+    else if((g.svc==="teacher-training"||g.svc==="teacher-certification")&&isMorning)s+=2;
+    if(w.prefer==="classroom")s-=5;
+  }else if(part.kind==="tank"){s+=isMidday?3:0;if(w.prefer==="classroom")s-=3;}
+  else if(part.kind==="gymdl"){s+=isMidday?2:0;}
+  else if(part.kind==="recovery"){s+=(isLast||isAfternoon)?2:0;}
+  else if(part.kind==="classroom"){s+=w.prefer==="classroom"?4:(isLast?2:0);}
+  return s;
+}
+
+/* ══ THE SOLVER ══ */
+function solve(C){
+  const days=C.days.slice();
+  const D=days.length;
+  const groups=expandGroups(C);
+  const placed=[]; const overflow=[];
+  const T=C.teachers, LANES=C.lanes;
+  const WINS=sortedWindows(C);
+  const nWin=WINS.length;
+
+  /* per concrete (day,window) usage ledgers */
+  const teacherUsed={},laneUsed={},venueUsed={},laneList={};
+  const key=(d,w)=>d+"|"+w;
+  function ensure(d,w){const k=key(d,w);if(!(k in teacherUsed)){teacherUsed[k]=0;laneUsed[k]=0;venueUsed[k]={};laneList[k]=[];}return k;}
+  function takeLane(k,need){
+    const list=laneList[k];
+    if(need===0.5){
+      for(const L of list){if(L.need===0.5&&!L.b){L.b=true;return L.n+"B";}}
+      for(let n=1;n<=LANES;n++){if(!list.some(x=>x.n===n)){list.push({n,need:0.5,b:false});return n+"A";}}
+      return null;
+    }else{
+      for(let n=1;n<=LANES;n++){if(!list.some(x=>x.n===n)){list.push({n,need:1});return String(n);}}
+      return null;
+    }
+  }
+  function poolFree(k,need){return laneUsed[k]+need<=LANES+1e-9;}
+  function teacherFree(k){return teacherUsed[k]<T;}
+  function venueFree(k,type){return (venueUsed[k][type]||0)<(V_CAP[type]||1);}
+
+  /* commit a concrete session; type ∈ pool|ocean|tank|gym|dryland|recovery|classroom */
+  function commit(g,type,seq,day,win,title){
+    const k=ensure(day,win.id);
+    if(!teacherFree(k))return {fail:`no free teacher (${teacherUsed[k]}/${T} busy)`};
+    if(type==="pool"){
+      const need=g.half?0.5:1;
+      if(!poolFree(k,need))return {fail:`all ${LANES} lanes taken`};
+      const lane=takeLane(k,need);
+      if(lane===null)return {fail:`all ${LANES} lanes taken`};
+      laneUsed[k]+=need;teacherUsed[k]++;
+      const s=mkSess(g,type,seq,day,win,lane,title);placed.push(s);return {ok:s};
+    }
+    if(type==="ocean"&&!windowInOcean(C,win))return {fail:`${win.start} outside ocean safe band ${C.oceanStart}–${C.oceanEnd}`};
+    if(!venueFree(k,type))return {fail:`${V_LABEL[type]} venue full (${V_CAP[type]||1}/${V_CAP[type]||1})`};
+    venueUsed[k][type]=(venueUsed[k][type]||0)+1;teacherUsed[k]++;
+    const s=mkSess(g,type,seq,day,win,null,title);placed.push(s);return {ok:s};
+  }
+  function mkSess(g,type,seq,day,win,lane,title){
+    return {groupId:g.id,svc:g.svc,course:g.course,band:g.band,bandLabel:g.bandLabel,gender:g.gender,
+      type,seq,day,windowId:win.id,time:win.start,lane,teacher:0,title,cap:g.cap};
+  }
+
+  /* curriculum title for a group's k-th pool/tank session (deterministic order) */
+  function poolTitle(g,k){
+    if(SERVICES[g.svc].stroke){const cl=STROKES[g.course]?.classes||[];return cl[k]!=null?cl[k]:((cl[k%cl.length]||"Pool set")+" (review)");}
+    if(FIXED[g.svc]){const row=FIXED[g.svc][k];return row?row[0]:(FIXED[g.svc][k%FIXED[g.svc].length][0]+" (review)");}
+    return "Pool set";
+  }
+  function typeTitle(g,type){
+    if(type==="ocean")return "Open-water skills";
+    if(type==="tank")return "Analysis tank — video capture";
+    if(type==="gym")return "Strength & conditioning";
+    if(type==="dryland")return "Dryland — mobility & drills";
+    if(type==="recovery")return "Recovery & mobility";
+    if(type==="classroom"){const nm=SERVICES[g.svc].stroke?(STROKES[g.course]?.label||g.course):SERVICES[g.svc].short;return "Theory & video — "+nm;}
+    return V_LABEL[type]||type;
+  }
+
+  /* ── PHASE 6 — replay pins FIRST (hard-checked) ── */
+  const pinned={};  /* groupId|partKind|partIdx|day -> windowId committed */
+  const gById={};for(const g of groups)gById[g.id]=g;
+  for(const p of (C.pins||[])){
+    const g=gById[p.groupId];
+    if(!g){overflow.push({group:p.groupId,type:p.type||"pool",reason:"pin conflict — group no longer exists"});continue;}
+    const win=WINS.find(w=>w.id===p.windowId);
+    if(!win||days.indexOf(p.day)<0){overflow.push({group:g.id,type:p.type,reason:"pin conflict — window/day not available"});continue;}
+    const title=(p.type==="pool"||p.type==="ocean"||p.type==="tank")?poolTitle(g,p.seq||0):typeTitle(g,p.type);
+    const r=commit(g,p.type,p.seq||0,p.day,win,title);
+    if(r.ok){r.ok.pinned=true;pinned[`${g.id}|pin|${p.type}|${p.seq||0}|${p.day}`]=win.id;}
+    else overflow.push({group:g.id,type:p.type,reason:"pin conflict — "+r.fail});
+  }
+  const isPinned=(gid,ptype,seq,day)=>pinned[`${gid}|pin|${ptype}|${seq}|${day}`]!==undefined;
+
+  /* ── PHASE 2 — day template: solve each group's shape ONCE on a generic day ── */
+  const tplT={},tplLane={},tplVenue={},tplContent={};
+  function tplEnsure(w){if(!(w in tplT)){tplT[w]=0;tplLane[w]=0;tplVenue[w]={};tplContent[w]=[];}}
+  const groupTpl={}; /* groupId -> [{part, winId, venueType}] */
+  for(const g of groups){
+    const parts=shapeParts(g);
+    const placedParts=[];
+    const usedWin=new Set(); /* a group can't put two parts in one window (one teacher-body per window) */
+    parts.forEach((part,pi)=>{
+      const need=(part.kind==="swim")?(g.half?0.5:1):0;
+      /* half-of-day preference for the swims split: idx 0 → earlier windows, idx 1 → later */
+      let best=null,bestScore=-1e9;const reasons=[];
+      WINS.forEach((w,idx)=>{
+        tplEnsure(w.id);
+        if(usedWin.has(w.id))return; /* group already busy this window */
+        /* hard checks (template uses pool need for swims; ocean days only loosen later) */
+        const tOk=tplT[w.id]<T;
+        let vOk=true,vType=partVenueType(part,g);
+        if(part.kind==="swim")vOk=(tplLane[w.id]+need<=LANES+1e-9);
+        else vOk=((tplVenue[w.id][vType]||0)<(V_CAP[vType]||1));
+        if(!tOk){reasons.push(`${w.start} — no free teacher (${tplT[w.id]}/${T} busy)`);return;}
+        if(!vOk){reasons.push(part.kind==="swim"?`${w.start} — all ${LANES} lanes taken`:`${w.start} — ${V_LABEL[vType]} venue full`);return;}
+        /* score = affinity + 2·(same course+svc in window) + 1·(same svc in window) − load(window).
+           load is a single measure (pool → lanes used; else → groups of this type),
+           so a service's own courses cluster into one window (every course its own lane). */
+        const sameCS=(part.kind==="swim")?tplContent[w.id].filter(c=>c.svc===g.svc&&c.course===g.course).length:0;
+        const sameS=(part.kind==="swim")?tplContent[w.id].filter(c=>c.svc===g.svc).length:0;
+        const load=(part.kind==="swim")?tplLane[w.id]:(tplVenue[w.id][vType]||0);
+        let sc=partAffinity(C,g,part,w,idx,nWin)+2*sameCS+sameS-load;
+        /* swims split bias: swim idx 0 likes the earlier half, idx 1 the later half */
+        if(part.kind==="swim"&&(g.shape.swims||0)>=2){const half=idx/Math.max(1,nWin-1);sc+= part.idx===0?(1-half)*2:half*2;}
+        if(sc>bestScore){bestScore=sc;best={w,vType};}
+      });
+      if(best){
+        tplT[best.w.id]++;usedWin.add(best.w.id);
+        if(part.kind==="swim"){tplLane[best.w.id]+=need;tplContent[best.w.id].push({svc:g.svc,course:g.course});}
+        else tplVenue[best.w.id][best.vType]=(tplVenue[best.w.id][best.vType]||0)+1;
+        placedParts.push({part,winId:best.w.id,venueType:best.vType});
+      }else{
+        placedParts.push({part,winId:null,reason:reasons.slice(0,3).join("; ")||"no window fits"});
+      }
+    });
+    groupTpl[g.id]=placedParts;
+  }
+  function partVenueType(part,g){
+    if(part.kind==="swim")return "pool"; /* concrete may become ocean per day */
+    if(part.kind==="tank")return "tank";
+    if(part.kind==="gymdl")return "gymdl"; /* resolved per day to gym|dryland */
+    if(part.kind==="recovery")return "recovery";
+    if(part.kind==="classroom")return "classroom";
+    return part.kind;
+  }
+
+  /* ── PHASE 3 — stamp across the week + per-day alternation ── */
+  /* swim seq (k-th pool/ocean class this week) advances per day; earlier swim first */
+  const swimsPerDay=g=>Math.max(1,g.shape.swims||0);
+  const swimSeq=(g,partIdx,dayIdx)=>dayIdx*swimsPerDay(g)+partIdx;
+  for(const g of groups){
+    const parts=groupTpl[g.id];
+    for(const pp of parts){
+      if(pp.winId===null){ /* template couldn't place this part → overflow once per active day */
+        const t=pp.part.kind==="swim"?"pool":(pp.part.kind==="gymdl"?"gym":pp.part.kind);
+        days.forEach(()=>overflow.push({group:g.id,type:t,reason:pp.reason}));
+        continue;
+      }
+      const tplWin=WINS.find(w=>w.id===pp.winId);
+      days.forEach((day,di)=>{
+        let win=tplWin,concreteType,seq,title;
+        if(pp.part.kind==="swim"){
+          concreteType=swimVenueOnDay(g,di);
+          if(concreteType==="ocean"&&!windowInOcean(C,win)){ /* rescue: swap this group's two swim windows AM↔PM */
+            for(const other of parts){if(other===pp||other.part.kind!=="swim"||!other.winId)continue;const ow=WINS.find(w=>w.id===other.winId);if(ow&&windowInOcean(C,ow)){win=ow;break;}}
+          }
+          if(concreteType==="ocean"&&!windowInOcean(C,win)){ /* still illegal → run as pool + a NON-drop diagnostic (session is still placed) */
+            overflow.push({group:g.id,type:"ocean",reason:`ocean skipped ${day} — ${win.start} outside the safe band ${C.oceanStart}–${C.oceanEnd}`,substituted:true});
+            concreteType="pool";
+          }
+          seq=swimSeq(g,pp.part.idx,di);title=poolTitle(g,seq);
+        }else if(pp.part.kind==="gymdl"){
+          concreteType=gymdlOnDay(g,di);seq=1000+di;title=typeTitle(g,concreteType);
+        }else{
+          concreteType=pp.part.kind; /* tank | recovery | classroom */
+          seq=2000+["tank","recovery","classroom"].indexOf(concreteType)*100+di;
+          title=concreteType==="tank"?typeTitle(g,"tank"):typeTitle(g,concreteType);
+        }
+        if(isPinned(g.id,concreteType,seq,day))return; /* already placed by a pin */
+        const r=commit(g,concreteType,seq,day,win,title);
+        if(r.fail)overflow.push({group:g.id,type:concreteType,reason:`${win.start} on ${day} — ${r.fail}`});
+      });
+    }
+  }
+
+  /* ── PHASE 5 — teachers: stable lowest-free assignment ── */
+  const busy={};
+  const groupTeacher={};
+  const order={};C.priority.forEach((s,i)=>order[s]=i);
+  const dayOrder={};days.forEach((d,i)=>dayOrder[d]=i);
+  const winOrder={};WINS.forEach((w,i)=>winOrder[w.id]=i);
+  const typeOrder={pool:0,ocean:1,tank:2,classroom:3,gym:4,dryland:5,recovery:6};
+  placed.sort((a,b)=>(order[a.svc]-order[b.svc])||(a.groupId<b.groupId?-1:a.groupId>b.groupId?1:0)||(dayOrder[a.day]-dayOrder[b.day])||(winOrder[a.windowId]-winOrder[b.windowId])||((typeOrder[a.type]||0)-(typeOrder[b.type]||0))||(a.seq-b.seq));
+  for(const s of placed){
+    const bk=key(s.day,s.windowId);if(!busy[bk])busy[bk]=new Set();const bs=busy[bk];
+    let t=groupTeacher[s.groupId];
+    if(t!==undefined&&!bs.has(t)){bs.add(t);s.teacher=t;s.cover=false;continue;}
+    let chosen=-1;for(let n=0;n<T;n++){if(!bs.has(n)){chosen=n;break;}}
+    if(chosen<0)chosen=0;
+    bs.add(chosen);s.teacher=chosen;
+    if(groupTeacher[s.groupId]===undefined){groupTeacher[s.groupId]=chosen;s.cover=false;}
+    else s.cover=(chosen!==groupTeacher[s.groupId]);
+  }
+
+  /* ── PHASE 7 — rollups + stats ── */
+  const perDay={};for(const d of days)perDay[d]=[];
+  for(const s of placed)perDay[s.day].push(s);
+  const perTeacher={};for(let n=0;n<T;n++)perTeacher[n]=[];
+  for(const s of placed)if(perTeacher[s.teacher])perTeacher[s.teacher].push(s);
+
+  const stats=computeStats(C,groups,placed,overflow,days,WINS);
+  return {placed,overflow,perDay,perTeacher,groups,stats};
+}
+
+/* ── total demanded sessions for a group over the active week (for honesty scaling) ── */
+function demandOf(g,D){
+  const sh=g.shape;let n=0;
+  n+=(sh.swims||0)*D;
+  n+=(sh.tank?1:0)*D;
+  n+=(sh.gymdl&&sh.gymdl!=="off"?1:0)*D;
+  n+=(sh.recovery?1:0)*D;
+  n+=(sh.classroom?1:0)*D;
+  return n;
+}
+
+/* ── revenue / cost / utilisation ── */
+function computeStats(C,groups,placed,overflow,days,WINS){
+  const D=days.length;
+  const RATE_TEACHER_DAY=C.rateTeacherDay||120;
+  const RATE_LANE_HR=C.rateLaneHr||12;
+  const RATE_OTHER=C.rateOther||10;
+  const fill=(C.fill||70)/100;
+  const placedByGroup={};for(const s of placed)placedByGroup[s.groupId]=(placedByGroup[s.groupId]||0)+1;
+  let revFull=0,revFill=0;
+  for(const g of groups){
+    const dem=demandOf(g,D);
+    const scale=dem>0?Math.min(1,(placedByGroup[g.id]||0)/dem):1;
+    const base=g.cap*(SERVICES[g.svc].full||0)*scale;
+    revFull+=base;revFill+=base*fill;
+  }
+  const teacherDays=new Set();for(const s of placed)teacherDays.add(s.day+"|"+s.teacher);
+  const teacherCost=teacherDays.size*RATE_TEACHER_DAY;
+  let laneHrs=0,otherSessions=0;
+  for(const s of placed){
+    const w=WINS.find(x=>x.id===s.windowId);const dur=(w?.dur||60)/60;
+    if(s.type==="pool"){const need=s.lane&&/[AB]$/.test(String(s.lane))?0.5:1;laneHrs+=need*dur;}
+    else otherSessions++;
+  }
+  const facilityCost=laneHrs*RATE_LANE_HR+otherSessions*RATE_OTHER;
+  const cost=teacherCost+facilityCost;
+  const profit=revFill-cost;
+  const breakEven=revFull>0?Math.max(0,Math.min(100,(cost/revFull)*100)):0;
+  let poolWinHrs=0;for(const w of WINS)poolWinHrs+=(w.dur||60)/60;
+  const laneHrsAvail=C.lanes*poolWinHrs*D;
+  const teacherHrsUsed=placed.reduce((a,s)=>{const w=WINS.find(x=>x.id===s.windowId);return a+((w?.dur||60)/60);},0);
+  const teacherHrsAvail=C.teachers*poolWinHrs*D;
+  return {
+    revFull:Math.round(revFull),revFill:Math.round(revFill),cost:Math.round(cost),
+    teacherCost:Math.round(teacherCost),facilityCost:Math.round(facilityCost),
+    profit:Math.round(profit),breakEven:Math.round(breakEven),
+    laneHrs:+laneHrs.toFixed(1),laneHrsAvail:+laneHrsAvail.toFixed(1),
+    laneUtil:laneHrsAvail>0?Math.round(laneHrs/laneHrsAvail*100):0,
+    teacherHrsUsed:+teacherHrsUsed.toFixed(1),teacherHrsAvail:+teacherHrsAvail.toFixed(1),
+    teacherUtil:teacherHrsAvail>0?Math.round(teacherHrsUsed/teacherHrsAvail*100):0,
+    placedCount:placed.length,overflowCount:overflow.length,
+    demandCount:groups.reduce((a,g)=>a+demandOf(g,D),0),
+  };
+}
+
+/* ── marginals: cheaply re-solve variants (Phase 7) ── */
+function widestGap(C){
+  const oS=toMin(C.openStart),oE=toMin(C.openEnd);
+  const wins=C.windows.map(w=>[toMin(w.start),winEnd(w)]).sort((a,b)=>a[0]-b[0]);
+  let cur=oS,best=null,bestLen=0;const segs=[];
+  for(const [s,e] of wins){if(s>cur)segs.push([cur,s]);cur=Math.max(cur,e);}
+  if(cur<oE)segs.push([cur,oE]);
+  for(const [s,e] of segs){if(e-s>bestLen){bestLen=e-s;best=[s,e];}}
+  if(!best||bestLen<60)return null;
+  return {id:"wextra",start:fromMin(best[0]),dur:60,prefer:"pool"};
+}
+function marginals(C,baseStats){
+  const out=[];const clone=o=>JSON.parse(JSON.stringify(o));
+  const c1=clone(C);c1.teachers=Math.min(10,C.teachers+1);
+  const s1=solve(c1).stats;out.push({key:"+1 teacher",dPlaced:s1.placedCount-baseStats.placedCount,dRev:s1.revFill-baseStats.revFill,noop:c1.teachers===C.teachers});
+  const c2=clone(C);c2.lanes=Math.min(8,C.lanes+1);
+  const s2=solve(c2).stats;out.push({key:"+1 lane",dPlaced:s2.placedCount-baseStats.placedCount,dRev:s2.revFill-baseStats.revFill,noop:c2.lanes===C.lanes});
+  const gap=widestGap(C);
+  if(gap){const c3=clone(C);c3.windows=C.windows.concat([gap]);const s3=solve(c3).stats;out.push({key:`add ${gap.start} window`,dPlaced:s3.placedCount-baseStats.placedCount,dRev:s3.revFill-baseStats.revFill});}
+  else out.push({key:"add window",dPlaced:0,dRev:0,noop:true});
+  return out;
+}
+
+/* SOLVER-END */
+/* ══════════════════════════════════════════════════════════════════ */
+
+/* ── UI-only helpers below (may touch the DOM) ── */
+const $=s=>document.querySelector(s);
+const el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;};
+const svcColor=k=>SERVICES[k].hex;
+
+/* ── DEFAULT CONFIG ── */
+function defaultServices(){
+  return {
+    "swim-school":{on:true,bands:3,gender:"mixed",courses:["freestyle"],owMode:"pool",shape:{swims:1,swimVenue:"pool",tank:0,gymdl:"off",recovery:0,classroom:1}},
+    "swim-lab":{on:false,bands:1,gender:"mixed",courses:[],owMode:"pool",shape:{swims:2,swimVenue:"pool",tank:1,gymdl:"off",recovery:0,classroom:1}},
+    "swim-club":{on:false,bands:5,gender:"separate",courses:[],owMode:"pool",shape:{swims:2,swimVenue:"pool+ocean",tank:0,gymdl:"alternate",recovery:1,classroom:0}},
+    "swim-camps":{on:false,bands:3,gender:"mixed",courses:["freestyle"],owMode:"ocean",shape:{swims:1,swimVenue:"pool+ocean",tank:0,gymdl:"dryland",recovery:1,classroom:1}},
+    "teacher-training":{on:false,bands:1,gender:"mixed",courses:[],owMode:"pool",shape:{swims:1,swimVenue:"pool",tank:0,gymdl:"off",recovery:0,classroom:1}},
+    "teacher-certification":{on:false,bands:1,gender:"mixed",courses:[],owMode:"pool",shape:{swims:1,swimVenue:"pool",tank:0,gymdl:"off",recovery:0,classroom:1}},
+    "fuerteventura-tours":{on:false,bands:1,gender:"mixed",courses:[],owMode:"ocean",shape:{swims:1,swimVenue:"ocean",tank:0,gymdl:"off",recovery:0,classroom:0}},
+  };
+}
+function defaultConfig(){
+  return {
+    season:"aw",openStart:"06:00",openEnd:"20:00",oceanStart:"10:00",oceanEnd:"16:00",
+    teachers:1,lanes:8,halfLaneSchool:true,laneCap:8,halfLaneCap:6,
+    days:["Sun","Mon","Tue","Wed","Thu","Fri"],
+    windows:[
+      {id:"w1",start:"08:00",dur:60,prefer:"pool"},
+      {id:"w2",start:"12:00",dur:60,prefer:"pool"},
+      {id:"w3",start:"16:00",dur:60,prefer:"pool"},
+      {id:"w4",start:"18:00",dur:60,prefer:"classroom"},
+    ],
+    services:defaultServices(),
+    priority:["swim-club","swim-lab","swim-school","swim-camps","teacher-training","teacher-certification","fuerteventura-tours"],
+    fill:70,rateTeacherDay:120,rateLaneHr:12,rateOther:10,pins:[],
+  };
+}
+
+/* ── STATE ── */
+let C=loadDraft()||defaultConfig();
+let UI={activeDay:null,pop:null};
+const ALL_DAYS=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+/* ── PRESETS (§6) ── */
+const PRESETS={
+  solo(){const c=defaultConfig();c.teachers=1;
+    for(const k in c.services)c.services[k].on=false;
+    c.services["swim-club"]={on:true,bands:1,gender:"mixed",courses:[],owMode:"pool",shape:{swims:1,swimVenue:"pool",tank:0,gymdl:"off",recovery:0,classroom:0}};
+    c.services["swim-lab"]={on:true,bands:1,gender:"mixed",courses:[],owMode:"pool",shape:{swims:1,swimVenue:"pool",tank:0,gymdl:"off",recovery:0,classroom:1}};
+    c.services["swim-school"]={on:true,bands:1,gender:"mixed",courses:["freestyle"],owMode:"pool",shape:{swims:1,swimVenue:"pool",tank:0,gymdl:"off",recovery:0,classroom:0}};
+    return c;},
+  waves(){const c=defaultConfig();c.teachers=3;
+    for(const k in c.services)c.services[k].on=false;
+    c.services["swim-school"]={on:true,bands:3,gender:"mixed",courses:["freestyle"],owMode:"pool",shape:{swims:1,swimVenue:"pool",tank:0,gymdl:"off",recovery:0,classroom:1}};
+    return c;},
+  parallel(){const c=defaultConfig();c.teachers=4;
+    for(const k in c.services)c.services[k].on=false;
+    c.services["swim-school"]={on:true,bands:1,gender:"mixed",courses:["freestyle"],owMode:"pool",shape:{swims:1,swimVenue:"pool",tank:0,gymdl:"off",recovery:0,classroom:1}};
+    c.services["swim-lab"]={on:true,bands:1,gender:"mixed",courses:[],owMode:"pool",shape:{swims:2,swimVenue:"pool",tank:1,gymdl:"off",recovery:0,classroom:1}};
+    c.services["swim-club"]={on:true,bands:1,gender:"mixed",courses:[],owMode:"pool",shape:{swims:2,swimVenue:"pool+ocean",tank:0,gymdl:"alternate",recovery:1,classroom:0}};
+    c.services["swim-camps"]={on:true,bands:1,gender:"mixed",courses:["freestyle"],owMode:"ocean",shape:{swims:1,swimVenue:"pool+ocean",tank:0,gymdl:"dryland",recovery:1,classroom:1}};
+    return c;},
+  matrix(){const c=defaultConfig();c.teachers=8;c.halfLaneSchool=false; /* full lanes so every course claims its own lane */
+    for(const k in c.services)c.services[k].on=false;
+    c.services["swim-school"]={on:true,bands:1,gender:"mixed",courses:Object.keys(STROKES),owMode:"pool",shape:{swims:1,swimVenue:"pool",tank:0,gymdl:"off",recovery:0,classroom:0}};
+    return c;},
+  campday(){const c=defaultConfig();c.teachers=6;
+    for(const k in c.services)c.services[k].on=false;
+    c.services["swim-club"]={on:true,bands:3,gender:"separate",courses:[],owMode:"pool",shape:{swims:2,swimVenue:"pool+ocean",tank:0,gymdl:"alternate",recovery:1,classroom:0}};
+    c.services["swim-school"]={on:true,bands:3,gender:"mixed",courses:["freestyle"],owMode:"pool",shape:{swims:1,swimVenue:"pool",tank:0,gymdl:"off",recovery:0,classroom:1}};
+    c.services["swim-lab"]={on:true,bands:1,gender:"mixed",courses:[],owMode:"pool",shape:{swims:2,swimVenue:"pool",tank:1,gymdl:"off",recovery:0,classroom:1}};
+    return c;},
+};
+const PRESET_LIST=[
+  ["solo","Solo Sean","One teacher (Sean) rotating School·Lab·Club through the 4 windows — the T=1 zero-overlap proof."],
+  ["waves","Ability waves","3 teachers, School freestyle, Beg/Int/Adv side-by-side in one window."],
+  ["parallel","Service parallel","4 teachers — School·Lab·Club·Camps sharing every window across lanes."],
+  ["matrix","Full matrix","8 teachers, all 7 School courses in their own lanes. Abilities now split by week, not by lane — or add teachers and switch bands up."],
+  ["campday","Camp day","6 teachers — one window per service: 08 Club · 12 School · 16 Lab · 18 shared video/recovery. Every lane an option inside it."],
+];
+
+/* ── PERSISTENCE ── */
+function saveDraft(){try{localStorage.setItem("brainDraft.v1",JSON.stringify(C));}catch(e){}}
+function loadDraft(){try{const s=localStorage.getItem("brainDraft.v1");if(!s)return null;const c=JSON.parse(s);const base=defaultConfig();const merged=Object.assign(base,c);for(const k in base.services)merged.services[k]=Object.assign({},base.services[k],c.services&&c.services[k]);return merged;}catch(e){return null;}}
+function loadScenarios(){try{return JSON.parse(localStorage.getItem("brainScenarios.v1")||"[]");}catch(e){return [];}}
+function saveScenarios(list){try{localStorage.setItem("brainScenarios.v1",JSON.stringify(list));}catch(e){}}
+
+/* ── TOAST ── */
+let toastT;
+function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("on"),1900);}
+
+/* ── main re-solve + render ── */
+let RESULT=null;
+function apply(){saveDraft();RESULT=doSolve(C);render();}
+function doSolve(cfg){const r=solve(cfg);if(cfg._excl&&cfg._excl.length){const ex=new Set(cfg._excl);r.placed=r.placed.filter(s=>!ex.has(s.groupId+"|"+s.type+"|"+s.seq+"|"+s.day+"|"+s.windowId));}return r;}
+function render(){renderPresets();renderSwitchboard();renderServices();renderWeek();renderTeachers();renderCoursePlans();renderBusiness();renderScenarios();}
+
+/* ── header cross-link fallback (§1) ── */
+(function(){const l=$("#builderLink");if(location.protocol==="file:"||location.pathname.endsWith("sssc-scheduler-brain.html")){l.setAttribute("href","./sssc-schedule-lab.html");}})();
+
+/* ── PRESETS UI ── */
+function renderPresets(){
+  const box=$("#presets");box.innerHTML="";
+  for(const [k,nm,desc] of PRESET_LIST){
+    const b=el("button","pill",nm);b.title=desc;
+    b.onclick=()=>{C=PRESETS[k]();UI.activeDay=null;apply();$("#presetNote").textContent=desc;toast(nm+" preset loaded");};
+    box.appendChild(b);
+  }
+  const r=el("button","pill","Reset");
+  r.onclick=()=>{C=defaultConfig();UI.activeDay=null;apply();$("#presetNote").textContent="";toast("Reset to defaults");};
+  box.appendChild(r);
+}
+
+/* ── SWITCHBOARD UI ── */
+function slider(label,val,min,max,noteFn,onChange){
+  const c=el("div","ctl");c.appendChild(el("p","lbl",label));
+  const row=el("div","srow");
+  const inp=el("input");inp.type="range";inp.min=min;inp.max=max;inp.value=val;
+  const v=el("span","val",val);const nb=el("div","val-note",noteFn(val));
+  inp.oninput=()=>{v.textContent=inp.value;nb.textContent=noteFn(+inp.value);onChange(+inp.value);};
+  row.appendChild(inp);row.appendChild(v);c.appendChild(row);c.appendChild(nb);return c;
+}
+function timeInput(val,on){const i=el("input","tin");i.type="time";i.value=val;i.onchange=()=>on(i.value);return i;}
+function stepper(label,val,min,max,on,step){step=step||1;
+  const w=el("div","stepper-wrap");w.appendChild(el("div","slbl",label));
+  const s=el("div","stepper");
+  const dn=el("button",null,"−");dn.disabled=val<=min;
+  const v=el("span","sv",val);const up=el("button",null,"+");up.disabled=val>=max;
+  dn.onclick=()=>on(Math.max(min,val-step));up.onclick=()=>on(Math.min(max,val+step));
+  s.appendChild(dn);s.appendChild(v);s.appendChild(up);w.appendChild(s);return w;
+}
+function segCtl(opts,cur,on,scColor){
+  const g=el("div","seg"+(scColor?" sc":""));if(scColor)g.style.setProperty("--sc",scColor);
+  opts.forEach(([k,nm])=>{const b=el("button",cur===k?"on":"",nm);b.onclick=()=>on(k);g.appendChild(b);});
+  return g;
+}
+function renderSwitchboard(){
+  const box=$("#switchboard");box.innerHTML="";
+  box.appendChild(slider("Teachers",C.teachers,1,10,n=>n===1?"just Sean":n+" teachers (Teacher 1 = Sean)",n=>{C.teachers=n;apply();}));
+  box.appendChild(slider("Pool lanes",C.lanes,0,8,n=>n+" of 8 lanes to SSSC",n=>{C.lanes=n;apply();}));
+  box.appendChild(slider("Seats sold (fill %)",C.fill,0,100,n=>n+"% of seats sold",n=>{C.fill=n;apply();}));
+
+  const seas=el("div","ctl");seas.appendChild(el("p","lbl","Season & open hours"));
+  seas.appendChild(segCtl([["aw","Autumn–Winter"],["ss","Spring–Summer"]],C.season,k=>{C.season=k;if(k==="aw"){C.openStart="06:00";C.openEnd="20:00";}else{C.openStart="08:00";C.openEnd="19:00";}apply();}));
+  const hr=el("div","field-row");hr.style.marginTop="9px";
+  hr.appendChild(el("span","fl","Open"));hr.appendChild(timeInput(C.openStart,v=>{C.openStart=v;apply();}));
+  hr.appendChild(el("span","fl","→"));hr.appendChild(timeInput(C.openEnd,v=>{C.openEnd=v;apply();}));
+  seas.appendChild(hr);box.appendChild(seas);
+
+  const oc=el("div","ctl");oc.appendChild(el("p","lbl","Ocean safe band (shark hours)"));
+  const ohr=el("div","field-row");
+  ohr.appendChild(el("span","fl","Safe"));ohr.appendChild(timeInput(C.oceanStart,v=>{C.oceanStart=v;apply();}));
+  ohr.appendChild(el("span","fl","→"));ohr.appendChild(timeInput(C.oceanEnd,v=>{C.oceanEnd=v;apply();}));
+  oc.appendChild(ohr);box.appendChild(oc);
+
+  const dc=el("div","ctl");dc.appendChild(el("p","lbl","Course days (Sat = arrival/departure)"));
+  const dch=el("div","daychips");
+  ALL_DAYS.forEach(d=>{const b=el("button",C.days.includes(d)?"daychip on":"daychip",d);
+    b.onclick=()=>{if(C.days.includes(d)){if(C.days.length>1)C.days=C.days.filter(x=>x!==d);}else C.days=ALL_DAYS.filter(x=>C.days.includes(x)||x===d);UI.activeDay=null;apply();};dch.appendChild(b);});
+  dc.appendChild(dch);box.appendChild(dc);
+
+  const wc=el("div","ctl");wc.style.gridColumn="1/-1";wc.appendChild(el("p","lbl","Day windows (the daily skeleton)"));
+  const rows=el("div","win-rows");
+  C.windows.forEach((w,i)=>{
+    const r=el("div","win-row");r.appendChild(el("span","wtag","W"+(i+1)));
+    r.appendChild(timeInput(w.start,v=>{w.start=v;apply();}));
+    const dur=el("input","win-dur");dur.type="number";dur.min=15;dur.step=15;dur.value=w.dur;
+    dur.oninput=()=>{w.dur=Math.max(15,+dur.value||60);apply();};
+    r.appendChild(dur);r.appendChild(el("span","fl","min"));
+    r.appendChild(segCtl([["pool","Pool"],["classroom","Classroom"]],w.prefer,k=>{w.prefer=k;apply();}));
+    const del=el("button","win-del","✕");del.onclick=()=>{if(C.windows.length>1){C.windows.splice(i,1);apply();}};r.appendChild(del);
+    if(!windowInOpen(C,w))r.appendChild(el("div","win-warn","⚠ outside open hours "+C.openStart+"–"+C.openEnd));
+    rows.appendChild(r);
+  });
+  wc.appendChild(rows);
+  const add=el("button","add-btn","+ window");
+  add.onclick=()=>{const gap=widestGap(C)||{start:"14:00"};C.windows.push({id:"w"+Date.now(),start:gap.start,dur:60,prefer:"pool"});apply();};
+  wc.appendChild(add);box.appendChild(wc);
+
+  const st=el("div","ctl");st.style.gridColumn="1/-1";st.appendChild(el("p","lbl","Capacities & rates"));
+  const sr=el("div","steppers");
+  sr.appendChild(stepper("Lane cap",C.laneCap,1,20,v=>{C.laneCap=v;apply();}));
+  sr.appendChild(stepper("½-lane cap",C.halfLaneCap,1,12,v=>{C.halfLaneCap=v;apply();}));
+  sr.appendChild(stepper("Teacher €/day",C.rateTeacherDay,0,500,v=>{C.rateTeacherDay=v;apply();},10));
+  sr.appendChild(stepper("Lane €/hr",C.rateLaneHr,0,100,v=>{C.rateLaneHr=v;apply();}));
+  sr.appendChild(stepper("Other €/sess",C.rateOther,0,100,v=>{C.rateOther=v;apply();}));
+  const hl=el("div","stepper-wrap");hl.appendChild(el("div","slbl","School ½-lanes"));
+  const sw=el("button",C.halfLaneSchool?"switch on":"switch");sw.innerHTML='<span class="knob"></span>';
+  sw.onclick=()=>{C.halfLaneSchool=!C.halfLaneSchool;apply();};hl.appendChild(sw);sr.appendChild(hl);
+  st.appendChild(sr);box.appendChild(st);
+}
+
+/* ── SERVICES UI ── */
+function derivedLine(sc,D){
+  const sh=sc.shape;const bits=[];
+  if(sh.swims)bits.push((sh.swims*D)+" swim"+(sh.swims*D>1?"s":"")+(sh.swimVenue==="pool+ocean"?" (pool/ocean)":sh.swimVenue==="ocean"?" (ocean)":""));
+  if(sh.tank)bits.push(D+" tank");
+  if(sh.gymdl==="gym")bits.push(D+" gym");
+  else if(sh.gymdl==="dryland")bits.push(D+" dryland");
+  else if(sh.gymdl==="alternate")bits.push(Math.ceil(D/2)+" gym · "+Math.floor(D/2)+" dryland");
+  if(sh.recovery)bits.push(D+" recovery");
+  if(sh.classroom)bits.push(D+" classroom");
+  return bits.length?("= "+bits.join(" · ")+" / week (per group)"):"= no sessions — empty shape";
+}
+function renderServices(){
+  const box=$("#services");box.innerHTML="";
+  $("#grpCount").textContent=RESULT.groups.length+" groups";
+  const D=C.days.length;
+  C.priority.forEach((svcKey,pi)=>{
+    if(svcKey==="online-coaching")return;
+    const svc=SERVICES[svcKey];const sc=C.services[svcKey];
+    const card=el("div","svc-card");card.style.setProperty("--sc",svc.hex);
+    card.appendChild(el("div","svc-bar"));
+    const body=el("div","svc-body"+(sc.on?"":" off"));
+    const head=el("div","svc-head");
+    const sw=el("button",(sc.on?"switch on sc":"switch"));sw.innerHTML='<span class="knob"></span>';sw.style.setProperty("--sc",svc.hex);
+    sw.onclick=()=>{sc.on=!sc.on;apply();};head.appendChild(sw);
+    head.appendChild(el("div","svc-name",svc.name));
+    const prio=el("div","svc-prio");
+    const up=el("button","prio-btn","▲");up.disabled=pi===0;up.onclick=()=>{const a=C.priority;[a[pi-1],a[pi]]=[a[pi],a[pi-1]];apply();};
+    const dn=el("button","prio-btn","▼");dn.disabled=pi===C.priority.length-1;dn.onclick=()=>{const a=C.priority;[a[pi+1],a[pi]]=[a[pi],a[pi+1]];apply();};
+    prio.appendChild(up);prio.appendChild(dn);head.appendChild(prio);body.appendChild(head);
+
+    /* courses / curriculum */
+    if(svc.stroke){
+      const sec=el("div","svc-sec");sec.appendChild(el("p","svc-sech","Courses"));
+      const ch=el("div","cchips");
+      Object.keys(STROKES).forEach(ck=>{const on=(sc.courses||[]).includes(ck);
+        const b=el("button",on?"cchip on":"cchip",STROKES[ck].label);b.style.setProperty("--sc",svc.hex);
+        b.onclick=()=>{if(on){if(sc.courses.length>1)sc.courses=sc.courses.filter(x=>x!==ck);}else sc.courses=(sc.courses||[]).concat([ck]);apply();};ch.appendChild(b);});
+      sec.appendChild(ch);body.appendChild(sec);
+    }else{
+      const note=FIXED_CURRIC[svcKey]?"Fixed 8-session curriculum ("+svc.name+").":"No course dimension.";
+      const sec=el("div","svc-sec");sec.appendChild(el("p","svc-sech","Curriculum"));sec.appendChild(el("div","svc-note",note));body.appendChild(sec);
+    }
+
+    /* bands + gender */
+    const bg=el("div","svc-sec");bg.appendChild(el("p","svc-sech","Bands & gender"));
+    const bgrow=el("div","steppers");
+    const maxB=svcKey==="swim-club"?5:(svc.stroke?3:1);
+    const labels=bandLabels(svcKey,Math.max(1,sc.bands));
+    bgrow.appendChild(stepper("Bands ("+labels.join("/")+")",sc.bands,1,maxB,v=>{sc.bands=v;apply();}));
+    const gwrap=el("div","stepper-wrap");gwrap.appendChild(el("div","slbl","Gender"));
+    gwrap.appendChild(segCtl([["mixed","Mixed"],["separate","M + F"]],sc.gender,k=>{sc.gender=k;apply();},svc.hex));
+    bgrow.appendChild(gwrap);bg.appendChild(bgrow);body.appendChild(bg);
+
+    /* DAY SHAPE */
+    const sh=sc.shape;
+    const shs=el("div","svc-sec");shs.appendChild(el("p","svc-sech","Day shape (one course day for one group)"));
+    const shrow=el("div","shape");
+    shrow.appendChild(stepper("Swims",sh.swims,0,3,v=>{sh.swims=v;apply();}));
+    const svw=el("div","stepper-wrap");svw.appendChild(el("div","slbl","Swim venue"));
+    svw.appendChild(segCtl([["pool","Pool"],["pool+ocean","Pool+Ocean"],["ocean","Ocean"]],sh.swimVenue,k=>{sh.swimVenue=k;apply();},svc.hex));
+    shrow.appendChild(svw);
+    shrow.appendChild(stepper("Tank",sh.tank,0,1,v=>{sh.tank=v;apply();}));
+    const gdw=el("div","stepper-wrap");gdw.appendChild(el("div","slbl","Gym / dryland"));
+    gdw.appendChild(segCtl([["off","Off"],["gym","Gym"],["dryland","Dry"],["alternate","Alt"]],sh.gymdl,k=>{sh.gymdl=k;apply();},svc.hex));
+    shrow.appendChild(gdw);
+    shrow.appendChild(stepper("Recovery",sh.recovery,0,1,v=>{sh.recovery=v;apply();}));
+    shrow.appendChild(stepper("Classroom",sh.classroom,0,1,v=>{sh.classroom=v;apply();}));
+    /* OW-course mode where relevant */
+    const owRelevant=(svc.stroke&&(sc.courses||[]).includes("open-water"))||sh.swimVenue==="pool+ocean"||sh.swimVenue==="ocean";
+    if(owRelevant){
+      const owrap=el("div","stepper-wrap");owrap.appendChild(el("div","slbl","Open-water mode"));
+      owrap.appendChild(segCtl([["pool","Pool"],["ocean","Ocean"]],sc.owMode,k=>{sc.owMode=k;apply();},svc.hex));
+      shrow.appendChild(owrap);
+    }
+    shs.appendChild(shrow);
+    shs.appendChild(el("div","svc-derived",derivedLine(sc,D)));
+    body.appendChild(shs);
+
+    card.appendChild(body);box.appendChild(card);
+  });
+}
+
+/* ── THE WEEK UI ── */
+function renderWeek(){
+  const days=C.days;
+  if(!UI.activeDay||!days.includes(UI.activeDay))UI.activeDay=days[0];
+  $("#weekCount").textContent=RESULT.placed.length+" placed";
+  const tabs=$("#dayTabs");tabs.innerHTML="";
+  days.forEach(d=>{const cnt=RESULT.perDay[d]?RESULT.perDay[d].length:0;
+    const b=el("button",UI.activeDay===d?"daytab on":"daytab",d+`<span class="dc">${cnt}</span>`);
+    b.onclick=()=>{UI.activeDay=d;renderWeek();};tabs.appendChild(b);});
+  const view=$("#weekView");view.innerHTML="";
+  const day=UI.activeDay;const sess=(RESULT.perDay[day]||[]);
+  const WINS=sortedWindows(C);
+  /* pool grid */
+  const pool=sess.filter(s=>s.type==="pool");
+  const gw=el("div","gridwrap");const tbl=el("table","pgrid");
+  const nLanes=Math.max(1,C.lanes);
+  let head="<tr><th class='wcol'>Window</th>";for(let l=1;l<=nLanes;l++)head+=`<th>Lane ${l}</th>`;head+="</tr>";
+  tbl.appendChild(el("thead",null,head));
+  const tb=el("tbody");
+  WINS.forEach(w=>{
+    const tr=el("tr");const wc=el("td","wcol");wc.textContent=w.start;tr.appendChild(wc);
+    for(let l=1;l<=nLanes;l++){
+      const td=el("td");const inLane=pool.filter(s=>s.windowId===w.id&&laneNum(s.lane)===l);
+      const cell=el("div","cell"+(inLane.length?"":" empty"));
+      inLane.forEach(s=>cell.appendChild(chipFor(s)));
+      td.appendChild(cell);tr.appendChild(td);
+    }
+    tb.appendChild(tr);
+  });
+  tbl.appendChild(tb);gw.appendChild(tbl);view.appendChild(gw);
+  /* dry side */
+  const dry=sess.filter(s=>s.type!=="pool");
+  const strip=el("div","drystrip");strip.appendChild(el("p","svc-sech","Dry side (ocean · tank · gym · dryland · recovery · classroom)"));
+  if(!dry.length)strip.appendChild(el("div","dry-empty","No dry-side sessions this day."));
+  else WINS.forEach(w=>{const ws=dry.filter(s=>s.windowId===w.id);if(!ws.length)return;
+    const wb=el("div","dry-win");wb.appendChild(el("div","dry-winh",w.start+" · "+[...new Set(ws.map(s=>V_LABEL[s.type]))].join(" · ")));
+    const ch=el("div","dry-chips");ws.forEach(s=>ch.appendChild(chipFor(s,true)));wb.appendChild(ch);strip.appendChild(wb);});
+  view.appendChild(strip);
+}
+function laneNum(lane){if(lane==null)return -1;return parseInt(String(lane),10);}
+function chipFor(s,dry){
+  const b=el("button","chip");b.style.background=svcColor(s.svc);
+  const c1=SERVICES[s.svc].short+((s.svc==="swim-club"||s.svc==="swim-school"||s.svc==="swim-camps")&&s.bandLabel&&s.bandLabel!=="All"?" · "+s.bandLabel:"");
+  let c2=(dry?V_LABEL[s.type]+" · ":"")+(SERVICES[s.svc].stroke?(STROKES[s.course]?.label||""):"")+(s.gender!=="mixed"?" · "+SIDE[s.gender]:"")+(s.lane?" · L"+s.lane:"");
+  b.innerHTML=`<span class="c1">${c1}</span><span class="c2">${c2.trim()||V_LABEL[s.type]}</span>`;
+  b.onclick=()=>openPop(s);return b;
+}
+
+/* ── popover ── */
+function openPop(s){
+  closePop();
+  const back=el("div","pop-back");back.onclick=e=>{if(e.target===back)closePop();};
+  const p=el("div","pop");const svc=SERVICES[s.svc];
+  const pinnedNow=(C.pins||[]).some(x=>x.groupId===s.groupId&&x.type===s.type&&(x.seq||0)===s.seq&&x.day===s.day);
+  const h=el("div","pop-h");h.appendChild(el("div","pop-t",s.title));
+  const x=el("button","pop-x","×");x.onclick=closePop;h.appendChild(x);p.appendChild(h);
+  const sub=el("span","pop-sub",svc.short+" · "+(s.bandLabel||"All")+(s.gender!=="mixed"?" · "+SIDE[s.gender]:""));sub.style.background=svc.hex;p.appendChild(sub);
+  const rows=el("div","pop-rows");const w=C.windows.find(x=>x.id===s.windowId);
+  rows.innerHTML=`
+    <div><dt>Day</dt><dd>${s.day}</dd></div>
+    <div><dt>Time</dt><dd>${s.time} (${w?w.dur:60} min)</dd></div>
+    <div><dt>Venue</dt><dd>${V_VENUE[s.type]}${s.lane?" · Lane "+s.lane:""}</dd></div>
+    <div><dt>Teacher</dt><dd>${teacherName(s.teacher)}${s.cover?" (cover)":""}</dd></div>`;
+  p.appendChild(rows);
+  const acts=el("div","pop-acts");
+  const pin=el("button","pop-btn"+(pinnedNow?" pinned":""),pinnedNow?"Unpin":"Pin");pin.onclick=()=>{togglePin(s);closePop();};acts.appendChild(pin);
+  const rm=el("button","pop-btn rm","Remove for this solve");rm.onclick=()=>{removeSession(s);closePop();};acts.appendChild(rm);
+  p.appendChild(acts);
+  const moves=legalMoves(s);
+  if(moves.length){const mv=el("div","pop-move");mv.appendChild(el("div","pop-moveh","Move to…"));
+    const mvs=el("div","pop-moves");moves.slice(0,12).forEach(m=>{const b=el("button","pop-mv",m.day+" "+m.win.start+(s.type==="pool"?" · L"+m.lane:""));b.onclick=()=>{moveTo(s,m);closePop();};mvs.appendChild(b);});
+    mv.appendChild(mvs);p.appendChild(mv);}
+  back.appendChild(p);document.body.appendChild(back);UI.pop=back;
+}
+function closePop(){if(UI.pop){UI.pop.remove();UI.pop=null;}}
+function teacherName(n){return n===0?"Sean":"Teacher "+(n+1);}
+function togglePin(s){C.pins=C.pins||[];
+  const i=C.pins.findIndex(x=>x.groupId===s.groupId&&x.type===s.type&&(x.seq||0)===s.seq&&x.day===s.day);
+  if(i>=0){C.pins.splice(i,1);toast("Unpinned");}else{C.pins.push({groupId:s.groupId,type:s.type,seq:s.seq,day:s.day,windowId:s.windowId});toast("Pinned to "+s.day+" "+s.time);}
+  apply();}
+function removeSession(s){C._excl=C._excl||[];C._excl.push(s.groupId+"|"+s.type+"|"+s.seq+"|"+s.day+"|"+s.windowId);toast("Removed (this solve)");apply();}
+function legalMoves(s){
+  const out=[];const need=s.svc==="swim-school"&&C.halfLaneSchool?0.5:1;
+  for(const day of C.days)for(const w of sortedWindows(C)){
+    if(s.type==="ocean"&&!windowInOcean(C,w))continue;
+    if(day===s.day&&w.id===s.windowId)continue;
+    const tN=RESULT.placed.filter(p=>p.day===day&&p.windowId===w.id&&p!==s).length;
+    if(tN>=C.teachers)continue;
+    if(s.type==="pool"){
+      const occ=RESULT.placed.filter(p=>p.day===day&&p.windowId===w.id&&p.type==="pool"&&p!==s);
+      const laneN=occ.reduce((a,p)=>a+(/[AB]$/.test(String(p.lane))?0.5:1),0);
+      if(laneN+need>C.lanes)continue;out.push({day,win:w,lane:Math.floor(laneN)+1});
+    }else{
+      const vN=RESULT.placed.filter(p=>p.day===day&&p.windowId===w.id&&p.type===s.type&&p!==s).length;
+      if(vN>=(V_CAP[s.type]||1))continue;out.push({day,win:w,lane:null});
+    }
+  }
+  return out;
+}
+function moveTo(s,m){C.pins=C.pins||[];
+  const i=C.pins.findIndex(x=>x.groupId===s.groupId&&x.type===s.type&&(x.seq||0)===s.seq&&x.day===s.day);
+  const pin={groupId:s.groupId,type:s.type,seq:s.seq,day:m.day,windowId:m.win.id};
+  if(i>=0)C.pins[i]=pin;else C.pins.push(pin);toast("Moved to "+m.day+" "+m.win.start);apply();}
+
+/* ── TEACHERS UI ── */
+function renderTeachers(){
+  const box=$("#teacherCols");box.innerHTML="";
+  $("#tCount").textContent=C.teachers+(C.teachers===1?" (Sean)":" teachers");
+  for(let n=0;n<C.teachers;n++){
+    const col=el("div","tcol");const sess=RESULT.perTeacher[n]||[];
+    const h=el("div","tcol-h");h.appendChild(el("div","tcol-nm",teacherName(n)));h.appendChild(el("div","tcol-ct",sess.length+"h"));col.appendChild(h);
+    const dbox=el("div","tcol-days");
+    C.days.forEach(d=>{const ds=sess.filter(s=>s.day===d).sort((a,b)=>toMin(a.time)-toMin(b.time));if(!ds.length)return;
+      const dd=el("div","tcol-day");dd.appendChild(el("div","tcol-dn",d));
+      ds.forEach(s=>{const t=el("div","tsess");t.style.background=svcColor(s.svc);t.innerHTML=s.time+" "+SERVICES[s.svc].short+(s.cover?'<span class="cov">cover</span>':"");dd.appendChild(t);});
+      dbox.appendChild(dd);});
+    if(!sess.length)dbox.appendChild(el("div","tcol-free","Free all week"));
+    col.appendChild(dbox);box.appendChild(col);
+  }
+}
+
+/* ── COURSE PLANS UI ── */
+function renderCoursePlans(){
+  const box=$("#coursePlans");box.innerHTML="";
+  const byGroup={};for(const s of RESULT.placed)(byGroup[s.groupId]=byGroup[s.groupId]||[]).push(s);
+  const groups=RESULT.groups.filter(g=>byGroup[g.id]);
+  $("#cpCount").textContent=groups.length+" plans";
+  if(!groups.length){box.appendChild(el("div","noday","No groups placed yet — turn a service on."));return;}
+  groups.forEach(g=>{
+    const svc=SERVICES[g.svc];const acc=el("div","cp-acc");acc.style.setProperty("--sc",svc.hex);
+    const head=el("div","cp-head");const sw=el("span","cp-swatch");sw.style.background=svc.hex;head.appendChild(sw);
+    const title=svc.short+(SERVICES[g.svc].stroke?" · "+(STROKES[g.course]?.label||g.course):"")+" · "+(g.bandLabel||"All")+(g.gender!=="mixed"?" · "+SIDE[g.gender]:"");
+    head.appendChild(el("div","cp-title",title));
+    const sess=byGroup[g.id].slice().sort((a,b)=>(C.days.indexOf(a.day)-C.days.indexOf(b.day))||(toMin(a.time)-toMin(b.time)));
+    head.appendChild(el("div","cp-meta",sess.length+" sessions"));
+    const caret=el("div","cp-caret","▸");head.appendChild(caret);
+    const bodyEl=el("div","cp-body");bodyEl.style.display="none";
+    let k=1;sess.forEach(s=>{const r=el("div","cp-row");r.appendChild(el("span","cp-n",String(k++)));
+      r.appendChild(el("span","cp-when",s.day+" · "+s.time));r.appendChild(el("span","cp-cls",s.title));
+      r.appendChild(el("span","cp-ven",V_LABEL[s.type]+(s.lane?" L"+s.lane:"")));bodyEl.appendChild(r);});
+    head.onclick=()=>{const open=bodyEl.style.display==="none";bodyEl.style.display=open?"block":"none";caret.textContent=open?"▾":"▸";};
+    acc.appendChild(head);acc.appendChild(bodyEl);box.appendChild(acc);
+  });
+}
+
+/* ── BUSINESS UI ── */
+function renderBusiness(){
+  const st=RESULT.stats;const grid=$("#bizGrid");grid.innerHTML="";
+  const box=(k,v,sub,cls)=>{const b=el("div","biz-box");b.appendChild(el("div","biz-k",k));b.appendChild(el("div","biz-v"+(cls?" "+cls:""),v));if(sub)b.appendChild(el("div","biz-sub",sub));return b;};
+  grid.appendChild(box("Revenue (full)","€"+st.revFull.toLocaleString(),"all seats sold"));
+  grid.appendChild(box("Revenue at "+C.fill+"%","€"+st.revFill.toLocaleString(),"seats actually sold"));
+  grid.appendChild(box("Costs","€"+st.cost.toLocaleString(),"€"+st.teacherCost.toLocaleString()+" staff + €"+st.facilityCost.toLocaleString()+" facility"));
+  grid.appendChild(box("Profit","€"+st.profit.toLocaleString(),"at "+C.fill+"% fill",st.profit>=0?"pos":"neg"));
+  grid.appendChild(box("Break-even fill",""+st.breakEven+"%","seats to cover cost"));
+  const util=$("#bizUtil");util.innerHTML="";
+  util.appendChild(bar("Lane-hours used",st.laneHrs+" / "+st.laneHrsAvail+" hr",st.laneUtil));
+  util.appendChild(bar("Teacher-hours used",st.teacherHrsUsed+" / "+st.teacherHrsAvail+" hr",st.teacherUtil));
+  const mbox=$("#marginals");mbox.innerHTML="";
+  marginals(C,st).forEach(m=>{const zero=m.noop||(m.dPlaced<=0&&m.dRev<=0);
+    const c=el("div","mchip"+(zero?" zero":""));c.appendChild(el("div","mchip-k",m.key));
+    c.appendChild(el("div","mchip-v",zero?"no change (already maxed)":("+"+m.dPlaced+" sessions ≈ +€"+Math.round(m.dRev).toLocaleString()+"/wk")));mbox.appendChild(c);});
+  const dbox=$("#diagnostics");dbox.innerHTML="";
+  if(!RESULT.overflow.length){dbox.appendChild(el("div","diag-none","✓ Every demanded session was placed — nothing dropped. ("+st.placedCount+" placed / "+st.demandCount+" demanded)"));}
+  else{
+    const agg={};RESULT.overflow.forEach(o=>{const kk=o.group+"|"+o.type+"|"+o.reason;agg[kk]=agg[kk]||{...o,n:0};agg[kk].n++;});
+    Object.values(agg).forEach(o=>{const g=RESULT.groups.find(x=>x.id===o.group);
+      const label=g?(SERVICES[g.svc].short+" · "+(g.bandLabel||"All")):o.group;
+      const warn=/ocean skipped/.test(o.reason);
+      const item=el("div","diag-item");item.appendChild(el("div","diag-tag"+(warn?" warn":""),(o.n>1?o.n+"× ":"")+V_LABEL[o.type]));
+      item.appendChild(el("div","diag-txt","<b>"+label+"</b> — "+o.reason));
+      const fix=suggestFix(o);if(fix){const b=el("button","diag-fix",fix.label);b.onclick=fix.act;item.appendChild(b);}dbox.appendChild(item);});
+  }
+}
+function bar(label,val,pct){const w=el("div","util");const h=el("div","util-h");h.appendChild(el("span",null,label));h.appendChild(el("span",null,val+" · "+pct+"%"));w.appendChild(h);
+  const b=el("div","util-bar");const f=el("div","util-fill");f.style.width=Math.min(100,pct)+"%";b.appendChild(f);w.appendChild(b);return w;}
+function suggestFix(o){const r=o.reason||"";
+  if(/no free teacher/.test(r)&&C.teachers<10)return {label:"+1 teacher",act:()=>{C.teachers++;apply();toast("Added a teacher");}};
+  if(/lanes taken/.test(r)&&C.lanes<8)return {label:"+1 lane",act:()=>{C.lanes++;apply();toast("Added a lane");}};
+  if(/safe band/.test(r))return {label:"widen band",act:()=>{C.oceanStart=fromMin(Math.max(0,toMin(C.oceanStart)-60));C.oceanEnd=fromMin(toMin(C.oceanEnd)+60);apply();toast("Widened ocean band");}};
+  const g=RESULT.groups.find(x=>x.id===o.group);
+  if(g&&g.svc==="swim-school"&&!C.halfLaneSchool)return {label:"School ½-lanes",act:()=>{C.halfLaneSchool=true;apply();toast("School half-lanes on");}};
+  const gap=widestGap(C);if(gap)return {label:"add "+gap.start+" window",act:()=>{C.windows.push({id:"w"+Date.now(),start:gap.start,dur:60,prefer:"pool"});apply();toast("Added "+gap.start+" window");}};
+  return null;}
+
+/* ── SCENARIOS UI ── */
+function renderScenarios(){
+  const list=$("#scnList");list.innerHTML="";const scns=loadScenarios();
+  if(!scns.length){list.appendChild(el("div","scn-empty","No saved scenarios yet."));return;}
+  scns.forEach((s,i)=>{const r=el("div","scn-row");r.appendChild(el("div","scn-nm",s.name));
+    const load=el("button","scn-btn","Load");load.onclick=()=>{C=Object.assign(defaultConfig(),s.config);UI.activeDay=null;apply();toast("Loaded "+s.name);};
+    const del=el("button","scn-btn del","Delete");del.onclick=()=>{const all=loadScenarios();all.splice(i,1);saveScenarios(all);renderScenarios();toast("Deleted");};
+    r.appendChild(load);r.appendChild(del);list.appendChild(r);});
+}
+$("#scnSave").onclick=()=>{const nm=($("#scnName").value||"").trim()||("Scenario "+(loadScenarios().length+1));
+  const all=loadScenarios();all.push({name:nm,config:JSON.parse(JSON.stringify(C))});saveScenarios(all);$("#scnName").value="";renderScenarios();toast("Saved "+nm);};
+$("#scnExport").onclick=()=>{const data=JSON.stringify({config:C,result:{placed:RESULT.placed,overflow:RESULT.overflow,stats:RESULT.stats}},null,2);
+  const blob=new Blob([data],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="sssc-scheduler-brain.json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast("Exported JSON");};
+
+/* ── FIRST PAINT ── */
+apply();
+</script>
+</body>
+</html>
