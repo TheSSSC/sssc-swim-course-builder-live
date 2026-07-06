@@ -51,10 +51,11 @@
       0 0 0 2px rgba(var(--pill-r),var(--pill-g),var(--pill-b),.22),
       0 0 16px 2px rgba(var(--pill-r),var(--pill-g),var(--pill-b),.32);}
 
-  /* segmented control */
-  .seg{display:inline-flex;max-width:100%;flex-wrap:wrap;gap:4px;background:#e7eaf1;border-radius:16px;padding:4px;
-    box-shadow:inset 1px 1px 4px rgba(174,178,196,.5),inset -1px -1px 2px #fff;}
-  .seg button{border:0;cursor:pointer;font:inherit;font-size:12.5px;font-weight:600;color:var(--ink-soft);background:transparent;border-radius:999px;padding:7px 12px;transition:.18s;display:inline-flex;align-items:center;gap:6px;}
+  /* segmented control — single-row horizontal scroll like the client app's scrollable menu (no wrap) */
+  .seg{display:inline-flex;max-width:100%;flex-wrap:nowrap;overflow-x:auto;gap:4px;background:#e7eaf1;border-radius:16px;padding:4px;
+    box-shadow:inset 1px 1px 4px rgba(174,178,196,.5),inset -1px -1px 2px #fff;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  .seg::-webkit-scrollbar{display:none;}
+  .seg button{border:0;cursor:pointer;font:inherit;font-size:12.5px;font-weight:600;color:var(--ink-soft);background:transparent;border-radius:999px;padding:7px 12px;transition:.18s;display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;white-space:nowrap;}
   .seg button:hover{color:var(--ink);}
   .seg button.on{color:var(--svc);font-weight:700;background:#fff;box-shadow:0 1px 3px rgba(174,178,196,.45),0 0 0 1px rgba(var(--pill-r),var(--pill-g),var(--pill-b),.18);}
   .seg.sc button.on{color:var(--sc);box-shadow:0 1px 3px rgba(174,178,196,.45),0 0 0 1px var(--sc);}
